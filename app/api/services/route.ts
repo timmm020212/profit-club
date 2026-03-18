@@ -17,6 +17,7 @@ export async function GET() {
       price: service.price,
       duration: service.duration,
       imageUrl: service.imageUrl || null,
+      category: (service as any).category ?? null,
       orderDesktop: service.orderDesktop,
       orderMobile: service.orderMobile,
       badgeText: service.badgeText,

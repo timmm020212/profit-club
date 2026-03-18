@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 
 interface BookingServiceCardProps {
@@ -9,7 +11,8 @@ interface BookingServiceCardProps {
   duration?: number | string | null;
   category?: string | null;
   badgeText?: string | null;
-  badgeType?: 'dark' | 'light' | 'accent' | 'discount' | null;
+  badgeType?: "dark" | "light" | "accent" | "discount" | null;
+  featured?: boolean;
   onBook: () => void;
 }
 
@@ -21,99 +24,124 @@ const BookingServiceCard: React.FC<BookingServiceCardProps> = ({
   duration,
   category,
   badgeText,
-  badgeType,
   onBook,
 }) => {
-  const getBadgeClass = () => {
-    switch (badgeType) {
-      case 'dark': return 'bg-badge-dark text-text-primary border border-border';
-      case 'light': return 'bg-badge-light text-text-primary';
-      case 'accent': return 'bg-badge-accent text-white';
-      case 'discount': return 'bg-accent-primary text-white';
-      default: return 'bg-badge-dark text-text-primary border border-border';
-    }
-  };
-
-  const durationLabel = duration ? `${duration} мин` : null;
-
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 hover:border-gray-200 h-full flex flex-col">
+    <div
+      className="group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white transition-all duration-300 hover:-translate-y-0.5"
+      style={{
+        border: "1px solid rgba(0,0,0,0.07)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+      }}
+    >
       {/* Image */}
-      <div className="relative h-64 md:h-72 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+      <div className="relative h-48 flex-shrink-0 overflow-hidden bg-[#f0eeeb]">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={name}
             fill
-            className="object-cover transition-transform duration-700 group-hover:scale-110"
-            sizes="(max-width:768px) 100vw, 50vw"
-            quality={90}
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
+            quality={85}
             unoptimized
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#E8D5C4] to-[#D4C4B0]">
-            <span className="text-[#2A2A2A]/40 text-4xl" style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 200 }}>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#ede9e3] to-[#e4e0d8]">
+            <span
+              className="text-6xl select-none"
+              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 200, color: "rgba(0,0,0,0.07)" }}
+            >
               {name.charAt(0)}
             </span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        {badgeText && (
-          <div className={`absolute top-4 right-4 z-10 px-3 py-1.5 rounded-sm text-xs font-medium ${getBadgeClass()}`}
-               style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 400 }}>
-            {badgeText}
-          </div>
-        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
         {category && (
-          <div className="absolute top-4 left-4 z-10">
-            <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-[#2A2A2A] text-xs font-medium rounded-full"
-                  style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 400 }}>
-              {category}
-            </span>
-          </div>
+          <span
+            className="absolute bottom-3 left-3 text-[10px] font-medium uppercase tracking-wider rounded-full px-2.5 py-1 backdrop-blur-md"
+            style={{
+              fontFamily: "var(--font-montserrat)",
+              color: "rgba(255,255,255,0.9)",
+              background: "rgba(0,0,0,0.35)",
+              border: "1px solid rgba(255,255,255,0.15)",
+            }}
+          >
+            {category}
+          </span>
+        )}
+
+        {badgeText && (
+          <span
+            className="absolute top-3 right-3 text-[10px] font-medium rounded-md px-2.5 py-1 text-white"
+            style={{ fontFamily: "var(--font-montserrat)", background: "#B2223C" }}
+          >
+            {badgeText}
+          </span>
         )}
       </div>
 
       {/* Content */}
-      <div className="p-5 md:p-6 flex flex-col flex-grow">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg md:text-xl font-medium text-[#2A2A2A] mb-2.5 leading-tight min-w-0"
-              style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 500 }}>
-            {name}
-          </h3>
-          {durationLabel && (
-            <div className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1 text-xs text-[#2A2A2A]/70 whitespace-nowrap flex-shrink-0"
-                 style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 400 }}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {durationLabel}
-            </div>
-          )}
-        </div>
+      <div className="flex flex-col flex-grow p-4 gap-2">
 
-        <p className="text-sm text-[#2A2A2A]/65 mb-4 leading-relaxed line-clamp-3 h-12"
-           style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 300 }}>
+        {duration && (
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3 h-3 text-[#aaa] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span
+              className="text-[11px] text-[#aaa]"
+              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400 }}
+            >
+              {duration} мин
+            </span>
+          </div>
+        )}
+
+        <h3
+          className="text-[15px] leading-snug text-[#1a1a1a]"
+          style={{ fontFamily: "var(--font-montserrat)", fontWeight: 600, letterSpacing: "-0.01em" }}
+        >
+          {name}
+        </h3>
+
+        <p
+          className="text-[12.5px] leading-relaxed flex-grow text-[#888]"
+          style={{
+            fontFamily: "var(--font-montserrat)", fontWeight: 400,
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+          }}
+        >
           {description}
         </p>
 
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-auto">
-          {price && (
-            <span className="text-lg font-semibold text-[#2A2A2A] tabular-nums"
-                  style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 600 }}>
+        <div
+          className="flex items-center justify-between gap-3 mt-2 pt-3"
+          style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+        >
+          {price ? (
+            <span
+              className="text-[14px] tabular-nums text-[#1a1a1a]"
+              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 600 }}
+            >
               {price}
             </span>
-          )}
+          ) : <span />}
+
           <button
             type="button"
             onClick={onBook}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium bg-[#B2223C] text-white shadow-lg shadow-[#B2223C]/20 hover:bg-[#9a1b32] hover:shadow-[#B2223C]/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ml-auto"
-            style={{ fontFamily: 'var(--font-montserrat)', fontWeight: 500 }}
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-95 flex-shrink-0"
+            style={{
+              fontFamily: "var(--font-montserrat)", fontWeight: 500,
+              background: "linear-gradient(135deg, #B2223C, #d4395a)",
+              boxShadow: "0 2px 12px rgba(178,34,60,0.25)",
+            }}
           >
-            <span>Записаться</span>
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            Записаться
           </button>
         </div>
       </div>

@@ -7,115 +7,114 @@ import { useRegistration } from "./RegistrationProvider";
 export default function Header() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
-  const registration = useRegistration(); // Хук безопасный и не выбросит ошибку
-  
+  const [search, setSearch] = useState("");
+  const registration = useRegistration();
+
   useEffect(() => {
     const syncFromStorage = () => {
-      if (typeof window !== "undefined") {
-        try {
-          const status = localStorage.getItem("profit_club_user_registered");
-          const storedName = localStorage.getItem("profit_club_user_name");
-
-          if (status === "verified") {
-            setIsRegistered(true);
-            setUserName(storedName || null);
-          } else {
-            setIsRegistered(false);
-            setUserName(null);
-          }
-        } catch (e) {
-          console.error("Error reading registration state from localStorage", e);
-        }
-      }
+      if (typeof window === "undefined") return;
+      try {
+        const status = localStorage.getItem("profit_club_user_registered");
+        const storedName = localStorage.getItem("profit_club_user_name");
+        if (status === "verified") { setIsRegistered(true); setUserName(storedName || null); }
+        else { setIsRegistered(false); setUserName(null); }
+      } catch {}
     };
-
     syncFromStorage();
     window.addEventListener("profit_club_auth_changed", syncFromStorage);
-    return () => {
-      window.removeEventListener("profit_club_auth_changed", syncFromStorage);
-    };
+    return () => window.removeEventListener("profit_club_auth_changed", syncFromStorage);
   }, []);
-  
-  const handleOpenRegistration = () => {
-    registration.openLogin();
-  };
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("profit_club_user_registered");
-        localStorage.removeItem("profit_club_user_name");
-        localStorage.removeItem("profit_club_telegram_id");
-      } catch (e) {
-        console.error("Error clearing registration state", e);
-      }
-    }
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem("profit_club_user_registered");
+      localStorage.removeItem("profit_club_user_name");
+      localStorage.removeItem("profit_club_telegram_id");
+    } catch {}
     setIsRegistered(false);
     setUserName(null);
+    window.dispatchEvent(new Event("profit_club_auth_changed"));
+  };
 
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("profit_club_auth_changed"));
-    }
-
-    // После выхода можно сразу открыть модалку, чтобы протестировать новую регистрацию
-    // registration.openRegistration();
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    window.dispatchEvent(new CustomEvent("profit_club_search", { detail: { query: value } }));
+    // если пользователь не на главной — прокрутить к услугам
+    const el = document.getElementById("services");
+    if (el && value) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
-    <header className="bg-transparent sticky top-0 z-50 overflow-visible border-b border-[#E5E5E5]/60">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="relative h-16 md:h-20 lg:h-24 w-auto -mt-1">
+    <header className="sticky top-0 z-50 border-b border-white/[0.07]"
+      style={{ background: "rgba(9,9,13,0.85)", backdropFilter: "blur(20px)" }}>
+      <div className="mx-auto max-w-5xl px-4 py-3">
+        <div className="flex items-center gap-4">
+
+          {/* Logo */}
+          <div className="flex-shrink-0 relative h-12 w-auto">
             <Image
               src="/logo/logo1.png"
               alt="Profit Club"
-              width={200}
-              height={96}
+              width={140}
+              height={48}
               className="h-full w-auto object-contain"
               priority
             />
           </div>
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={isRegistered ? handleLogout : handleOpenRegistration}
-              className={`flex items-center gap-3 rounded-full px-5 py-2 text-sm shadow-md transition-colors ${
-                isRegistered
-                  ? "bg-[#B2223C] hover:bg-[#D13B50] text-white"
-                  : "bg-white hover:bg-[#F5F5F5] text-[#B2223C]"
-              }`}
-              style={{ fontFamily: 'var(--font-montserrat)' }}
-            >
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  isRegistered ? "bg-white/15 text-white" : "bg-[#B2223C] text-white"
-                }`}
+
+          {/* Search — pill, center */}
+          <div className="flex-1 relative min-w-0">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Найти услугу..."
+              className="w-full rounded-full border border-white/[0.09] bg-white/[0.05] pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none transition-all duration-200 focus:border-[#B2223C]/50 focus:bg-white/[0.07]"
+              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400, fontSize: 13 }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => handleSearch("")}
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-600 hover:text-zinc-300 transition-colors"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.67-6 3.75A.75.75 0 0 0 6.75 19.5h10.5A.75.75 0 0 0 18 17.75C18 15.67 15.33 14 12 14Z"
-                  />
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="text-xs md:text-sm font-medium leading-tight max-w-[140px] md:max-w-[200px] truncate">
-                  {isRegistered ? userName || "Пользователь" : "Войти"}
-                </span>
-              </div>
-            </button>
+              </button>
+            )}
           </div>
+
+          {/* Auth button */}
+          <button
+            type="button"
+            onClick={isRegistered ? handleLogout : registration.openLogin}
+            className={`flex-shrink-0 flex items-center gap-2.5 rounded-full px-4 py-2 text-sm transition-all duration-200 ${
+              isRegistered
+                ? "bg-[#B2223C] hover:bg-[#c9294a] text-white"
+                : "bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-zinc-300"
+            }`}
+            style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400, fontSize: 13 }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.8" className="w-4 h-4 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.67-6 3.75A.75.75 0 0 0 6.75 19.5h10.5A.75.75 0 0 0 18 17.75C18 15.67 15.33 14 12 14Z" />
+            </svg>
+            <span className="hidden sm:block max-w-[120px] truncate">
+              {isRegistered ? (userName || "Профиль") : "Войти"}
+            </span>
+          </button>
+
         </div>
       </div>
     </header>
   );
 }
-
