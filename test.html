@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Тест JavaScript</title>
+    <style>
+        body {
+            background-color: red;
+            color: white;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            background-color: blue;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        #log {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест JavaScript (чистый HTML)</h1>
+    
+    <button onclick="testInline()">Inline onClick</button>
+    <button id="testButton">addEventListener</button>
+    
+    <div id="log">Лог будет здесь...</div>
+    
+    <script>
+        console.log('Script loaded');
+        document.getElementById('log').innerHTML += 'Script loaded<br>';
+        
+        function testInline() {
+            console.log('Inline clicked!');
+            alert('Inline onClick работает!');
+            document.getElementById('log').innerHTML += 'Inline clicked!<br>';
+        }
+        
+        document.getElementById('testButton').addEventListener('click', function() {
+            console.log('addEventListener clicked!');
+            alert('addEventListener работает!');
+            document.getElementById('log').innerHTML += 'addEventListener clicked!<br>';
+        });
+        
+        document.getElementById('log').innerHTML += 'Event listeners attached<br>';
+    </script>
+</body>
+</html>

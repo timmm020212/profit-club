@@ -1,0 +1,2089 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type ServiceItem = {
+  id: number;
+  name: string;
+  description: string;
+  price: string | null;
+  duration: number;
+  imageUrl?: string | null;
+  orderDesktop?: number;
+  orderMobile?: number;
+  badgeText: string | null;
+  badgeType: string | null;
+  executorRole?: string | null;
+};
+
+type ServiceDraft = {
+  name: string;
+  description: string;
+  price: string;
+  duration: string;
+  imageUrl: string;
+  badgeText: string;
+  badgeType: string;
+  executorRole: string;
+};
+
+const emptyDraft: ServiceDraft = {
+  name: "",
+  description: "",
+  price: "",
+  duration: "60",
+  imageUrl: "",
+  badgeText: "",
+  badgeType: "",
+  executorRole: "",
+};
+
+function toDraft(s: ServiceItem): ServiceDraft {
+  return {
+    name: s.name || "",
+    description: s.description || "",
+    price: s.price || "",
+    duration: String(s.duration ?? 60),
+    imageUrl: s.imageUrl || "",
+    badgeText: s.badgeText || "",
+    badgeType: s.badgeType || "",
+    executorRole: (s.executorRole || "") as string,
+  };
+}
+
+function normalizePayload(draft: ServiceDraft) {
+  const durationNum = Number(draft.duration);
+  const badgeTypeNormalized = draft.badgeType.trim();
+  return {
+    name: draft.name.trim(),
+    description: draft.description.trim(),
+    price: draft.price.replace(/\D+/g, "").trim() ? `${draft.price.replace(/\D+/g, "").trim()} ₽` : null,
+    duration: Number.isFinite(durationNum) ? durationNum : 60,
+    imageUrl: draft.imageUrl.trim() ? draft.imageUrl.trim() : null,
+    badgeText: draft.badgeText.trim() ? draft.badgeText.trim() : null,
+    badgeType: badgeTypeNormalized ? badgeTypeNormalized.toLowerCase() : null,
+    executorRole: draft.executorRole.trim() ? draft.executorRole.trim() : null,
+  };
+}
+
+function AdminSiteServicesManager() {
+  const router = useRouter();
+
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [layoutMode, setLayoutMode] = useState<"desktop" | "mobile">("desktop");
+  const [ordered, setOrdered] = useState<ServiceItem[]>([]);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderSavedOnce, setOrderSavedOnce] = useState(false);
+
+  const [query, setQuery] = useState("");
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<ServiceDraft>(emptyDraft);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
+  const [badgeTextTouched, setBadgeTextTouched] = useState(false);
+  const [badgeTextMenuOpen, setBadgeTextMenuOpen] = useState(false);
+  const [badgeTypeMenuOpen, setBadgeTypeMenuOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const badgeTextMenuRef = useRef<HTMLDivElement | null>(null);
+  const badgeTypeMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!badgeTextMenuOpen && !badgeTypeMenuOpen) return;
+
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+
+      if (badgeTextMenuOpen && badgeTextMenuRef.current?.contains(target)) return;
+      if (badgeTypeMenuOpen && badgeTypeMenuRef.current?.contains(target)) return;
+
+      setBadgeTextMenuOpen(false);
+      setBadgeTypeMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [badgeTextMenuOpen, badgeTypeMenuOpen]);
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        const mastersRes = await fetch("/api/masters", { cache: "no-store" });
+        const mastersData = mastersRes.ok ? await mastersRes.json().catch(() => []) : [];
+        const fromMasters = Array.isArray(mastersData)
+          ? mastersData
+              .map((m: any) => String(m?.specialization || "").trim())
+              .filter((x: string) => x)
+          : [];
+
+        const normalized = new Set<string>();
+        for (const spec of fromMasters) {
+          if (spec === "барбер, мастер депиляции") {
+            normalized.add("барбер");
+            normalized.add("мастер депиляции");
+            continue;
+          }
+
+          if (spec === "мастер маникюра и педикюра, мастер депиляции") {
+            normalized.add("мастер депиляции");
+            continue;
+          }
+
+          normalized.add(spec);
+        }
+
+        if (typeof window !== "undefined") {
+          try {
+            const raw = window.localStorage.getItem("pc_admin_roles");
+            const parsed = raw ? JSON.parse(raw) : [];
+            if (Array.isArray(parsed)) {
+              parsed
+                .filter((r) => typeof r === "string")
+                .map((r) => String(r).trim())
+                .filter(Boolean)
+                .forEach((r) => normalized.add(r));
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        const list = Array.from(normalized);
+        list.sort((a, b) => a.localeCompare(b));
+        setRoleOptions(list);
+      } catch {
+        setRoleOptions([]);
+      }
+    };
+
+    loadRoles();
+  }, []);
+
+  async function loadServices() {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/services", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось загрузить услуги");
+      const list: ServiceItem[] = Array.isArray(data) ? data : [];
+      setServices(list);
+
+      const sorted = list.slice().sort((a, b) => {
+        const ao = (layoutMode === "desktop" ? a.orderDesktop : a.orderMobile) ?? 0;
+        const bo = (layoutMode === "desktop" ? b.orderDesktop : b.orderMobile) ?? 0;
+        if (ao !== bo) return ao - bo;
+        return a.id - b.id;
+      });
+      setOrdered(sorted);
+    } catch (e: any) {
+      setError(e?.message || "Ошибка загрузки");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadServices();
+  }, [layoutMode]);
+
+  // layoutMode переключается вручную из UI
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return ordered;
+    return ordered.filter((s) => {
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        (s.price || "").toLowerCase().includes(q) ||
+        (s.badgeText || "").toLowerCase().includes(q)
+      );
+    });
+  }, [query, ordered]);
+
+  function arrayMove<T>(arr: T[], from: number, to: number): T[] {
+    const next = arr.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+  }
+
+  function handleDragStart(id: number) {
+    setDraggingId(id);
+  }
+
+  function handleDragOver(overId: number) {
+    if (draggingId == null) return;
+    if (draggingId === overId) return;
+    setOrdered((prev) => {
+      const from = prev.findIndex((x) => x.id === draggingId);
+      const to = prev.findIndex((x) => x.id === overId);
+      if (from === -1 || to === -1) return prev;
+      return arrayMove(prev, from, to);
+    });
+  }
+
+  async function handleSaveOrder() {
+    try {
+      setSavingOrder(true);
+      setError(null);
+      const items = ordered.map((s, idx) => ({ id: s.id, order: idx }));
+
+      const res = await fetch("/api/services/order", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: layoutMode, items }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось сохранить порядок");
+
+      setOrderSavedOnce(true);
+
+      setServices((prev) =>
+        prev.map((s) => {
+          const idx = items.find((i) => i.id === s.id)?.order;
+          if (idx === undefined) return s;
+          return layoutMode === "desktop"
+            ? { ...s, orderDesktop: idx }
+            : { ...s, orderMobile: idx };
+        }),
+      );
+    } catch (e: any) {
+      setError(e?.message || "Ошибка сохранения порядка");
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
+  function openCreate() {
+    setMode("create");
+    setActiveId(null);
+    setDraft(emptyDraft);
+    setBadgeTextTouched(false);
+    setBadgeTextMenuOpen(false);
+    setBadgeTypeMenuOpen(false);
+    setDrawerOpen(true);
+  }
+
+  function openEdit(s: ServiceItem) {
+    setMode("edit");
+    setActiveId(s.id);
+    setDraft(toDraft(s));
+    setBadgeTextTouched(false);
+    setBadgeTextMenuOpen(false);
+    setBadgeTypeMenuOpen(false);
+    setDrawerOpen(true);
+  }
+
+  function closeDrawer() {
+    if (saving) return;
+    setDrawerOpen(false);
+  }
+
+  async function handleImageUpload(file: File) {
+    try {
+      setUploadingImage(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/uploads/services", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось загрузить изображение");
+
+      const url = typeof data?.url === "string" ? data.url : "";
+      if (!url) throw new Error("Не удалось получить URL изображения");
+
+      setDraft((p) => ({ ...p, imageUrl: url }));
+    } catch (e: any) {
+      setError(e?.message || "Ошибка загрузки изображения");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function validateDraft(next: ServiceDraft): string | null {
+    if (!next.name.trim()) return "Введите название услуги";
+    if (!next.description.trim()) return "Введите описание услуги";
+    
+    // Проверяем цену - убираем "₽" если есть и проверяем что остались только цифры
+    const priceWithoutSuffix = next.price.replace(/[₽rub]/gi, "").trim();
+    if (!priceWithoutSuffix && next.price.trim()) return "Цена должна быть числом";
+    
+    const dur = Number(next.duration);
+    if (!Number.isFinite(dur) || dur <= 0) return "Длительность должна быть числом больше 0";
+    
+    if (!next.executorRole.trim()) return "Выберите роль исполнителя";
+    return null;
+  }
+
+  function badgeTypePreviewClass(type: string) {
+    const t = (type || "").trim().toLowerCase();
+    if (t === "accent") return "bg-emerald-600 text-white";
+    if (t === "dark") return "bg-[#111111] text-white";
+    if (t === "light") return "bg-white text-[#111111] border border-black/10";
+    if (t === "discount") return "bg-[#B2223C] text-white";
+    return "bg-white/10 text-gray-200 border border-white/10";
+  }
+
+  function badgeChipClass(type: string | null | undefined) {
+    const t = (type || "").trim().toLowerCase();
+    if (t === "accent") return "bg-emerald-600/90 text-white";
+    if (t === "dark") return "bg-[#111111]/90 text-white";
+    if (t === "light") return "bg-white/90 text-[#2A2A2A] border border-black/10";
+    if (t === "discount") return "bg-[#B2223C]/90 text-white";
+    return "bg-white/90 text-[#2A2A2A] border border-black/10";
+  }
+
+  function normalizeDiscountText(v: string) {
+    const raw = (v || "").trim();
+    if (!raw) return "";
+    const m = raw.match(/-?\s*(\d{1,3})\s*%/);
+    if (!m) return raw;
+    return `-${m[1]}%`;
+  }
+
+  function isDiscountText(v: string) {
+    return /-?\s*\d{1,3}\s*%/.test((v || "").trim());
+  }
+
+  function applyBadgeType(nextType: string) {
+    const t = (nextType || "").trim().toLowerCase();
+    setDraft((p) => {
+      const next: ServiceDraft = { ...p, badgeType: t };
+
+      if (t === "discount") {
+        if (!badgeTextTouched || !next.badgeText?.trim() || !isDiscountText(next.badgeText)) {
+          next.badgeText = "-10%";
+        } else {
+          next.badgeText = normalizeDiscountText(next.badgeText);
+        }
+        return next;
+      }
+
+      if (!badgeTextTouched || !next.badgeText?.trim() || isDiscountText(next.badgeText)) {
+        if (t === "accent") next.badgeText = "Хит";
+        else if (t === "dark") next.badgeText = "Топ";
+        else if (t === "light") next.badgeText = "Новинка";
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    const validationError = validateDraft(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      const payload = normalizePayload(draft);
+
+      const isEdit = mode === "edit" && activeId != null;
+      const url = isEdit ? `/api/services?id=${activeId}` : "/api/services";
+      const method = isEdit ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось сохранить услугу");
+
+      await loadServices();
+      setDrawerOpen(false);
+    } catch (e: any) {
+      setError(e?.message || "Ошибка сохранения");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    const ok = window.confirm("Удалить услугу? Это действие нельзя отменить.");
+    if (!ok) return;
+
+    try {
+      setDeletingId(id);
+      setError(null);
+      const res = await fetch(`/api/services?id=${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось удалить услугу");
+      await loadServices();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка удаления");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="min-h-screen">
+      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0B0B0C]/85 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400">Админка / Управление сайтом</div>
+              <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Услуги</h1>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.push("/admin")}
+                className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-white/90 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Назад</span>
+              </button>
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white text-black hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Добавить</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="w-full md:max-w-xl">
+              <div className="relative">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск по названию, описанию, цене, бейджу..."
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  {filtered.length}/{ordered.length}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <div className="relative hidden md:block">
+                <div className="group">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3 py-2 text-xs text-gray-200 hover:bg-white/10 transition-colors"
+                    title="Режим сетки"
+                  >
+                    {layoutMode === "desktop" ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M4 6h16M4 18h16M6 8v8M18 8v8"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 6h6M9 18h6M10 8v8M14 8v8"
+                        />
+                      </svg>
+                    )}
+                    <span className="whitespace-nowrap">
+                      {layoutMode === "desktop" ? "Desktop" : "Mobile"}
+                    </span>
+                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-44 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
+                    <div className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode("desktop")}
+                        className={
+                          layoutMode === "desktop"
+                            ? "w-full px-4 py-3 text-left text-sm text-white bg-white/10"
+                            : "w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                        }
+                      >
+                        Desktop (3 в ряд)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode("mobile")}
+                        className={
+                          layoutMode === "mobile"
+                            ? "w-full px-4 py-3 text-left text-sm text-white bg-white/10"
+                            : "w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                        }
+                      >
+                        Mobile (2 в ряд)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveOrder}
+                disabled={savingOrder || loading}
+                className={
+                  "inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition-colors " +
+                  (orderSavedOnce
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    : "bg-white/5 hover:bg-white/10 text-white border border-white/10")
+                }
+              >
+                {savingOrder ? (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                    />
+                  </svg>
+                ) : orderSavedOnce ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 21v-8H7v8"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 3v4h8"
+                    />
+                  </svg>
+                )}
+                <span className="whitespace-nowrap">{savingOrder ? "Сохранение..." : "Сохранить"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={loadServices}
+                className="inline-flex items-center gap-2 rounded-full px-3 py-3 text-sm font-medium bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
+                title="Обновить"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.9-3M4 16a8 8 0 0014.9 3"
+                  />
+                </svg>
+                <span className="hidden lg:inline">Обновить</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-4 lg:px-6 py-8">
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {loading && services.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-gray-300">
+            Загрузка...
+          </div>
+        )}
+
+        {!loading && (
+          <div
+            className={
+              layoutMode === "desktop"
+                ? "grid gap-6 grid-cols-2 lg:grid-cols-3"
+                : "grid gap-6 grid-cols-2"
+            }
+          >
+            {filtered.map((s) => (
+              <article
+                key={s.id}
+                className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 hover:border-gray-200"
+                draggable={query.trim() === ""}
+                onDragStart={() => handleDragStart(s.id)}
+                onDragEnd={() => setDraggingId(null)}
+                onDragOver={(e) => {
+                  if (query.trim()) return;
+                  e.preventDefault();
+                  handleDragOver(s.id);
+                }}
+              >
+                <div className="relative h-64 md:h-72 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                  {s.imageUrl ? (
+                    <Image
+                      src={s.imageUrl}
+                      alt={s.name}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      quality={90}
+                      unoptimized={true}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#E8D5C4] to-[#D4C4B0]">
+                      <span
+                        className="text-[#2A2A2A]/40 text-4xl font-thin"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 200 }}
+                      >
+                        {s.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                  {s.badgeText && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <span
+                        className={
+                          "px-3 py-1.5 backdrop-blur-sm text-xs font-medium rounded-full " +
+                          badgeChipClass(s.badgeType)
+                        }
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400 }}
+                      >
+                        {s.badgeText}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5 md:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3
+                        className="text-lg md:text-xl font-medium text-[#2A2A2A] mb-2.5 leading-tight"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        {s.name}
+                      </h3>
+                      <div className="text-[11px] text-[#2A2A2A]/45" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
+                        ID: {s.id}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p
+                    className="text-sm text-[#2A2A2A]/65 mb-4 leading-relaxed line-clamp-2 min-h-[2.5rem]"
+                    style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}
+                  >
+                    {s.description}
+                  </p>
+
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-3 flex-nowrap min-w-0 flex-1 overflow-hidden">
+                      {s.price && (
+                        <span
+                          className="text-base font-medium text-[#2A2A2A] whitespace-nowrap tabular-nums"
+                          style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                        >
+                          {s.price}
+                        </span>
+                      )}
+                      <div
+                        className="flex items-center gap-1.5 text-xs text-[#2A2A2A]/50 whitespace-nowrap flex-nowrap flex-shrink-0"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="whitespace-nowrap">{s.duration}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="flex-1 px-4 py-3 text-sm font-medium text-[#111111] hover:bg-white active:bg-gray-100 transition-colors"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        Править
+                      </button>
+                      <div className="w-px bg-gray-200"></div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s.id)}
+                        disabled={deletingId === s.id}
+                        className="flex-1 px-4 py-3 text-sm font-medium text-[#B2223C] hover:bg-white active:bg-gray-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        {deletingId === s.id ? "Удаление..." : "Удалить"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {!filtered.length && (
+              <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-gray-300">
+                Ничего не найдено.
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => {
+              if (!saving) closeDrawer();
+            }}
+          ></div>
+
+          <aside className="absolute right-0 top-0 h-full w-full max-w-xl border-l border-white/10 bg-[#0F0F12]">
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <div className="text-xs text-gray-400">
+                    {mode === "create" ? "Новая услуга" : `Редактирование #${activeId}`}
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {mode === "create" ? "Добавить услугу" : "Редактировать услугу"}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                >
+                  Закрыть
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-xs text-gray-400">Фото</label>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-black/20">
+                        {draft.imageUrl ? (
+                          <Image
+                            src={draft.imageUrl}
+                            alt={draft.name || "service"}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 480px"
+                            unoptimized={true}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            Нет изображения
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors cursor-pointer">
+                          {uploadingImage ? "Загрузка..." : "Загрузить"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingImage || saving}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file);
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => setDraft((p) => ({ ...p, imageUrl: "" }))}
+                          disabled={uploadingImage || saving || !draft.imageUrl}
+                          className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          Удалить фото
+                        </button>
+
+                        <input
+                          value={draft.imageUrl}
+                          onChange={(e) => setDraft((p) => ({ ...p, imageUrl: e.target.value }))}
+                          className="w-full mt-2 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="URL изображения (можно вставить вручную)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-300">Название</label>
+                      <input
+                        value={draft.name}
+                        onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="Например, Стрижка"
+                        className="rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-300">Роль исполнителя</label>
+                      <select
+                        value={draft.executorRole}
+                        onChange={(e) => setDraft((p) => ({ ...p, executorRole: e.target.value }))}
+                        className="rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="">Выберите роль</option>
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <label className="text-xs text-gray-400">Описание</label>
+                    <textarea
+                      value={draft.description}
+                      onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                      rows={5}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                      placeholder="Коротко и по делу: что входит, для кого, эффект..."
+                    />
+                  </div>
+
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Цена (текстом)</label>
+                      <input
+                        value={draft.price}
+                        inputMode="numeric"
+                        onChange={(e) => {
+                          const next = e.target.value.replace(/\D+/g, "");
+                          setDraft((p) => ({ ...p, price: next }));
+                        }}
+                        className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Напр: 1500"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Длительность</label>
+                      <div className="relative">
+                        <input
+                          value={draft.duration}
+                          onChange={(e) => setDraft((p) => ({ ...p, duration: e.target.value }))}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          inputMode="numeric"
+                          placeholder="60"
+                        />
+                        <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Badge текст</label>
+                      <div className="relative" ref={badgeTextMenuRef}>
+                        <input
+                          value={draft.badgeText}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setBadgeTextTouched(true);
+                            setDraft((p) => {
+                              const next = { ...p, badgeText: raw };
+                              if (isDiscountText(raw)) {
+                                next.badgeType = "discount";
+                                next.badgeText = normalizeDiscountText(raw);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 pr-10 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder={
+                            (draft.badgeType || "").toLowerCase() === "discount"
+                              ? "Напр: -20%"
+                              : "Напр: Хит"
+                          }
+                        />
+
+                        {(draft.badgeType || "").toLowerCase() === "discount" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBadgeTextMenuOpen((v) => !v);
+                              setBadgeTypeMenuOpen(false);
+                            }}
+                            className="absolute inset-y-0 right-2.5 my-2 inline-flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-2 text-gray-200 transition-colors"
+                            title="Выбрать скидку"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        )}
+
+                        {(draft.badgeType || "").toLowerCase() === "discount" && (
+                          <div
+                            className={
+                              "absolute left-0 top-full z-50 mt-2 w-full transition-all " +
+                              (badgeTextMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none")
+                            }
+                          >
+                            <div
+                              className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden"
+                              onMouseDown={(e) => {
+                                // Не даём инпуту потерять фокус при клике по меню (иначе onBlur закроет список раньше клика)
+                                e.preventDefault();
+                              }}
+                            >
+                              <div className="px-4 py-2 text-[11px] text-gray-400 border-b border-white/10">
+                                Быстрый выбор скидки
+                              </div>
+                              <div className="grid grid-cols-4 gap-1 p-2">
+                                {[5, 10, 15, 20, 25, 30, 40, 50].map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() => {
+                                      setBadgeTextTouched(true);
+                                      setDraft((prev) => ({
+                                        ...prev,
+                                        badgeType: "discount",
+                                        badgeText: `-${p}%`,
+                                      }));
+                                      setBadgeTextMenuOpen(false);
+                                    }}
+                                    className="rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-2 text-xs text-gray-100 transition-colors"
+                                  >
+                                    -{p}%
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs text-gray-400">Badge тип</label>
+                        <span
+                          className={
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                            badgeTypePreviewClass(draft.badgeType)
+                          }
+                          style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                        >
+                          {(draft.badgeType || "style").trim() || "style"}
+                        </span>
+                      </div>
+
+                      <div className="relative" ref={badgeTypeMenuRef}>
+                        <input
+                          value={draft.badgeType}
+                          onChange={(e) => setDraft((p) => ({ ...p, badgeType: e.target.value }))}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 pr-10 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="accent / dark / light / discount"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBadgeTypeMenuOpen((v) => !v);
+                            setBadgeTextMenuOpen(false);
+                          }}
+                          className="absolute inset-y-0 right-2.5 my-2 inline-flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-2 text-gray-200 transition-colors"
+                          title="Выбрать стиль"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        <div
+                          className={
+                            "absolute left-0 top-full z-50 mt-2 w-full transition-all " +
+                            (badgeTypeMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none")
+                          }
+                        >
+                          <div
+                            className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden"
+                            onMouseDown={(e) => {
+                              // Не даём инпуту потерять фокус при клике по меню (иначе onBlur закроет список раньше клика)
+                              e.preventDefault();
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("accent");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("accent")}>accent</span>
+                              Акцент
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("dark");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("dark")}>dark</span>
+                              Тёмный
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("light");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("light")}>light</span>
+                              Светлый
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("discount");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("discount")}>discount</span>
+                              Скидка
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? "Сохранение..." : "Сохранить"}
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminSiteServicesManager;
+    try {
+      setSavingOrder(true);
+      setError(null);
+      const items = ordered.map((s, idx) => ({ id: s.id, order: idx }));
+
+      const res = await fetch("/api/services/order", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: layoutMode, items }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось сохранить порядок");
+
+      setOrderSavedOnce(true);
+
+      setServices((prev) =>
+        prev.map((s) => {
+          const idx = items.find((i) => i.id === s.id)?.order;
+          if (idx === undefined) return s;
+          return layoutMode === "desktop"
+            ? { ...s, orderDesktop: idx }
+            : { ...s, orderMobile: idx };
+        }),
+      );
+    } catch (e: any) {
+      setError(e?.message || "Ошибка сохранения порядка");
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
+  function openCreate() {
+    setMode("create");
+    setActiveId(null);
+    setDraft(emptyDraft);
+    setBadgeTextTouched(false);
+    setBadgeTextMenuOpen(false);
+    setBadgeTypeMenuOpen(false);
+    setDrawerOpen(true);
+  }
+
+  function openEdit(s: ServiceItem) {
+    setMode("edit");
+    setActiveId(s.id);
+    setDraft(toDraft(s));
+    setBadgeTextTouched(false);
+    setBadgeTextMenuOpen(false);
+    setBadgeTypeMenuOpen(false);
+    setDrawerOpen(true);
+  }
+
+  function closeDrawer() {
+    if (saving) return;
+    setDrawerOpen(false);
+  }
+
+  async function handleImageUpload(file: File) {
+    try {
+      setUploadingImage(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/uploads/services", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось загрузить изображение");
+
+      const url = typeof data?.url === "string" ? data.url : "";
+      if (!url) throw new Error("Не удалось получить URL изображения");
+
+      setDraft((p) => ({ ...p, imageUrl: url }));
+    } catch (e: any) {
+      setError(e?.message || "Ошибка загрузки изображения");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function validateDraft(next: ServiceDraft): string | null {
+    if (!next.name.trim()) return "Введите название услуги";
+    if (!next.description.trim()) return "Введите описание услуги";
+    
+    // Проверяем цену - убираем "₽" если есть и проверяем что остались только цифры
+    const priceWithoutSuffix = next.price.replace(/[₽rub]/gi, "").trim();
+    if (!priceWithoutSuffix && next.price.trim()) return "Цена должна быть числом";
+    
+    const dur = Number(next.duration);
+    if (!Number.isFinite(dur) || dur <= 0) return "Длительность должна быть числом больше 0";
+    
+    if (!next.executorRole.trim()) return "Выберите роль исполнителя";
+    return null;
+  }
+
+  function badgeTypePreviewClass(type: string) {
+    const t = (type || "").trim().toLowerCase();
+    if (t === "accent") return "bg-emerald-600 text-white";
+    if (t === "dark") return "bg-[#111111] text-white";
+    if (t === "light") return "bg-white text-[#111111] border border-black/10";
+    if (t === "discount") return "bg-[#B2223C] text-white";
+    return "bg-white/10 text-gray-200 border border-white/10";
+  }
+
+  function badgeChipClass(type: string | null | undefined) {
+    const t = (type || "").trim().toLowerCase();
+    if (t === "accent") return "bg-emerald-600/90 text-white";
+    if (t === "dark") return "bg-[#111111]/90 text-white";
+    if (t === "light") return "bg-white/90 text-[#2A2A2A] border border-black/10";
+    if (t === "discount") return "bg-[#B2223C]/90 text-white";
+    return "bg-white/90 text-[#2A2A2A] border border-black/10";
+  }
+
+  function normalizeDiscountText(v: string) {
+    const raw = (v || "").trim();
+    if (!raw) return "";
+    const m = raw.match(/-?\s*(\d{1,3})\s*%/);
+    if (!m) return raw;
+    return `-${m[1]}%`;
+  }
+
+  function isDiscountText(v: string) {
+    return /-?\s*\d{1,3}\s*%/.test((v || "").trim());
+  }
+
+  function applyBadgeType(nextType: string) {
+    const t = (nextType || "").trim().toLowerCase();
+    setDraft((p) => {
+      const next: ServiceDraft = { ...p, badgeType: t };
+
+      if (t === "discount") {
+        if (!badgeTextTouched || !next.badgeText?.trim() || !isDiscountText(next.badgeText)) {
+          next.badgeText = "-10%";
+        } else {
+          next.badgeText = normalizeDiscountText(next.badgeText);
+        }
+        return next;
+      }
+
+      if (!badgeTextTouched || !next.badgeText?.trim() || isDiscountText(next.badgeText)) {
+        if (t === "accent") next.badgeText = "Хит";
+        else if (t === "dark") next.badgeText = "Топ";
+        else if (t === "light") next.badgeText = "Новинка";
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    const validationError = validateDraft(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      const payload = normalizePayload(draft);
+
+      const isEdit = mode === "edit" && activeId != null;
+      const url = isEdit ? `/api/services?id=${activeId}` : "/api/services";
+      const method = isEdit ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось сохранить услугу");
+
+      await loadServices();
+      setDrawerOpen(false);
+    } catch (e: any) {
+      setError(e?.message || "Ошибка сохранения");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    const ok = window.confirm("Удалить услугу? Это действие нельзя отменить.");
+    if (!ok) return;
+
+    try {
+      setDeletingId(id);
+      setError(null);
+      const res = await fetch(`/api/services?id=${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось удалить услугу");
+      await loadServices();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка удаления");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="min-h-screen">
+      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0B0B0C]/85 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400">Админка / Управление сайтом</div>
+              <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Услуги</h1>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.push("/admin")}
+                className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-white/90 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Назад</span>
+              </button>
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white text-black hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Добавить</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="w-full md:max-w-xl">
+              <div className="relative">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск по названию, описанию, цене, бейджу..."
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  {filtered.length}/{ordered.length}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <div className="relative hidden md:block">
+                <div className="group">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3 py-2 text-xs text-gray-200 hover:bg-white/10 transition-colors"
+                    title="Режим сетки"
+                  >
+                    {layoutMode === "desktop" ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M4 6h16M4 18h16M6 8v8M18 8v8"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 6h6M9 18h6M10 8v8M14 8v8"
+                        />
+                      </svg>
+                    )}
+                    <span className="whitespace-nowrap">
+                      {layoutMode === "desktop" ? "Desktop" : "Mobile"}
+                    </span>
+                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-44 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
+                    <div className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode("desktop")}
+                        className={
+                          layoutMode === "desktop"
+                            ? "w-full px-4 py-3 text-left text-sm text-white bg-white/10"
+                            : "w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                        }
+                      >
+                        Desktop (3 в ряд)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode("mobile")}
+                        className={
+                          layoutMode === "mobile"
+                            ? "w-full px-4 py-3 text-left text-sm text-white bg-white/10"
+                            : "w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                        }
+                      >
+                        Mobile (2 в ряд)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveOrder}
+                disabled={savingOrder || loading}
+                className={
+                  "inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition-colors " +
+                  (orderSavedOnce
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    : "bg-white/5 hover:bg-white/10 text-white border border-white/10")
+                }
+              >
+                {savingOrder ? (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                    />
+                  </svg>
+                ) : orderSavedOnce ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 21v-8H7v8"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 3v4h8"
+                    />
+                  </svg>
+                )}
+                <span className="whitespace-nowrap">{savingOrder ? "Сохранение..." : "Сохранить"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={loadServices}
+                className="inline-flex items-center gap-2 rounded-full px-3 py-3 text-sm font-medium bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
+                title="Обновить"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.9-3M4 16a8 8 0 0014.9 3"
+                  />
+                </svg>
+                <span className="hidden lg:inline">Обновить</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-4 lg:px-6 py-8">
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {loading && services.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-gray-300">
+            Загрузка...
+          </div>
+        )}
+
+        {!loading && (
+          <div
+            className={
+              layoutMode === "desktop"
+                ? "grid gap-6 grid-cols-2 lg:grid-cols-3"
+                : "grid gap-6 grid-cols-2"
+            }
+          >
+            {filtered.map((s) => (
+              <article
+                key={s.id}
+                className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 hover:border-gray-200"
+                draggable={query.trim() === ""}
+                onDragStart={() => handleDragStart(s.id)}
+                onDragEnd={() => setDraggingId(null)}
+                onDragOver={(e) => {
+                  if (query.trim()) return;
+                  e.preventDefault();
+                  handleDragOver(s.id);
+                }}
+              >
+                <div className="relative h-64 md:h-72 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                  {s.imageUrl ? (
+                    <Image
+                      src={s.imageUrl}
+                      alt={s.name}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      quality={90}
+                      unoptimized={true}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#E8D5C4] to-[#D4C4B0]">
+                      <span
+                        className="text-[#2A2A2A]/40 text-4xl font-thin"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 200 }}
+                      >
+                        {s.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                  {s.badgeText && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <span
+                        className={
+                          "px-3 py-1.5 backdrop-blur-sm text-xs font-medium rounded-full " +
+                          badgeChipClass(s.badgeType)
+                        }
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400 }}
+                      >
+                        {s.badgeText}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5 md:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3
+                        className="text-lg md:text-xl font-medium text-[#2A2A2A] mb-2.5 leading-tight"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        {s.name}
+                      </h3>
+                      <div className="text-[11px] text-[#2A2A2A]/45" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
+                        ID: {s.id}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p
+                    className="text-sm text-[#2A2A2A]/65 mb-4 leading-relaxed line-clamp-2 min-h-[2.5rem]"
+                    style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}
+                  >
+                    {s.description}
+                  </p>
+
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-3 flex-nowrap min-w-0 flex-1 overflow-hidden">
+                      {s.price && (
+                        <span
+                          className="text-base font-medium text-[#2A2A2A] whitespace-nowrap tabular-nums"
+                          style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                        >
+                          {s.price}
+                        </span>
+                      )}
+                      <div
+                        className="flex items-center gap-1.5 text-xs text-[#2A2A2A]/50 whitespace-nowrap flex-nowrap flex-shrink-0"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="whitespace-nowrap">{s.duration}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="flex-1 px-4 py-3 text-sm font-medium text-[#111111] hover:bg-white active:bg-gray-100 transition-colors"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        Править
+                      </button>
+                      <div className="w-px bg-gray-200"></div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s.id)}
+                        disabled={deletingId === s.id}
+                        className="flex-1 px-4 py-3 text-sm font-medium text-[#B2223C] hover:bg-white active:bg-gray-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                      >
+                        {deletingId === s.id ? "Удаление..." : "Удалить"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {!filtered.length && (
+              <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-gray-300">
+                Ничего не найдено.
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => {
+              if (!saving) closeDrawer();
+            }}
+          ></div>
+
+          <aside className="absolute right-0 top-0 h-full w-full max-w-xl border-l border-white/10 bg-[#0F0F12]">
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <div className="text-xs text-gray-400">
+                    {mode === "create" ? "Новая услуга" : `Редактирование #${activeId}`}
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {mode === "create" ? "Добавить услугу" : "Редактировать услугу"}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                >
+                  Закрыть
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-xs text-gray-400">Фото</label>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-black/20">
+                        {draft.imageUrl ? (
+                          <Image
+                            src={draft.imageUrl}
+                            alt={draft.name || "service"}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 480px"
+                            unoptimized={true}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            Нет изображения
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors cursor-pointer">
+                          {uploadingImage ? "Загрузка..." : "Загрузить"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingImage || saving}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file);
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => setDraft((p) => ({ ...p, imageUrl: "" }))}
+                          disabled={uploadingImage || saving || !draft.imageUrl}
+                          className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          Удалить фото
+                        </button>
+
+                        <input
+                          value={draft.imageUrl}
+                          onChange={(e) => setDraft((p) => ({ ...p, imageUrl: e.target.value }))}
+                          className="w-full mt-2 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="URL изображения (можно вставить вручную)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-300">Название</label>
+                      <input
+                        value={draft.name}
+                        onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="Например, Стрижка"
+                        className="rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-300">Роль исполнителя</label>
+                      <select
+                        value={draft.executorRole}
+                        onChange={(e) => setDraft((p) => ({ ...p, executorRole: e.target.value }))}
+                        className="rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="">Выберите роль</option>
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <label className="text-xs text-gray-400">Описание</label>
+                    <textarea
+                      value={draft.description}
+                      onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                      rows={5}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                      placeholder="Коротко и по делу: что входит, для кого, эффект..."
+                    />
+                  </div>
+
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Цена (текстом)</label>
+                      <input
+                        value={draft.price}
+                        inputMode="numeric"
+                        onChange={(e) => {
+                          const next = e.target.value.replace(/\D+/g, "");
+                          setDraft((p) => ({ ...p, price: next }));
+                        }}
+                        className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Напр: 1500"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Длительность</label>
+                      <div className="relative">
+                        <input
+                          value={draft.duration}
+                          onChange={(e) => setDraft((p) => ({ ...p, duration: e.target.value }))}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          inputMode="numeric"
+                          placeholder="60"
+                        />
+                        <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="grid gap-1">
+                      <label className="text-xs text-gray-400">Badge текст</label>
+                      <div className="relative" ref={badgeTextMenuRef}>
+                        <input
+                          value={draft.badgeText}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setBadgeTextTouched(true);
+                            setDraft((p) => {
+                              const next = { ...p, badgeText: raw };
+                              if (isDiscountText(raw)) {
+                                next.badgeType = "discount";
+                                next.badgeText = normalizeDiscountText(raw);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 pr-10 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder={
+                            (draft.badgeType || "").toLowerCase() === "discount"
+                              ? "Напр: -20%"
+                              : "Напр: Хит"
+                          }
+                        />
+
+                        {(draft.badgeType || "").toLowerCase() === "discount" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBadgeTextMenuOpen((v) => !v);
+                              setBadgeTypeMenuOpen(false);
+                            }}
+                            className="absolute inset-y-0 right-2.5 my-2 inline-flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-2 text-gray-200 transition-colors"
+                            title="Выбрать скидку"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        )}
+
+                        {(draft.badgeType || "").toLowerCase() === "discount" && (
+                          <div
+                            className={
+                              "absolute left-0 top-full z-50 mt-2 w-full transition-all " +
+                              (badgeTextMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none")
+                            }
+                          >
+                            <div
+                              className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden"
+                              onMouseDown={(e) => {
+                                // Не даём инпуту потерять фокус при клике по меню (иначе onBlur закроет список раньше клика)
+                                e.preventDefault();
+                              }}
+                            >
+                              <div className="px-4 py-2 text-[11px] text-gray-400 border-b border-white/10">
+                                Быстрый выбор скидки
+                              </div>
+                              <div className="grid grid-cols-4 gap-1 p-2">
+                                {[5, 10, 15, 20, 25, 30, 40, 50].map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() => {
+                                      setBadgeTextTouched(true);
+                                      setDraft((prev) => ({
+                                        ...prev,
+                                        badgeType: "discount",
+                                        badgeText: `-${p}%`,
+                                      }));
+                                      setBadgeTextMenuOpen(false);
+                                    }}
+                                    className="rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-2 text-xs text-gray-100 transition-colors"
+                                  >
+                                    -{p}%
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs text-gray-400">Badge тип</label>
+                        <span
+                          className={
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                            badgeTypePreviewClass(draft.badgeType)
+                          }
+                          style={{ fontFamily: "var(--font-montserrat)", fontWeight: 500 }}
+                        >
+                          {(draft.badgeType || "style").trim() || "style"}
+                        </span>
+                      </div>
+
+                      <div className="relative" ref={badgeTypeMenuRef}>
+                        <input
+                          value={draft.badgeType}
+                          onChange={(e) => setDraft((p) => ({ ...p, badgeType: e.target.value }))}
+                          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 pr-10 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="accent / dark / light / discount"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBadgeTypeMenuOpen((v) => !v);
+                            setBadgeTextMenuOpen(false);
+                          }}
+                          className="absolute inset-y-0 right-2.5 my-2 inline-flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-2 text-gray-200 transition-colors"
+                          title="Выбрать стиль"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        <div
+                          className={
+                            "absolute left-0 top-full z-50 mt-2 w-full transition-all " +
+                            (badgeTypeMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none")
+                          }
+                        >
+                          <div
+                            className="pointer-events-auto rounded-2xl border border-white/10 bg-[#0F0F12] shadow-2xl shadow-black/40 overflow-hidden"
+                            onMouseDown={(e) => {
+                              // Не даём инпуту потерять фокус при клике по меню (иначе onBlur закроет список раньше клика)
+                              e.preventDefault();
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("accent");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("accent")}>accent</span>
+                              Акцент
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("dark");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("dark")}>dark</span>
+                              Тёмный
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("light");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("light")}>light</span>
+                              Светлый
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyBadgeType("discount");
+                                setBadgeTypeMenuOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10"
+                            >
+                              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mr-2 " + badgeTypePreviewClass("discount")}>discount</span>
+                              Скидка
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? "Сохранение..." : "Сохранить"}
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}

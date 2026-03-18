@@ -1,0 +1,8 @@
+{
+  "experimental": false,
+  "features": {
+    "buildkit": true
+  },
+  "credsStore": "desktop",
+  "wsl": false
+}
