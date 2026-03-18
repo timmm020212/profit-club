@@ -1,10 +1,11 @@
-import { db } from "@/db/index-sqlite";
-import { appointments, masters, services, workSlots } from "@/db/schema-sqlite";
+import { db } from "@/db";
+import { appointments, masters, services, workSlots } from "@/db/schema";
 import AdminHeader from "@/components/AdminHeader";
 import AdminWorkSlotsCreator from "@/components/AdminWorkSlotsCreator";
 import AdminWorkSlotsList from "@/components/AdminWorkSlotsList";
 import AdminWorkSlotChangeRequests from "@/components/AdminWorkSlotChangeRequests";
 import AdminDateSelector from "@/components/AdminDateSelector";
+import { Suspense } from "react";
 import AdminAppointmentManager from "@/components/AdminAppointmentManager";
 import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
@@ -144,7 +145,9 @@ export default async function AdminDashboardPage({
         <div className="mx-auto max-w-screen-2xl px-4 lg:px-6">
           <div className="flex items-center gap-4 py-3 overflow-x-auto">
             <div className="flex-shrink-0">
-              <AdminDateSelector currentDate={dateStr} />
+              <Suspense fallback={null}>
+                <AdminDateSelector currentDate={dateStr} />
+              </Suspense>
             </div>
             <div className="h-8 w-px bg-white/[0.07] flex-shrink-0 hidden sm:block" />
             <div className="hidden sm:flex items-center gap-3 flex-shrink-0">

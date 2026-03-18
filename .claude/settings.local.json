@@ -4,7 +4,8 @@
       "Bash(npx next:*)",
       "Bash(npm install:*)",
       "Bash(mkdir -p \"c:/Users/timur/Downloads/Profit Club/app/\\(payload\\)/admin/[[...segments]]\")",
-      "Bash(mkdir -p \"c:/Users/timur/Downloads/Profit Club/app/\\(payload\\)/api/[...payload]\")"
+      "Bash(mkdir -p \"c:/Users/timur/Downloads/Profit Club/app/\\(payload\\)/api/[...payload]\")",
+      "Bash(node -e \":*)"
     ]
   }
 }

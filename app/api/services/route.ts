@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/index-sqlite";
-import { services } from "@/db/schema-sqlite";
+import { db } from "@/db";
+import { services } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 
@@ -98,6 +98,7 @@ export async function POST(request: Request) {
       price,
       duration,
       imageUrl,
+      category,
       executorRole,
       orderDesktop,
       orderMobile,
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
         price,
         duration: duration || 60,
         imageUrl: imageUrl || null,
+        category: category || null,
         orderDesktop: orderDesktop || 0,
         orderMobile: orderMobile || 0,
         badgeText: badgeText || null,

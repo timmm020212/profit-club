@@ -1,310 +1,267 @@
 import { Telegraf, Markup } from 'telegraf';
 import { config } from 'dotenv';
-import { db } from '../db/index-sqlite';
-import { masters, services, workSlots, appointments, clients } from '../db/schema-sqlite';
-import { eq, and, gte } from 'drizzle-orm';
+import { db } from '../db';
+import { masters, services, appointments, clients, pendingClients, telegramVerificationCodes } from '../db/schema';
+import { eq, and, gt } from 'drizzle-orm';
+import crypto from 'crypto';
 
-// Загружаем переменные окружения
 config({ path: '.env.local' });
 
 const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30';
-
+const SITE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const bot = new Telegraf(CLIENT_BOT_TOKEN);
 
-// Простое хранилище состояний
-const userStates = new Map<string, any>();
+function generateCode(): string {
+  return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
 
-// Главное меню
-const mainMenu = Markup.keyboard([
-  ['📅 Записаться'],
-  ['👤 Мои записи'],
-  ['ℹ️ О нас'],
-]).resize();
+// Главное меню — inline
+const mainMenuKeyboard = Markup.inlineKeyboard([
+  [Markup.button.callback('📅 Записаться', 'book')],
+  [Markup.button.callback('👤 Мои записи', 'my_appointments')],
+  [Markup.button.callback('ℹ️ О нас',       'about')],
+]);
 
-// Команда /start
+async function showMainMenu(ctx: any, text = 'Выберите действие:') {
+  await ctx.reply(text, mainMenuKeyboard);
+}
+
+// /start
 bot.start(async (ctx) => {
   const telegramId = ctx.from?.id.toString();
-  const firstName = ctx.from?.first_name || 'Клиент';
-  
-  if (!telegramId) {
-    return ctx.reply('Ошибка: не удалось определить ваш Telegram ID');
-  }
+  const firstName  = ctx.from?.first_name || 'Клиент';
+  if (!telegramId) return;
 
-  // Проверяем, есть ли клиент в базе
-  try {
-    const existingClient = await db
-      .select()
-      .from(clients)
-      .where(eq(clients.telegramId, telegramId))
-      .limit(1);
+  // Если пришёл с кодом с сайта (site-initiated registration)
+  const startPayload = ctx.startPayload;
+  if (startPayload && startPayload.length > 0) {
+    try {
+      // Ищем в pendingClients по verificationCode
+      const pending = await db.select().from(pendingClients)
+        .where(eq(pendingClients.verificationCode, startPayload))
+        .limit(1);
 
-    if (existingClient.length === 0) {
-      // Регистрируем нового клиента
-      await db.insert(clients).values({
-        name: firstName,
-        phone: '',
-        telegramId,
-      });
+      if (pending.length > 0) {
+        const pendingRow = pending[0];
+
+        // Проверяем, нет ли уже клиента с таким телефоном
+        const existingByPhone = await db.select().from(clients)
+          .where(eq(clients.phone, pendingRow.phone)).limit(1);
+
+        if (existingByPhone.length > 0) {
+          // Уже зарегистрирован — обновляем telegramId
+          await db.update(clients)
+            .set({ telegramId, isVerified: true, verifiedAt: new Date() })
+            .where(eq(clients.id, existingByPhone[0].id));
+          await db.delete(pendingClients).where(eq(pendingClients.id, pendingRow.id));
+        } else {
+          // Создаём клиента из pendingClients
+          await db.insert(clients).values({
+            name: pendingRow.name,
+            phone: pendingRow.phone,
+            email: pendingRow.email || null,
+            password: pendingRow.password || null,
+            verificationCode: pendingRow.verificationCode,
+            isVerified: true,
+            telegramId,
+            verifiedAt: new Date(),
+          });
+          await db.delete(pendingClients).where(eq(pendingClients.id, pendingRow.id));
+        }
+
+        await ctx.reply(
+          `✅ Отлично, ${firstName}! Telegram успешно привязан.\n\nТеперь вернитесь на сайт и нажмите «Я подтвердил в Telegram».`,
+          mainMenuKeyboard
+        );
+        return;
+      }
+
+      // Проверяем telegramVerificationCodes (bot-initiated)
+      const tgCode = await db.select().from(telegramVerificationCodes)
+        .where(and(
+          eq(telegramVerificationCodes.code, startPayload),
+          eq(telegramVerificationCodes.isUsed, false),
+          gt(telegramVerificationCodes.expiresAt, new Date())
+        ))
+        .limit(1);
+
+      if (tgCode.length > 0) {
+        // Код из бота — просто показываем меню если уже зарегистрирован
+        const registered = await db.select().from(clients)
+          .where(eq(clients.telegramId, telegramId)).limit(1);
+        if (registered.length > 0) {
+          await showMainMenu(ctx, `Добро пожаловать, ${registered[0].name || firstName}! 👋`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error handling start payload:', e);
     }
-
-    ctx.reply(`Добро пожаловать, ${firstName}! 👋\n\nВыберите действие:`, mainMenu);
-  } catch (error) {
-    console.error('Error registering client:', error);
-    ctx.reply('Произошла ошибка. Попробуйте позже.');
   }
+
+  // Проверяем, зарегистрирован ли пользователь
+  try {
+    const existing = await db.select().from(clients)
+      .where(eq(clients.telegramId, telegramId)).limit(1);
+
+    if (existing.length > 0) {
+      await showMainMenu(ctx, `Добро пожаловать, ${existing[0].name || firstName}! 👋`);
+      return;
+    }
+  } catch {}
+
+  // Не зарегистрирован — генерируем код и отправляем ссылку на сайт
+  try {
+    // Удаляем старые коды для этого telegramId
+    await db.delete(telegramVerificationCodes)
+      .where(eq(telegramVerificationCodes.telegramId, telegramId));
+
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await db.insert(telegramVerificationCodes).values({
+      code,
+      telegramId,
+      expiresAt,
+    });
+
+    const registrationUrl = `${SITE_URL}/?tg_code=${code}`;
+
+    await ctx.reply(
+      `Привет, ${firstName}! 👋\n\nДля использования бота необходимо зарегистрироваться на сайте Profit Club.\n\nНажмите кнопку ниже — форма откроется автоматически:`,
+      Markup.inlineKeyboard([
+        [Markup.button.url('📝 Зарегистрироваться на сайте', registrationUrl)],
+        [Markup.button.callback('✅ Я уже зарегистрировался', 'check_registration')],
+      ])
+    );
+  } catch (e) {
+    console.error('Error generating registration code:', e);
+    await ctx.reply(`Привет, ${firstName}! 👋\n\nПерейдите на наш сайт для регистрации: ${SITE_URL}`);
+  }
+});
+
+// Проверка регистрации (бот-инициированный флоу)
+bot.action('check_registration', async (ctx) => {
+  await ctx.answerCbQuery();
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+
+  const existing = await db.select().from(clients)
+    .where(eq(clients.telegramId, telegramId)).limit(1);
+
+  if (existing.length > 0) {
+    await showMainMenu(ctx, `✅ Регистрация подтверждена!\n\nДобро пожаловать, ${existing[0].name}! 👋`);
+    return;
+  }
+
+  // Ещё не зарегистрирован — берём существующий код или генерируем новый
+  const codeRow = await db.select().from(telegramVerificationCodes)
+    .where(and(
+      eq(telegramVerificationCodes.telegramId, telegramId),
+      eq(telegramVerificationCodes.isUsed, false),
+      gt(telegramVerificationCodes.expiresAt, new Date())
+    ))
+    .limit(1);
+
+  const registrationUrl = codeRow.length > 0
+    ? `${SITE_URL}/?tg_code=${codeRow[0].code}`
+    : SITE_URL;
+
+  await ctx.reply(
+    'Вы ещё не зарегистрированы. Пожалуйста, завершите регистрацию на сайте:',
+    Markup.inlineKeyboard([
+      [Markup.button.url('📝 Зарегистрироваться на сайте', registrationUrl)],
+      [Markup.button.callback('✅ Я уже зарегистрировался', 'check_registration')],
+    ])
+  );
 });
 
 // Записаться
-bot.hears('📅 Записаться', async (ctx) => {
-  try {
-    const mastersList = await db
-      .select()
-      .from(masters)
-      .where(eq(masters.isActive, true));
-
-    if (mastersList.length === 0) {
-      return ctx.reply('К сожалению, сейчас нет доступных мастеров');
-    }
-
-    const buttons = mastersList.map(master => 
-      Markup.button.text(`${master.fullName} (${master.specialization})`)
-    );
-
-    await ctx.reply('Выберите мастера:', Markup.keyboard([
-      buttons,
-      ['🔙 Главное меню']
-    ]).resize());
-
-    // Сохраняем состояние
-    userStates.set(ctx.from?.id.toString(), { waitingForMaster: true });
-  } catch (error) {
-    console.error('Error fetching masters:', error);
-    ctx.reply('Произошла ошибка при загрузке мастеров');
-  }
-});
-
-// Обработка текстовых сообщений
-bot.on('text', async (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (!telegramId) return;
-
-  const state = userStates.get(telegramId);
-  
-  if (state?.waitingForMaster) {
-    try {
-      const mastersList = await db
-        .select()
-        .from(masters)
-        .where(eq(masters.isActive, true));
-
-      const selectedMaster = mastersList.find(master => 
-        ctx.message.text.includes(master.fullName)
-      );
-
-      if (!selectedMaster) {
-        return ctx.reply('Мастер не найден. Попробуйте еще раз:');
-      }
-
-      // Получаем услуги
-      const servicesList = await db
-        .select()
-        .from(services);
-
-      if (servicesList.length === 0) {
-        return ctx.reply('Услуги не найдены');
-      }
-
-      const buttons = servicesList.map(service => 
-        Markup.button.text(`${service.name} - ${service.price}₽`)
-      );
-
-      await ctx.reply('Выберите услугу:', Markup.keyboard([
-        buttons,
-        ['🔙 Главное меню']
-      ]).resize());
-
-      userStates.set(telegramId, { 
-        waitingForService: true, 
-        selectedMasterId: selectedMaster.id,
-        selectedMasterName: selectedMaster.fullName
-      });
-    } catch (error) {
-      console.error('Error processing master selection:', error);
-      ctx.reply('Произошла ошибка');
-    }
-  } else if (state?.waitingForService) {
-    try {
-      const servicesList = await db
-        .select()
-        .from(services);
-
-      const selectedService = servicesList.find(service => 
-        ctx.message.text.includes(service.name)
-      );
-
-      if (!selectedService) {
-        return ctx.reply('Услуга не найдена. Попробуйте еще раз:');
-      }
-
-      // Получаем доступные слоты
-      const today = new Date().toISOString().split('T')[0];
-      const workSlotsList = await db
-        .select()
-        .from(workSlots)
-        .where(and(
-          eq(workSlots.masterId, state.selectedMasterId),
-          gte(workSlots.workDate, today)
-        ))
-        .orderBy(workSlots.workDate, workSlots.startTime);
-
-      if (workSlotsList.length === 0) {
-        return ctx.reply('Нет доступных слотов для записи');
-      }
-
-      const buttons = workSlotsList.map(slot => 
-        Markup.button.text(`${slot.workDate} ${slot.startTime}-${slot.endTime}`)
-      );
-
-      await ctx.reply('Выберите дату и время:', Markup.keyboard([
-        buttons,
-        ['🔙 Главное меню']
-      ]).resize());
-
-      userStates.set(telegramId, { 
-        waitingForSlot: true, 
-        selectedMasterId: state.selectedMasterId,
-        selectedMasterName: state.selectedMasterName,
-        selectedServiceId: selectedService.id,
-        selectedServiceName: selectedService.name
-      });
-    } catch (error) {
-      console.error('Error processing service selection:', error);
-      ctx.reply('Произошла ошибка');
-    }
-  } else if (state?.waitingForSlot) {
-    try {
-      const workSlotsList = await db
-        .select()
-        .from(workSlots)
-        .where(eq(workSlots.masterId, state.selectedMasterId));
-
-      const selectedSlot = workSlotsList.find(slot => 
-        ctx.message.text.includes(slot.workDate) && 
-        ctx.message.text.includes(slot.startTime)
-      );
-
-      if (!selectedSlot) {
-        return ctx.reply('Слот не найден. Попробуйте еще раз:');
-      }
-
-      // Получаем клиента
-      const client = await db
-        .select()
-        .from(clients)
-        .where(eq(clients.telegramId, telegramId))
-        .limit(1);
-
-      if (client.length === 0) {
-        return ctx.reply('Клиент не найден');
-      }
-
-      // Создаем запись
-      await db.insert(appointments).values({
-        masterId: state.selectedMasterId,
-        serviceId: state.selectedServiceId,
-        appointmentDate: selectedSlot.workDate,
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
-        clientName: client[0].name,
-        clientPhone: client[0].phone || '',
-        clientTelegramId: telegramId,
-        status: 'confirmed',
-      });
-
-      ctx.reply(`✅ Запись успешно создана!\n\n` +
-        `👤 Мастер: ${state.selectedMasterName}\n` +
-        `💇 Услуга: ${state.selectedServiceName}\n` +
-        `📅 Дата: ${selectedSlot.workDate}\n` +
-        `⏰ Время: ${selectedSlot.startTime} - ${selectedSlot.endTime}\n\n` +
-        `Ждем вас в нашем салоне!`, mainMenu);
-
-      userStates.delete(telegramId);
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-      ctx.reply('Произошла ошибка при создании записи');
-    }
-  }
+bot.action('book', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.reply('🚧 Онлайн-запись через бот будет добавлена позже.\n\nПока вы можете записаться на нашем сайте или позвонив нам.',
+    Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
+  );
 });
 
 // Мои записи
-bot.hears('👤 Мои записи', async (ctx) => {
+bot.action('my_appointments', async (ctx) => {
+  await ctx.answerCbQuery();
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
 
   try {
-    const appointmentsList = await db
+    const list = await db
       .select({
-        id: appointments.id,
-        serviceName: services.name,
-        masterName: masters.fullName,
+        id:              appointments.id,
+        serviceName:     services.name,
+        masterName:      masters.fullName,
         appointmentDate: appointments.appointmentDate,
-        startTime: appointments.startTime,
-        endTime: appointments.endTime,
-        status: appointments.status,
+        startTime:       appointments.startTime,
+        endTime:         appointments.endTime,
+        status:          appointments.status,
       })
       .from(appointments)
       .leftJoin(services, eq(appointments.serviceId, services.id))
-      .leftJoin(masters, eq(appointments.masterId, masters.id))
+      .leftJoin(masters,  eq(appointments.masterId,  masters.id))
       .where(eq(appointments.clientTelegramId, telegramId))
       .orderBy(appointments.appointmentDate, appointments.startTime);
 
-    if (appointmentsList.length === 0) {
-      return ctx.reply('У вас нет записей');
+    if (list.length === 0) {
+      return ctx.reply('У вас пока нет записей.',
+        Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
+      );
     }
 
-    let message = '📋 Ваши записи:\n\n';
-    appointmentsList.forEach(apt => {
-      message += `📅 ${apt.appointmentDate}\n`;
-      message += `⏰ ${apt.startTime} - ${apt.endTime}\n`;
-      message += `💇 ${apt.serviceName}\n`;
-      message += `👤 ${apt.masterName}\n`;
-      message += `📊 Статус: ${apt.status}\n\n`;
+    const statusLabel: Record<string, string> = {
+      confirmed: '✅ Подтверждена',
+      pending:   '⏳ Ожидает',
+      cancelled: '❌ Отменена',
+    };
+
+    let msg = '📋 *Ваши записи:*\n\n';
+    list.forEach((apt, i) => {
+      msg += `*${i + 1}.* ${apt.appointmentDate}, ${apt.startTime}–${apt.endTime}\n`;
+      msg += `💇 ${apt.serviceName ?? '—'}\n`;
+      msg += `👤 ${apt.masterName ?? '—'}\n`;
+      msg += `${statusLabel[apt.status ?? ''] ?? apt.status}\n\n`;
     });
 
-    ctx.reply(message);
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-    ctx.reply('Произошла ошибка при получении записей');
+    await ctx.replyWithMarkdown(msg,
+      Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
+    );
+  } catch (e) {
+    await ctx.reply('Произошла ошибка при получении записей.');
   }
 });
 
 // О нас
-bot.hears('ℹ️ О нас', (ctx) => {
-  ctx.reply('💆‍♀️ Profit Club - салон красоты\n\n' +
+bot.action('about', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.reply(
+    '💆‍♀️ *Profit Club* — салон красоты\n\n' +
     'Мы предлагаем:\n' +
     '• Профессиональные услуги\n' +
     '• Опытных мастеров\n' +
     '• Удобную запись онлайн\n\n' +
     '📞 Для связи: +7 (XXX) XXX-XX-XX\n' +
-    '📍 Адрес: г. Москва, ул. Примерная, 123', mainMenu);
+    '📍 Адрес: г. Ставрополь',
+    { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]]) }
+  );
 });
 
-// Возврат в главное меню
-bot.hears('🔙 Главное меню', (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (telegramId) {
-    userStates.delete(telegramId);
-  }
-  ctx.reply('Главное меню:', mainMenu);
+// Назад в меню
+bot.action('menu', async (ctx) => {
+  await ctx.answerCbQuery();
+  await showMainMenu(ctx);
 });
 
-// Запуск бота
+// Запуск
 bot.launch().then(() => {
   console.log('Client bot started successfully!');
 }).catch((error) => {
   console.error('Failed to start client bot:', error);
 });
 
-// Graceful shutdown
-process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGINT',  () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));

@@ -1,6 +1,6 @@
 import BookingFlow from "@/components/BookingFlow";
-import { db } from "@/db/index-sqlite";
-import { services } from "@/db/schema-sqlite";
+import { db } from "@/db";
+import { services } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 

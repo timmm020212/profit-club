@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, masters, services, workSlots } from "@/db/schema-sqlite";
+import { appointments, masters, services, workSlots } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 
 export async function GET(

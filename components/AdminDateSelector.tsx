@@ -1,42 +1,58 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 const DAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
-const MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 
 function addDays(dateStr: string, n: number): string {
   const d = new Date(dateStr + "T00:00:00");
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
+
+const WINDOW = 7;
+const STEP = 3;
 
 export default function AdminDateSelector({ currentDate }: { currentDate: string }) {
   const router = useRouter();
-  const today = new Date().toISOString().slice(0, 10);
+  const params = useSearchParams();
 
-  const weekStart = useMemo(() => {
-    const current = new Date(currentDate + "T00:00:00");
-    const diff = (current.getDay() + 6) % 7;
-    const start = new Date(current);
-    start.setDate(start.getDate() - diff);
-    return start.toISOString().slice(0, 10);
-  }, [currentDate]);
+  const today = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  // windowStart — отдельный параметр, не привязан к выбранной дате
+  const windowStart = params.get("start") ?? (() => {
+    // По умолчанию: показываем окно так, чтобы выбранная дата была по центру
+    return addDays(currentDate, -Math.floor(WINDOW / 2));
+  })();
 
   const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const dateStr = addDays(weekStart, i);
+    return Array.from({ length: WINDOW }, (_, i) => {
+      const dateStr = addDays(windowStart, i);
       const d = new Date(dateStr + "T00:00:00");
       return { dateStr, day: d.getDate(), weekday: DAYS_RU[d.getDay()] };
     });
-  }, [weekStart]);
+  }, [windowStart]);
+
+  function navigate(newStart: string, newDate?: string) {
+    const date = newDate ?? currentDate;
+    router.push(`/admin?date=${date}&start=${newStart}`);
+  }
 
   return (
     <div className="flex items-center gap-1 select-none">
       <button
         type="button"
-        onClick={() => router.push(`/admin?date=${addDays(currentDate, -7)}`)}
+        onClick={() => navigate(addDays(windowStart, -STEP))}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.07] transition-all flex-shrink-0"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
@@ -52,7 +68,7 @@ export default function AdminDateSelector({ currentDate }: { currentDate: string
             <button
               key={dateStr}
               type="button"
-              onClick={() => router.push(`/admin?date=${dateStr}`)}
+              onClick={() => navigate(windowStart, dateStr)}
               className={`relative flex flex-col items-center justify-center rounded-xl w-10 h-14 transition-all duration-150 ${
                 isActive
                   ? "bg-violet-600 text-white shadow-lg shadow-violet-900/40"
@@ -73,7 +89,7 @@ export default function AdminDateSelector({ currentDate }: { currentDate: string
 
       <button
         type="button"
-        onClick={() => router.push(`/admin?date=${addDays(currentDate, 7)}`)}
+        onClick={() => navigate(addDays(windowStart, STEP))}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.07] transition-all flex-shrink-0"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">

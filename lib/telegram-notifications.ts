@@ -1,5 +1,5 @@
-import { db } from '../db/index-sqlite';
-import { masters, workSlots } from '../db/schema-sqlite';
+import { db } from '../db';
+import { masters, workSlots } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 // Функция отправки уведомления мастеру о новом рабочем дне

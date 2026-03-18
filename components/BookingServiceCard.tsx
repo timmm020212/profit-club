@@ -24,6 +24,7 @@ const BookingServiceCard: React.FC<BookingServiceCardProps> = ({
   duration,
   category,
   badgeText,
+  badgeType,
   onBook,
 }) => {
   return (
@@ -73,14 +74,23 @@ const BookingServiceCard: React.FC<BookingServiceCardProps> = ({
           </span>
         )}
 
-        {badgeText && (
-          <span
-            className="absolute top-3 right-3 text-[10px] font-medium rounded-md px-2.5 py-1 text-white"
-            style={{ fontFamily: "var(--font-montserrat)", background: "#B2223C" }}
-          >
-            {badgeText}
-          </span>
-        )}
+        {badgeText && (() => {
+          const styles: Record<string, { bg: string; color: string }> = {
+            accent:   { bg: "#B2223C", color: "#fff" },
+            discount: { bg: "#059669", color: "#fff" },
+            dark:     { bg: "#18181b", color: "#e4e4e7" },
+            light:    { bg: "#fff",    color: "#18181b" },
+          };
+          const s = styles[badgeType ?? "accent"] ?? styles.accent;
+          return (
+            <span
+              className="absolute top-3 right-3 text-[10px] font-medium rounded-md px-2.5 py-1"
+              style={{ fontFamily: "var(--font-montserrat)", background: s.bg, color: s.color }}
+            >
+              {badgeText}
+            </span>
+          );
+        })()}
       </div>
 
       {/* Content */}

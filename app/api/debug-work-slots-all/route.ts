@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { workSlots } from "@/db/schema-sqlite";
+import { workSlots } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 

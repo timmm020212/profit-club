@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { clients, pendingClients, telegramVerificationCodes } from "@/db/schema-sqlite";
+import { clients, pendingClients, telegramVerificationCodes } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         and(
           eq(telegramVerificationCodes.code, normalizedCode),
           eq(telegramVerificationCodes.isUsed, false),
-          gt(telegramVerificationCodes.expiresAt, new Date().toISOString())
+          gt(telegramVerificationCodes.expiresAt, new Date())
         )
       );
     

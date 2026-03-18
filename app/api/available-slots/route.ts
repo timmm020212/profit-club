@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { workSlots, masters, services, appointments } from "@/db/schema-sqlite";
+import { workSlots, masters, services, appointments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';

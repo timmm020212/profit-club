@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, testConnection } from "@/db";
-import { clients, pendingClients } from "@/db/schema-sqlite";
+import { clients, pendingClients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 

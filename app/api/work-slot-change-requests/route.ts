@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/index-sqlite";
-import { workSlotChangeRequests, workSlots, masters } from "@/db/schema-sqlite";
+import { db } from "@/db";
+import { workSlotChangeRequests, workSlots, masters } from "@/db/schema";
 import { and, eq, ne } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";

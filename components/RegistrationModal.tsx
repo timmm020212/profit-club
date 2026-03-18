@@ -29,9 +29,16 @@ export default function RegistrationModal() {
   const [isVerified, setIsVerified] = useState(false);
   const [verificationCode, setVerificationCode] = useState<string>("");
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [tgCode, setTgCode] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Читаем tg_code из URL (бот-инициированный флоу)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("tg_code");
+      if (code) setTgCode(code);
+    }
   }, []);
 
   useEffect(() => {
@@ -167,12 +174,40 @@ export default function RegistrationModal() {
       
       // Проверяем результат регистрации
       if (result && result.success && result.botUsername && result.verificationCode) {
-        // Очищаем все ошибки и переходим к шагу Telegram
         setErrors({});
         setBotUsername(result.botUsername);
         setVerificationCode(result.verificationCode);
+
+        // Если пришёл из бота — автоматически привязываем Telegram без ручного шага
+        if (tgCode) {
+          try {
+            const verifyRes = await fetch("/api/clients/verify-telegram-code", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: tgCode, phone: phone.trim() }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.verified) {
+              localStorage.setItem(REGISTRATION_STORAGE_KEY, "verified");
+              localStorage.setItem("profit_club_user_name", verifyData.name || name.trim());
+              if (verifyData.telegramId) {
+                localStorage.setItem("profit_club_telegram_id", verifyData.telegramId);
+              }
+              window.dispatchEvent(new Event("profit_club_auth_changed"));
+              // Убираем tg_code из URL без перезагрузки
+              const url = new URL(window.location.href);
+              url.searchParams.delete("tg_code");
+              window.history.replaceState({}, "", url.toString());
+              setTimeout(() => close(), 1500);
+              setIsVerified(true);
+              setStep("telegram"); // покажем успех-шаг на секунду
+              return;
+            }
+          } catch {}
+        }
+
         setStep("telegram");
-        setIsVerified(false); // Сбрасываем статус верификации
+        setIsVerified(false);
         console.log("Switched to telegram step");
       } else {
         // Если результат не содержит нужных данных

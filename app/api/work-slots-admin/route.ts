@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/index-sqlite";
-import { workSlots, masters } from "@/db/schema-sqlite";
+import { db } from "@/db";
+import { workSlots, masters } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 
 

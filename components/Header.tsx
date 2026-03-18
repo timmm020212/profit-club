@@ -66,7 +66,7 @@ export default function Header() {
           {/* Search — pill, center */}
           <div className="flex-1 relative min-w-0">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-              <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
               </svg>
@@ -76,7 +76,7 @@ export default function Header() {
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Найти услугу..."
-              className="w-full rounded-full border border-white/[0.09] bg-white/[0.05] pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none transition-all duration-200 focus:border-[#B2223C]/50 focus:bg-white/[0.07]"
+              className="w-full rounded-full border border-white/[0.09] bg-white/[0.05] pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-[#B2223C]/50 focus:bg-white/[0.07]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400, fontSize: 13 }}
             />
             {search && (

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import AdminSelect from "./ui/AdminSelect";
 import { useRouter } from "next/navigation";
 
 type ServiceItem = {
@@ -11,6 +12,7 @@ type ServiceItem = {
   price: string | null;
   duration: number;
   imageUrl?: string | null;
+  category?: string | null;
   orderDesktop?: number;
   orderMobile?: number;
   badgeText: string | null;
@@ -24,28 +26,59 @@ type ServiceDraft = {
   price: string;
   duration: string;
   imageUrl: string;
+  category: string;
   badgeText: string;
   badgeType: string;
   executorRole: string;
 };
 
-const emptyDraft: ServiceDraft = { name: "", description: "", price: "", duration: "60", imageUrl: "", badgeText: "", badgeType: "", executorRole: "" };
+const emptyDraft: ServiceDraft = { name: "", description: "", price: "", duration: "60", imageUrl: "", category: "", badgeText: "", badgeType: "", executorRole: "" };
 
 function toDraft(s: ServiceItem): ServiceDraft {
-  return { name: s.name || "", description: s.description || "", price: s.price || "", duration: String(s.duration ?? 60), imageUrl: s.imageUrl || "", badgeText: s.badgeText || "", badgeType: s.badgeType || "", executorRole: s.executorRole || "" };
+  return { name: s.name || "", description: s.description || "", price: s.price || "", duration: String(s.duration ?? 60), imageUrl: s.imageUrl || "", category: s.category || "", badgeText: s.badgeText || "", badgeType: s.badgeType || "", executorRole: s.executorRole || "" };
 }
+
+const CATEGORIES = [
+  "Парикмахерские услуги",
+  "Ногтевой сервис",
+  "Массаж",
+  "Косметология",
+  "Фитнес",
+  "Брови и ресницы",
+  "Эпиляция",
+  "СПА",
+  "Перманентный макияж",
+];
+
+const CATEGORY_TO_ROLE: Record<string, string> = {
+  "Парикмахерские услуги": "парикмахер",
+  "Ногтевой сервис":       "мастер ногтевого сервиса",
+  "Массаж":                "массажист",
+  "Косметология":          "косметолог",
+  "Фитнес":                "тренер",
+  "Брови и ресницы":       "мастер бровей",
+  "Эпиляция":              "мастер эпиляции",
+  "СПА":                   "специалист",
+  "Перманентный макияж":   "мастер татуажа",
+};
+
+const ROLE_TO_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_TO_ROLE).map(([cat, role]) => [role, cat])
+);
 
 function normalizePayload(draft: ServiceDraft) {
   const durationNum = Number(draft.duration);
+  const priceDigits = (draft.price ?? "").replace(/\D+/g, "").trim();
   return {
-    name: draft.name.trim(),
-    description: draft.description.trim(),
-    price: draft.price.replace(/\D+/g, "").trim() ? `${draft.price.replace(/\D+/g, "").trim()} ₽` : null,
+    name: (draft.name ?? "").trim(),
+    description: (draft.description ?? "").trim(),
+    price: priceDigits ? `${priceDigits} ₽` : null,
     duration: Number.isFinite(durationNum) ? durationNum : 60,
-    imageUrl: draft.imageUrl.trim() || null,
-    badgeText: draft.badgeText.trim() || null,
-    badgeType: draft.badgeType.trim() ? draft.badgeType.trim().toLowerCase() : null,
-    executorRole: draft.executorRole.trim() || null,
+    imageUrl: (draft.imageUrl ?? "").trim() || null,
+    category: (draft.category ?? "").trim() || null,
+    badgeText: (draft.badgeText ?? "").trim() || null,
+    badgeType: (draft.badgeType ?? "").trim().toLowerCase() || null,
+    executorRole: (draft.executorRole ?? "").trim() || null,
   };
 }
 
@@ -59,6 +92,24 @@ export default function AdminSiteServicesManager() {
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<ServiceDraft>(emptyDraft);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = useCallback(async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDraft((d) => ({ ...d, imageUrl: data.url }));
+    } catch (e: any) {
+      setError(e?.message || "Ошибка загрузки фото");
+    } finally {
+      setUploading(false);
+    }
+  }, []);
   const [layoutMode, setLayoutMode] = useState<"desktop" | "mobile">("desktop");
   const [ordered, setOrdered] = useState<ServiceItem[]>([]);
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -221,23 +272,153 @@ export default function AdminSiteServicesManager() {
                   <input className={inputCls} value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} inputMode="numeric" placeholder="60" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Badge текст</label>
-                  <input className={inputCls} value={draft.badgeText} onChange={(e) => setDraft({ ...draft, badgeText: e.target.value })} placeholder="ХИТ" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Badge тип</label>
-                  <input className={inputCls} value={draft.badgeType} onChange={(e) => setDraft({ ...draft, badgeType: e.target.value })} placeholder="accent" />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Badge текст</label>
+                <input className={inputCls} value={draft.badgeText} onChange={(e) => setDraft({ ...draft, badgeText: e.target.value })} placeholder="ХИТ, NEW, −20%..." />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">URL изображения</label>
-                <input className={inputCls} value={draft.imageUrl} onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })} placeholder="https://..." />
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Badge тип</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[
+                    { value: "",         label: "Нет",     bg: "bg-white/[0.04]",  border: "border-white/[0.08]",  text: "text-zinc-600",  preview: null },
+                    { value: "accent",   label: "Акцент",  bg: "bg-[#B2223C]",     border: "border-[#B2223C]",     text: "text-white",     preview: { bg: "#B2223C", color: "#fff" } },
+                    { value: "discount", label: "Скидка",  bg: "bg-emerald-600",   border: "border-emerald-600",   text: "text-white",     preview: { bg: "#059669", color: "#fff" } },
+                    { value: "dark",     label: "Тёмный",  bg: "bg-zinc-900",      border: "border-zinc-700",      text: "text-zinc-200",  preview: { bg: "#18181b", color: "#e4e4e7" } },
+                    { value: "light",    label: "Светлый", bg: "bg-white",         border: "border-zinc-300",      text: "text-zinc-800",  preview: { bg: "#fff",    color: "#27272a" } },
+                  ].map(({ value, label, bg, border, text, preview }) => {
+                    const selected = draft.badgeType === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, badgeType: value })}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                          selected
+                            ? "ring-2 ring-violet-500/60 ring-offset-1 ring-offset-[#0D0D10] border-violet-500/40 bg-violet-500/10 text-violet-300"
+                            : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-200"
+                        }`}
+                      >
+                        {preview ? (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none"
+                            style={{ background: preview.bg, color: preview.color }}
+                          >
+                            {draft.badgeText || label}
+                          </span>
+                        ) : (
+                          <span className="w-4 h-4 rounded border border-white/[0.1] bg-white/[0.04] flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-2.5 h-2.5 text-zinc-600">
+                              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+                            </svg>
+                          </span>
+                        )}
+                        {label}
+                        {selected && (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-violet-400">
+                            <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Image upload */}
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Фото услуги</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
+                />
+                {draft.imageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden h-44 bg-white/[0.03] border border-white/[0.07] group">
+                    <Image src={draft.imageUrl} alt="preview" fill className="object-cover" unoptimized />
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-medium text-white transition-all"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                          <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+                        </svg>
+                        Заменить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, imageUrl: "" }))}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600/20 hover:bg-red-600/35 border border-red-500/20 text-xs font-medium text-red-400 transition-all"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" />
+                        </svg>
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full h-44 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-white/[0.1] hover:border-violet-500/40 hover:bg-violet-500/5 text-zinc-600 hover:text-violet-400 transition-all"
+                  >
+                    {uploading ? (
+                      <>
+                        <span className="h-7 w-7 rounded-full border-2 border-zinc-700 border-t-violet-500 animate-spin" />
+                        <span className="text-xs">Загружаем...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                        </svg>
+                        <span className="text-xs">Нажмите чтобы загрузить фото</span>
+                        <span className="text-[11px] text-zinc-700">JPG, PNG, WEBP</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Категория</label>
+                <AdminSelect
+                  value={draft.category}
+                  onChange={(v) => {
+                    const cat = String(v);
+                    const role = CATEGORY_TO_ROLE[cat] ?? draft.executorRole;
+                    setDraft({ ...draft, category: cat, executorRole: role });
+                  }}
+                  placeholder="— Не выбрано —"
+                  options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Роль исполнителя</label>
-                <input className={inputCls} value={draft.executorRole} onChange={(e) => setDraft({ ...draft, executorRole: e.target.value })} placeholder="Парикмахер" />
+                <AdminSelect
+                  value={draft.executorRole}
+                  onChange={(v) => {
+                    const role = String(v);
+                    const cat = ROLE_TO_CATEGORY[role] ?? draft.category;
+                    setDraft({ ...draft, executorRole: role, category: cat });
+                  }}
+                  placeholder="— Не выбрано —"
+                  options={[
+                    { value: "парикмахер",               label: "Парикмахер" },
+                    { value: "мастер ногтевого сервиса", label: "Мастер ногтевого сервиса" },
+                    { value: "массажист",                label: "Массажист" },
+                    { value: "косметолог",               label: "Косметолог" },
+                    { value: "тренер",                   label: "Тренер" },
+                    { value: "мастер бровей",            label: "Мастер бровей" },
+                    { value: "мастер эпиляции",          label: "Мастер эпиляции" },
+                    { value: "специалист",               label: "Специалист" },
+                    { value: "мастер татуажа",           label: "Мастер татуажа" },
+                  ]}
+                />
               </div>
             </div>
 
@@ -388,11 +569,21 @@ export default function AdminSiteServicesManager() {
                     </div>
                   )}
                   {/* Badge */}
-                  {service.badgeText && (
-                    <span className="absolute top-2 left-2 inline-flex items-center rounded-lg bg-black/70 backdrop-blur-sm px-2 py-1 text-[11px] font-semibold text-white border border-white/10">
+                  {service.badgeText && (() => {
+                    const badgeStyles: Record<string, { bg: string; color: string }> = {
+                      accent:   { bg: "#B2223C", color: "#fff" },
+                      discount: { bg: "#059669", color: "#fff" },
+                      dark:     { bg: "#18181b", color: "#e4e4e7" },
+                      light:    { bg: "#fff",    color: "#18181b" },
+                    };
+                    const bs = badgeStyles[service.badgeType ?? "accent"] ?? badgeStyles.accent;
+                    return (
+                    <span className="absolute top-2 left-2 inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold border border-white/10"
+                      style={{ background: bs.bg, color: bs.color }}>
                       {service.badgeText}
                     </span>
-                  )}
+                    );
+                  })()}
                   {/* Drag handle */}
                   <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-zinc-400">

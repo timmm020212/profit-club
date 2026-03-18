@@ -54,17 +54,18 @@ export default function RegistrationProvider({ children }: { children: React.Rea
     // Проверяем только на клиенте
     if (typeof window !== "undefined") {
       try {
-        const isRegistered = localStorage.getItem(REGISTRATION_STORAGE_KEY);
-        
-        // Временно отключено автопоказ модалки - используйте кнопку "Тест: Регистрация"
-        // if (isRegistered !== "verified") {
-        //   // Показываем модалку регистрации при первом заходе или если не подтверждено
-        //   setShowRegistration(true);
-        // }
+        // Если пришёл из бота с tg_code — автооткрываем регистрацию
+        const params = new URLSearchParams(window.location.search);
+        const tgCode = params.get("tg_code");
+        if (tgCode) {
+          const isRegistered = localStorage.getItem(REGISTRATION_STORAGE_KEY);
+          if (isRegistered !== "verified") {
+            setMode("register");
+            setShowRegistration(true);
+          }
+        }
       } catch (error) {
         console.error("Error accessing localStorage:", error);
-        // При ошибке доступа к localStorage показываем модалку
-        // setShowRegistration(true);
       }
     }
   }, []);

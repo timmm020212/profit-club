@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { masters } from "@/db/schema-sqlite";
+import { masters } from "@/db/schema";
 import AdminHeader from "@/components/AdminHeader";
 import AdminSiteServicesManager from "@/components/AdminSiteServicesManager";
 

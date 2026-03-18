@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { services } from "@/db/schema-sqlite";
+import { services } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function PATCH(request: Request) {

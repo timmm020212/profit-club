@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
-import { appointments, masters, reminderSent, services } from "@/db/schema-sqlite";
+import { appointments, masters, reminderSent, services } from "@/db/schema";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";

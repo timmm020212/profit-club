@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, testConnection } from "@/db";
-import { clients } from "@/db/schema-sqlite";
+import { clients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";

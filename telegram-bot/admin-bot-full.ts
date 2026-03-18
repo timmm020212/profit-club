@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { config } from 'dotenv';
-import { db } from '../db/index-sqlite';
-import { masters, workSlots, admins, workSlotChangeRequests } from '../db/schema-sqlite';
+import { db } from '../db';
+import { masters, workSlots, admins, workSlotChangeRequests } from '../db/schema';
 import { eq, and, gte } from 'drizzle-orm';
 
 // Загружаем переменные окружения

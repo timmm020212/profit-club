@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Appointment, Master, Service } from "@/db/schema-sqlite";
+import type { Appointment, Master, Service } from "@/db/schema";
 
 interface AppointmentWithRelations extends Appointment {
   masterName?: string;
