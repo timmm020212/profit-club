@@ -1,11 +1,14 @@
 import { formatDateRu } from "./utils";
 
-const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
+function getMastersBotToken(): string {
+  return process.env.MASTERS_BOT_TOKEN || "";
+}
 
 async function sendToMaster(chatId: string, text: string) {
-  if (!MASTERS_BOT_TOKEN || !chatId) return;
+  const token = getMastersBotToken();
+  if (!token || !chatId) return;
   try {
-    await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),

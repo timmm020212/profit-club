@@ -3,16 +3,16 @@ import { appointments, services, masters, reminderSent } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 
-const BOT_TOKEN =
-  process.env.TELEGRAM_BOT_TOKEN ||
-  "8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30";
+function getBotToken(): string {
+  return process.env.TELEGRAM_BOT_TOKEN || "8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30";
+}
 
 async function sendTelegramMessage(
   chatId: string,
   text: string,
   appointmentId: number
 ): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  await fetch(`https://api.telegram.org/bot${getBotToken()}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
