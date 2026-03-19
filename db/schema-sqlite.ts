@@ -130,6 +130,28 @@ export const reminderSent = sqliteTable("reminderSent", {
   reminderType: text("reminderType", { length: 20 }).default("1hour").notNull(),
 });
 
+// Оптимизация расписания
+export const scheduleOptimizations = sqliteTable("scheduleOptimizations", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  masterId: integer("masterId").notNull(),
+  workDate: text("workDate").notNull(),
+  status: text("status").notNull().default("draft"),
+  createdAt: text("createdAt").default(new Date().toISOString()).notNull(),
+  sentAt: text("sentAt"),
+});
+
+export const optimizationMoves = sqliteTable("optimizationMoves", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  optimizationId: integer("optimizationId").notNull(),
+  appointmentId: integer("appointmentId").notNull(),
+  oldStartTime: text("oldStartTime").notNull(),
+  oldEndTime: text("oldEndTime").notNull(),
+  newStartTime: text("newStartTime").notNull(),
+  newEndTime: text("newEndTime").notNull(),
+  clientResponse: text("clientResponse").notNull().default("pending"),
+  sentAt: text("sentAt"),
+});
+
 export type Service = typeof services.$inferSelect;
 export type NewService = typeof services.$inferInsert;
 export type Admin = typeof admins.$inferSelect;
