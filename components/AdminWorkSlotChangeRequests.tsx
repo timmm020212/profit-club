@@ -19,6 +19,14 @@ interface ChangeRequestItem {
   type?: string;
 }
 
+function formatDateDisplay(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("ru-RU", {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+  });
+}
+
 export default function AdminWorkSlotChangeRequests() {
   useSession();
   const [items, setItems] = useState<ChangeRequestItem[]>([]);
@@ -95,7 +103,7 @@ export default function AdminWorkSlotChangeRequests() {
 
       <div className="divide-y divide-white/[0.04]">
         {visibleItems.map((item) => {
-          const isCancelUpdate = item.type === "cancel_update";
+          const isCancel = item.type === "cancel" || item.type === "cancel_update";
           const isProcessing = actionId === item.id;
 
           return (
@@ -107,13 +115,14 @@ export default function AdminWorkSlotChangeRequests() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-semibold text-white block truncate">{item.masterName || "Мастер"}</span>
+                  <span className="text-[11px] text-zinc-600">{formatDateDisplay(item.currentWorkDate)}</span>
                 </div>
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  isCancelUpdate
-                    ? "bg-sky-500/10 border border-sky-500/20 text-sky-400"
+                  isCancel
+                    ? "bg-red-500/10 border border-red-500/20 text-red-400"
                     : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
                 }`}>
-                  {isCancelUpdate ? "Отмена" : "Изменение"}
+                  {isCancel ? "Отмена дня" : "Изменение времени"}
                 </span>
               </div>
 
@@ -140,15 +149,25 @@ export default function AdminWorkSlotChangeRequests() {
               </div>
 
               {/* Actions */}
-              {isCancelUpdate ? (
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => handleAction(item.id, "accept")}
-                  className="w-full py-2 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/20 text-xs font-semibold text-sky-400 disabled:opacity-50 transition-all"
-                >
-                  {isProcessing ? <span className="animate-pulse">Обработка...</span> : "Отменить изменение"}
-                </button>
+              {isCancel ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => handleAction(item.id, "reject")}
+                    className="py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.07] disabled:opacity-50 transition-all"
+                  >
+                    {isProcessing ? "..." : "Отклонить"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => handleAction(item.id, "accept")}
+                    className="py-2 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/20 text-xs font-semibold text-red-400 disabled:opacity-50 transition-all"
+                  >
+                    {isProcessing ? <span className="animate-pulse">...</span> : "Подтвердить отмену"}
+                  </button>
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <button

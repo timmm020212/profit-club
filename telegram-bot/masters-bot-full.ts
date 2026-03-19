@@ -469,11 +469,9 @@ bot.on('text', async (ctx) => {
       });
 
       ctx.reply(
-        `Выбран рабочий день: ${selectedSlot.workDate} ${selectedSlot.startTime}-${selectedSlot.endTime}\n\n` +
-        'Что вы хотите сделать?',
+        `Выбран рабочий день: ${formatDateDisplay(selectedSlot.workDate)}\n⏰ ${selectedSlot.startTime}–${selectedSlot.endTime}\n\nЧто вы хотите сделать?`,
         Markup.keyboard([
           ['🕐 Изменить время'],
-          ['📅 Изменить дату'],
           ['❌ Отменить рабочий день'],
           ['🔙 Главное меню'],
         ]).resize(),
@@ -492,13 +490,6 @@ bot.on('text', async (ctx) => {
         selectedSlot: state.selectedSlot,
       });
       ctx.reply('Введите новое время в формате ЧЧ:ММ-ЧЧ:ММ (например, 09:00-17:00):');
-    } else if (action === '📅 Изменить дату') {
-      userStates.set(telegramId, {
-        waitingForNewDate: true,
-        selectedSlotId: state.selectedSlotId,
-        selectedSlot: state.selectedSlot,
-      });
-      ctx.reply('Введите новую дату в формате ДД.ММ.ГГГГ (например, 26.02.2025):');
     } else if (action === '❌ Отменить рабочий день') {
       await handleWorkSlotChange(telegramId, state.selectedSlot, 'cancel');
       userStates.delete(telegramId);
@@ -518,21 +509,6 @@ bot.on('text', async (ctx) => {
 
     userStates.delete(telegramId);
     ctx.reply('Запрос на изменение времени отправлен администратору', masterMenu);
-  } else if (state?.waitingForNewDate) {
-    const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
-    if (!dateRegex.test(ctx.message.text)) {
-      return ctx.reply('Неверный формат. Используйте ДД.ММ.ГГГГ (например, 26.02.2025):');
-    }
-
-    const [day, month, year] = ctx.message.text.split('.');
-    const newDate = `${year}-${month}-${day}`;
-
-    await handleWorkSlotChange(telegramId, state.selectedSlot, 'date_change', {
-      newDate,
-    });
-
-    userStates.delete(telegramId);
-    ctx.reply('Запрос на изменение даты отправлен администратору', masterMenu);
   }
 });
 
