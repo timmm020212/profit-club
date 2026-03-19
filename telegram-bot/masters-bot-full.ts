@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { config } from 'dotenv';
 import { db } from '../db';
 import { masters, workSlots, appointments, services, workSlotChangeRequests } from '../db/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, asc, desc } from 'drizzle-orm';
 
 // Загружаем переменные окружения
 config({ path: '.env.local' });
@@ -14,7 +14,32 @@ const bot = new Telegraf(MASTERS_BOT_TOKEN);
 // Простое хранилище состояний
 const userStates = new Map<string, any>();
 
-// Проверка, является ли пользователь мастером
+// ── Time helpers ──────────────────────────────────────────────
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(m: number): string {
+  return `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}`;
+}
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatDateDisplay(dateStr: string): string {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('ru-RU', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+
 async function isMaster(telegramId: string): Promise<any> {
   try {
     const master = await db
@@ -22,7 +47,7 @@ async function isMaster(telegramId: string): Promise<any> {
       .from(masters)
       .where(eq(masters.telegramId, telegramId))
       .limit(1);
-    
+
     return master.length > 0 ? master[0] : null;
   } catch (error) {
     console.error('Error checking master rights:', error);
@@ -30,24 +55,219 @@ async function isMaster(telegramId: string): Promise<any> {
   }
 }
 
-// Главное меню для мастера
+// ── Menu ──────────────────────────────────────────────────────
+
 const masterMenu = Markup.keyboard([
-  ['📅 Мое расписание'],
-  ['📋 Записи на сегодня'],
+  ['📅 Расписание'],
   ['🔄 Изменить рабочий день'],
   ['⚙️ Настройки'],
 ]).resize();
 
-// Команда /start
+// ── Schedule view ─────────────────────────────────────────────
+
+async function showSchedule(
+  ctx: any,
+  masterId: number,
+  targetDate?: string,
+  useReply: boolean = true,
+) {
+  try {
+    const today = todayStr();
+
+    // If no targetDate — find nearest confirmed workSlot
+    if (!targetDate) {
+      const nearest = await db
+        .select()
+        .from(workSlots)
+        .where(
+          and(
+            eq(workSlots.masterId, masterId),
+            gte(workSlots.workDate, today),
+            eq(workSlots.isConfirmed, true),
+          ),
+        )
+        .orderBy(asc(workSlots.workDate))
+        .limit(1);
+
+      if (!nearest.length) {
+        const msg = 'У вас нет рабочих дней';
+        if (useReply) return ctx.reply(msg);
+        return ctx.editMessageText(msg);
+      }
+      targetDate = nearest[0].workDate;
+    }
+
+    // Get workSlot for this master+date (confirmed)
+    const slotRows = await db
+      .select()
+      .from(workSlots)
+      .where(
+        and(
+          eq(workSlots.masterId, masterId),
+          eq(workSlots.workDate, targetDate),
+          eq(workSlots.isConfirmed, true),
+        ),
+      )
+      .limit(1);
+
+    if (!slotRows.length) {
+      const msg = `Нет подтверждённой смены на ${formatDateDisplay(targetDate)}`;
+      if (useReply) return ctx.reply(msg);
+      return ctx.editMessageText(msg);
+    }
+
+    const slot = slotRows[0];
+    const shiftStart = timeToMinutes(slot.startTime);
+    const shiftEnd = timeToMinutes(slot.endTime);
+
+    // Get confirmed appointments for master+date, join services
+    const appts = await db
+      .select({
+        id: appointments.id,
+        startTime: appointments.startTime,
+        endTime: appointments.endTime,
+        clientName: appointments.clientName,
+        serviceName: services.name,
+        serviceDuration: services.duration,
+      })
+      .from(appointments)
+      .leftJoin(services, eq(appointments.serviceId, services.id))
+      .where(
+        and(
+          eq(appointments.masterId, masterId),
+          eq(appointments.appointmentDate, targetDate),
+          eq(appointments.status, 'confirmed'),
+        ),
+      )
+      .orderBy(asc(appointments.startTime));
+
+    // Build message
+    let msg = `📅 Расписание — ${formatDateDisplay(targetDate)}\n`;
+    msg += `🕐 ${slot.startTime}–${slot.endTime} (смена)\n`;
+
+    if (!appts.length) {
+      msg += '\nНет записей, весь день свободен';
+    } else {
+      msg += '\n';
+
+      // Get shortest service duration for "finish" threshold
+      const allServices = await db.select({ duration: services.duration }).from(services);
+      const shortestDuration = allServices.length > 0
+        ? Math.min(...allServices.map(s => s.duration))
+        : 30;
+
+      let cursor = shiftStart;
+
+      for (let i = 0; i < appts.length; i++) {
+        const apt = appts[i];
+        const aptStart = timeToMinutes(apt.startTime);
+        const aptEnd = timeToMinutes(apt.endTime);
+
+        // Gap before this appointment
+        if (aptStart > cursor) {
+          const gap = aptStart - cursor;
+          if (gap < 30) {
+            msg += `☕ ${minutesToTime(cursor)}–${minutesToTime(aptStart)} перерыв (${gap} мин)\n`;
+          } else {
+            msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(aptStart)} свободно\n`;
+          }
+        }
+
+        // Appointment line
+        // Take first name + initial of last name for privacy
+        const clientShort = apt.clientName || 'Клиент';
+        msg += `${apt.startTime}–${apt.endTime} 💇 ${apt.serviceName || 'Услуга'} — ${clientShort}\n`;
+
+        cursor = aptEnd;
+      }
+
+      // After last appointment
+      if (cursor < shiftEnd) {
+        const gap = shiftEnd - cursor;
+        if (gap < shortestDuration) {
+          msg += `🏁 Свободны с ${minutesToTime(cursor)}`;
+        } else {
+          msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(shiftEnd)} свободно`;
+        }
+      }
+    }
+
+    // Navigation: find prev/next confirmed workSlot dates
+    const prevSlots = await db
+      .select({ workDate: workSlots.workDate })
+      .from(workSlots)
+      .where(
+        and(
+          eq(workSlots.masterId, masterId),
+          eq(workSlots.isConfirmed, true),
+          lte(workSlots.workDate, targetDate),
+        ),
+      )
+      .orderBy(desc(workSlots.workDate))
+      .limit(2);
+
+    const nextSlots = await db
+      .select({ workDate: workSlots.workDate })
+      .from(workSlots)
+      .where(
+        and(
+          eq(workSlots.masterId, masterId),
+          eq(workSlots.isConfirmed, true),
+          gte(workSlots.workDate, targetDate),
+        ),
+      )
+      .orderBy(asc(workSlots.workDate))
+      .limit(2);
+
+    // prevSlots[0] is targetDate itself, prevSlots[1] is the actual previous
+    const prevDate = prevSlots.length > 1 && prevSlots[1].workDate !== targetDate
+      ? prevSlots[1].workDate
+      : null;
+    // nextSlots[0] is targetDate itself, nextSlots[1] is the actual next
+    const nextDate = nextSlots.length > 1 && nextSlots[1].workDate !== targetDate
+      ? nextSlots[1].workDate
+      : null;
+
+    const navButtons: any[] = [];
+    if (prevDate) {
+      navButtons.push(Markup.button.callback('← Пред. день', `sched_prev_${prevDate}`));
+    }
+    if (nextDate) {
+      navButtons.push(Markup.button.callback('След. день →', `sched_next_${nextDate}`));
+    }
+
+    const inlineKeyboard = navButtons.length > 0
+      ? Markup.inlineKeyboard([navButtons])
+      : undefined;
+
+    if (useReply) {
+      return inlineKeyboard
+        ? ctx.reply(msg, inlineKeyboard)
+        : ctx.reply(msg);
+    } else {
+      return inlineKeyboard
+        ? ctx.editMessageText(msg, inlineKeyboard)
+        : ctx.editMessageText(msg);
+    }
+  } catch (error) {
+    console.error('Error showing schedule:', error);
+    const errMsg = 'Произошла ошибка при получении расписания';
+    if (useReply) return ctx.reply(errMsg);
+    return ctx.editMessageText(errMsg);
+  }
+}
+
+// ── /start ────────────────────────────────────────────────────
+
 bot.start(async (ctx) => {
   const telegramId = ctx.from?.id.toString();
-  
+
   if (!telegramId) {
     return ctx.reply('Ошибка: не удалось определить ваш Telegram ID');
   }
 
   const master = await isMaster(telegramId);
-  
+
   if (master) {
     ctx.reply(`Добро пожаловать, ${master.fullName}!`, masterMenu);
   } else {
@@ -55,96 +275,33 @@ bot.start(async (ctx) => {
   }
 });
 
-// Мое расписание
-bot.hears('📅 Мое расписание', async (ctx) => {
+// ── Расписание ────────────────────────────────────────────────
+
+bot.hears('📅 Расписание', async (ctx) => {
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
 
   const master = await isMaster(telegramId);
   if (!master) return;
 
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const workSlotsList = await db
-      .select()
-      .from(workSlots)
-      .where(and(
-        eq(workSlots.masterId, master.id),
-        gte(workSlots.workDate, today)
-      ))
-      .orderBy(workSlots.workDate, workSlots.startTime);
-
-    if (workSlotsList.length === 0) {
-      return ctx.reply('У вас нет запланированных рабочих дней');
-    }
-
-    let message = '📅 Ваше расписание:\n\n';
-    workSlotsList.forEach(slot => {
-      const status = slot.isConfirmed ? '✅ Подтверждено' : '⏳ Ожидает подтверждения';
-      message += `📅 ${slot.workDate}\n`;
-      message += `⏰ ${slot.startTime} - ${slot.endTime}\n`;
-      message += `📊 Статус: ${status}\n\n`;
-    });
-
-    ctx.reply(message);
-  } catch (error) {
-    console.error('Error fetching master schedule:', error);
-    ctx.reply('Произошла ошибка при получении расписания');
-  }
+  await showSchedule(ctx, master.id);
 });
 
-// Записи на сегодня
-bot.hears('📋 Записи на сегодня', async (ctx) => {
+// Schedule navigation callback
+bot.action(/^sched_(prev|next)_(.+)$/, async (ctx) => {
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
 
   const master = await isMaster(telegramId);
   if (!master) return;
 
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const appointmentsList = await db
-      .select({
-        id: appointments.id,
-        serviceName: services.name,
-        appointmentDate: appointments.appointmentDate,
-        startTime: appointments.startTime,
-        endTime: appointments.endTime,
-        clientName: appointments.clientName,
-        clientPhone: appointments.clientPhone,
-        status: appointments.status,
-      })
-      .from(appointments)
-      .leftJoin(services, eq(appointments.serviceId, services.id))
-      .where(and(
-        eq(appointments.masterId, master.id),
-        eq(appointments.appointmentDate, today)
-      ))
-      .orderBy(appointments.startTime);
-
-    if (appointmentsList.length === 0) {
-      return ctx.reply('На сегодня у вас нет записей');
-    }
-
-    let message = '📋 Записи на сегодня:\n\n';
-    appointmentsList.forEach(apt => {
-      message += `⏰ ${apt.startTime} - ${apt.endTime}\n`;
-      message += `💇 ${apt.serviceName}\n`;
-      message += `👤 ${apt.clientName}\n`;
-      message += `📞 ${apt.clientPhone || 'не указан'}\n`;
-      message += `📊 Статус: ${apt.status}\n\n`;
-    });
-
-    ctx.reply(message);
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-    ctx.reply('Произошла ошибка при получении записей');
-  }
+  const targetDate = ctx.match[2];
+  await showSchedule(ctx, master.id, targetDate, false);
+  try { await ctx.answerCbQuery(); } catch {}
 });
 
-// Изменить рабочий день
+// ── Изменить рабочий день ─────────────────────────────────────
+
 bot.hears('🔄 Изменить рабочий день', async (ctx) => {
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
@@ -153,28 +310,28 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
   if (!master) return;
 
   try {
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = todayStr();
+
     const workSlotsList = await db
       .select()
       .from(workSlots)
       .where(and(
         eq(workSlots.masterId, master.id),
-        gte(workSlots.workDate, today)
+        gte(workSlots.workDate, today),
       ))
-      .orderBy(workSlots.workDate, workSlots.startTime);
+      .orderBy(asc(workSlots.workDate), asc(workSlots.startTime));
 
     if (workSlotsList.length === 0) {
       return ctx.reply('У вас нет запланированных рабочих дней для изменения');
     }
 
-    const buttons = workSlotsList.map(slot => 
-      Markup.button.text(`${slot.workDate} ${slot.startTime}-${slot.endTime}`)
+    const buttons = workSlotsList.map(slot =>
+      Markup.button.text(`${slot.workDate} ${slot.startTime}-${slot.endTime}`),
     );
 
     await ctx.reply('Выберите рабочий день для изменения:', Markup.keyboard([
       buttons,
-      ['🔙 Главное меню']
+      ['🔙 Главное меню'],
     ]).resize());
 
     userStates.set(telegramId, { waitingForSlotToChange: true });
@@ -184,7 +341,30 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
   }
 });
 
-// Обработка выбора рабочего дня для изменения
+// ── Настройки ─────────────────────────────────────────────────
+
+bot.hears('⚙️ Настройки', async (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+
+  const master = await isMaster(telegramId);
+  if (!master) return;
+
+  ctx.reply('В разработке', masterMenu);
+});
+
+// ── Возврат в главное меню ────────────────────────────────────
+
+bot.hears('🔙 Главное меню', (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (telegramId) {
+    userStates.delete(telegramId);
+  }
+  ctx.reply('Главное меню:', masterMenu);
+});
+
+// ── Text handler (change day conversation) ────────────────────
+
 bot.on('text', async (ctx) => {
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
@@ -207,12 +387,12 @@ bot.on('text', async (ctx) => {
         .from(workSlots)
         .where(and(
           eq(workSlots.masterId, master.id),
-          gte(workSlots.workDate, new Date().toISOString().split('T')[0])
+          gte(workSlots.workDate, todayStr()),
         ));
 
-      const selectedSlot = workSlotsList.find(slot => 
-        ctx.message.text.includes(slot.workDate) && 
-        ctx.message.text.includes(slot.startTime)
+      const selectedSlot = workSlotsList.find(slot =>
+        ctx.message.text.includes(slot.workDate) &&
+        ctx.message.text.includes(slot.startTime),
       );
 
       if (!selectedSlot) {
@@ -220,48 +400,49 @@ bot.on('text', async (ctx) => {
       }
 
       // Сохраняем выбранный слот и показываем опции изменения
-      userStates.set(telegramId, { 
-        waitingForChangeAction: true, 
+      userStates.set(telegramId, {
+        waitingForChangeAction: true,
         selectedSlotId: selectedSlot.id,
-        selectedSlot: selectedSlot
+        selectedSlot: selectedSlot,
       });
-      
-      ctx.reply(`Выбран рабочий день: ${selectedSlot.workDate} ${selectedSlot.startTime}-${selectedSlot.endTime}\n\n` +
-        'Что вы хотите сделать?', Markup.keyboard([
+
+      ctx.reply(
+        `Выбран рабочий день: ${selectedSlot.workDate} ${selectedSlot.startTime}-${selectedSlot.endTime}\n\n` +
+        'Что вы хотите сделать?',
+        Markup.keyboard([
           ['🕐 Изменить время'],
           ['📅 Изменить дату'],
           ['❌ Отменить рабочий день'],
-          ['🔙 Главное меню']
-        ]).resize());
+          ['🔙 Главное меню'],
+        ]).resize(),
+      );
     } catch (error) {
       console.error('Error processing slot selection:', error);
       ctx.reply('Произошла ошибка');
     }
   } else if (state?.waitingForChangeAction) {
     const action = ctx.message.text;
-    
+
     if (action === '🕐 Изменить время') {
-      userStates.set(telegramId, { 
-        waitingForNewTime: true, 
+      userStates.set(telegramId, {
+        waitingForNewTime: true,
         selectedSlotId: state.selectedSlotId,
-        selectedSlot: state.selectedSlot
+        selectedSlot: state.selectedSlot,
       });
       ctx.reply('Введите новое время в формате ЧЧ:ММ-ЧЧ:ММ (например, 09:00-17:00):');
     } else if (action === '📅 Изменить дату') {
-      userStates.set(telegramId, { 
-        waitingForNewDate: true, 
+      userStates.set(telegramId, {
+        waitingForNewDate: true,
         selectedSlotId: state.selectedSlotId,
-        selectedSlot: state.selectedSlot
+        selectedSlot: state.selectedSlot,
       });
       ctx.reply('Введите новую дату в формате ДД.ММ.ГГГГ (например, 26.02.2025):');
     } else if (action === '❌ Отменить рабочий день') {
-      // Создаем запрос на отмену
       await handleWorkSlotChange(telegramId, state.selectedSlot, 'cancel');
       userStates.delete(telegramId);
       ctx.reply('Запрос на отмену рабочего дня отправлен администратору', masterMenu);
     }
   } else if (state?.waitingForNewTime) {
-    // Обработка нового времени
     const timeRegex = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
     if (!timeRegex.test(ctx.message.text)) {
       return ctx.reply('Неверный формат. Используйте ЧЧ:ММ-ЧЧ:ММ (например, 09:00-17:00):');
@@ -270,13 +451,12 @@ bot.on('text', async (ctx) => {
     const [startTime, endTime] = ctx.message.text.split('-');
     await handleWorkSlotChange(telegramId, state.selectedSlot, 'time_change', {
       newStartTime: startTime,
-      newEndTime: endTime
+      newEndTime: endTime,
     });
-    
+
     userStates.delete(telegramId);
     ctx.reply('Запрос на изменение времени отправлен администратору', masterMenu);
   } else if (state?.waitingForNewDate) {
-    // Обработка новой даты
     const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
     if (!dateRegex.test(ctx.message.text)) {
       return ctx.reply('Неверный формат. Используйте ДД.ММ.ГГГГ (например, 26.02.2025):');
@@ -284,23 +464,23 @@ bot.on('text', async (ctx) => {
 
     const [day, month, year] = ctx.message.text.split('.');
     const newDate = `${year}-${month}-${day}`;
-    
+
     await handleWorkSlotChange(telegramId, state.selectedSlot, 'date_change', {
-      newDate
+      newDate,
     });
-    
+
     userStates.delete(telegramId);
     ctx.reply('Запрос на изменение даты отправлен администратору', masterMenu);
   }
 });
 
-// Функция обработки запроса на изменение рабочего дня
+// ── handleWorkSlotChange ──────────────────────────────────────
+
 async function handleWorkSlotChange(telegramId: string, slot: any, type: string, changes?: any) {
   try {
     const master = await isMaster(telegramId);
     if (!master) return;
 
-    // Создаем запрос на изменение
     await db.insert(workSlotChangeRequests).values({
       workSlotId: slot.id,
       masterId: master.id,
@@ -317,31 +497,8 @@ async function handleWorkSlotChange(telegramId: string, slot: any, type: string,
   }
 }
 
-// Настройки
-bot.hears('⚙️ Настройки', async (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (!telegramId) return;
+// ── Callback queries ──────────────────────────────────────────
 
-  const master = await isMaster(telegramId);
-  if (!master) return;
-
-  ctx.reply('⚙️ Настройки мастера:\n\n' +
-    `👤 Имя: ${master.fullName}\n` +
-    `💼 Специализация: ${master.specialization}\n` +
-    `📞 Телефон: ${master.phone || 'не указан'}\n\n` +
-    'Для изменения данных обратитесь к администратору.');
-});
-
-// Возврат в главное меню
-bot.hears('🔙 Главное меню', (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (telegramId) {
-    userStates.delete(telegramId);
-  }
-  ctx.reply('Главное меню:', masterMenu);
-});
-
-// Обработка callback'ов (подтверждение/отклонение от мастера)
 bot.on('callback_query', async (ctx) => {
   const callbackData = (ctx.callbackQuery as any)?.data;
   const telegramId = ctx.from?.id.toString();
@@ -398,7 +555,8 @@ bot.on('callback_query', async (ctx) => {
   }
 });
 
-// Запуск бота
+// ── Launch ────────────────────────────────────────────────────
+
 bot.launch({ dropPendingUpdates: true }).then(() => {
   console.log('[masters-bot] Stopped.');
 }).catch((error) => {
