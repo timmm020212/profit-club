@@ -417,7 +417,7 @@ bot.action(/^chday_time_(\d+)$/, async (ctx) => {
     .from(appointments)
     .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, slot.workDate), eq(appointments.status, 'confirmed')));
 
-  userStates.set(telegramId, { selectedSlotId: slot.id, selectedSlot: slot, dayAppts });
+  userStates.set(telegramId, { waitingForStartTimePick: true, selectedSlotId: slot.id, selectedSlot: slot, dayAppts });
 
   const startOptions: string[] = [];
   for (let m = 7 * 60; m <= 14 * 60; m += 60) startOptions.push(minutesToTime(m));
