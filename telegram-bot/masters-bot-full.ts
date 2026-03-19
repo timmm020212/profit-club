@@ -659,6 +659,26 @@ bot.on('callback_query', async (ctx) => {
           isConfirmed,
           adminUpdateStatus: isConfirmed ? 'accepted' : 'rejected',
         }).where(eq(workSlots.id, workSlotId));
+
+        // If rejected — create a change request so admin sees it
+        if (!isConfirmed) {
+          const slotData = await db.select().from(workSlots).where(eq(workSlots.id, workSlotId)).limit(1);
+          if (slotData.length > 0) {
+            const master = await isMaster(telegramId);
+            if (master) {
+              await db.insert(workSlotChangeRequests).values({
+                workSlotId,
+                masterId: master.id,
+                type: 'master_rejection',
+                suggestedWorkDate: slotData[0].workDate,
+                suggestedStartTime: slotData[0].startTime,
+                suggestedEndTime: slotData[0].endTime,
+                status: 'pending',
+              });
+            }
+          }
+        }
+
         try { await ctx.editMessageText(`Рабочий день ${isConfirmed ? '✅ подтвержден' : '❌ отклонен'}!`); } catch {}
         try { await ctx.answerCbQuery(); } catch {}
       }
