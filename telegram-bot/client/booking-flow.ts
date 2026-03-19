@@ -56,11 +56,18 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       const state = getState(ctx);
       (state as any)._categories = categories;
 
-      await ctx.editMessageText(
-        "📋 Выберите категорию услуг:",
-        Markup.inlineKeyboard(buttons)
-      );
-      await ctx.answerCbQuery();
+      try {
+        await ctx.editMessageText(
+          "📋 Выберите категорию услуг:",
+          Markup.inlineKeyboard(buttons)
+        );
+      } catch {
+        await ctx.reply(
+          "📋 Выберите категорию услуг:",
+          Markup.inlineKeyboard(buttons)
+        );
+      }
+      try { await ctx.answerCbQuery(); } catch {}
     } catch (e) {
       console.error("[booking-flow] showCategories error:", e);
       try { await ctx.answerCbQuery("Ошибка, попробуйте позже"); } catch {}
@@ -543,7 +550,14 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
     try {
       bookingStates.delete(uid(ctx));
       await ctx.answerCbQuery();
-      // Caller handles main menu display; just acknowledge
+      await ctx.editMessageText(
+        "Выберите действие:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("📅 Записаться", "book")],
+          [Markup.button.callback("👤 Мои записи", "my_appointments")],
+          [Markup.button.callback("ℹ️ О нас", "about")],
+        ])
+      );
     } catch (e) {
       console.error("[booking-flow] book_back_menu error:", e);
     }
