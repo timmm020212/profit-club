@@ -110,131 +110,95 @@ async function showSchedule(
       )
       .limit(1);
 
-    if (!slotRows.length) {
-      const msg = `Нет подтверждённой смены на ${formatDateDisplay(targetDate)}`;
-      if (useReply) return ctx.reply(msg);
-      return ctx.editMessageText(msg);
-    }
-
-    const slot = slotRows[0];
-    const shiftStart = timeToMinutes(slot.startTime);
-    const shiftEnd = timeToMinutes(slot.endTime);
-
-    // Get confirmed appointments for master+date, join services
-    const appts = await db
-      .select({
-        id: appointments.id,
-        startTime: appointments.startTime,
-        endTime: appointments.endTime,
-        clientName: appointments.clientName,
-        serviceName: services.name,
-        serviceDuration: services.duration,
-      })
-      .from(appointments)
-      .leftJoin(services, eq(appointments.serviceId, services.id))
-      .where(
-        and(
-          eq(appointments.masterId, masterId),
-          eq(appointments.appointmentDate, targetDate),
-          eq(appointments.status, 'confirmed'),
-        ),
-      )
-      .orderBy(asc(appointments.startTime));
-
-    // Build message
     let msg = `📅 Расписание — ${formatDateDisplay(targetDate)}\n`;
-    msg += `🕐 ${slot.startTime}–${slot.endTime} (смена)\n`;
 
-    if (!appts.length) {
-      msg += '\nНет записей, весь день свободен';
+    if (!slotRows.length) {
+      msg += '\n😴 Выходной';
     } else {
-      msg += '\n';
+      const slot = slotRows[0];
+      const shiftStart = timeToMinutes(slot.startTime);
+      const shiftEnd = timeToMinutes(slot.endTime);
+      msg += `🕐 ${slot.startTime}–${slot.endTime} (смена)\n`;
 
-      // Get shortest service duration for "finish" threshold
-      const allServices = await db.select({ duration: services.duration }).from(services);
-      const shortestDuration = allServices.length > 0
-        ? Math.min(...allServices.map(s => s.duration))
-        : 30;
+      // Get confirmed appointments for master+date, join services
+      const appts = await db
+        .select({
+          id: appointments.id,
+          startTime: appointments.startTime,
+          endTime: appointments.endTime,
+          clientName: appointments.clientName,
+          serviceName: services.name,
+          serviceDuration: services.duration,
+        })
+        .from(appointments)
+        .leftJoin(services, eq(appointments.serviceId, services.id))
+        .where(
+          and(
+            eq(appointments.masterId, masterId),
+            eq(appointments.appointmentDate, targetDate),
+            eq(appointments.status, 'confirmed'),
+          ),
+        )
+        .orderBy(asc(appointments.startTime));
 
-      let cursor = shiftStart;
+      if (!appts.length) {
+        msg += '\nНет записей, весь день свободен';
+      } else {
+        msg += '\n';
 
-      for (let i = 0; i < appts.length; i++) {
-        const apt = appts[i];
-        const aptStart = timeToMinutes(apt.startTime);
-        const aptEnd = timeToMinutes(apt.endTime);
+        const allServices = await db.select({ duration: services.duration }).from(services);
+        const shortestDuration = allServices.length > 0
+          ? Math.min(...allServices.map(s => s.duration))
+          : 30;
 
-        // Gap before this appointment
-        if (aptStart > cursor) {
-          const gap = aptStart - cursor;
-          if (gap < 30) {
-            msg += `☕ ${minutesToTime(cursor)}–${minutesToTime(aptStart)} перерыв (${gap} мин)\n`;
+        let cursor = shiftStart;
+
+        for (let i = 0; i < appts.length; i++) {
+          const apt = appts[i];
+          const aptStart = timeToMinutes(apt.startTime);
+          const aptEnd = timeToMinutes(apt.endTime);
+
+          if (aptStart > cursor) {
+            const gap = aptStart - cursor;
+            if (gap < 30) {
+              msg += `☕ ${minutesToTime(cursor)}–${minutesToTime(aptStart)} перерыв (${gap} мин)\n`;
+            } else {
+              msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(aptStart)} свободно\n`;
+            }
+          }
+
+          const clientShort = apt.clientName || 'Клиент';
+          msg += `${apt.startTime}–${apt.endTime} 💇 ${apt.serviceName || 'Услуга'} — ${clientShort}\n`;
+
+          cursor = aptEnd;
+        }
+
+        if (cursor < shiftEnd) {
+          const gap = shiftEnd - cursor;
+          if (gap < shortestDuration) {
+            msg += `🏁 Свободны с ${minutesToTime(cursor)}`;
           } else {
-            msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(aptStart)} свободно\n`;
+            msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(shiftEnd)} свободно`;
           }
         }
-
-        // Appointment line
-        // Take first name + initial of last name for privacy
-        const clientShort = apt.clientName || 'Клиент';
-        msg += `${apt.startTime}–${apt.endTime} 💇 ${apt.serviceName || 'Услуга'} — ${clientShort}\n`;
-
-        cursor = aptEnd;
-      }
-
-      // After last appointment
-      if (cursor < shiftEnd) {
-        const gap = shiftEnd - cursor;
-        if (gap < shortestDuration) {
-          msg += `🏁 Свободны с ${minutesToTime(cursor)}`;
-        } else {
-          msg += `🕐 ${minutesToTime(cursor)}–${minutesToTime(shiftEnd)} свободно`;
-        }
       }
     }
 
-    // Navigation: find prev/next confirmed workSlot dates
-    const prevSlots = await db
-      .select({ workDate: workSlots.workDate })
-      .from(workSlots)
-      .where(
-        and(
-          eq(workSlots.masterId, masterId),
-          eq(workSlots.isConfirmed, true),
-          lte(workSlots.workDate, targetDate),
-        ),
-      )
-      .orderBy(desc(workSlots.workDate))
-      .limit(2);
+    // Navigation: prev/next DAY (not just workSlots)
+    const d = new Date(targetDate + 'T00:00:00');
+    const prevD = new Date(d); prevD.setDate(prevD.getDate() - 1);
+    const nextD = new Date(d); nextD.setDate(nextD.getDate() + 1);
 
-    const nextSlots = await db
-      .select({ workDate: workSlots.workDate })
-      .from(workSlots)
-      .where(
-        and(
-          eq(workSlots.masterId, masterId),
-          eq(workSlots.isConfirmed, true),
-          gte(workSlots.workDate, targetDate),
-        ),
-      )
-      .orderBy(asc(workSlots.workDate))
-      .limit(2);
+    function ds(date: Date): string {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
 
-    // prevSlots[0] is targetDate itself, prevSlots[1] is the actual previous
-    const prevDate = prevSlots.length > 1 && prevSlots[1].workDate !== targetDate
-      ? prevSlots[1].workDate
-      : null;
-    // nextSlots[0] is targetDate itself, nextSlots[1] is the actual next
-    const nextDate = nextSlots.length > 1 && nextSlots[1].workDate !== targetDate
-      ? nextSlots[1].workDate
-      : null;
+    const prevDateStr = ds(prevD);
+    const nextDateStr = ds(nextD);
 
     const navButtons: any[] = [];
-    if (prevDate) {
-      navButtons.push(Markup.button.callback('← Пред. день', `sched_prev_${prevDate}`));
-    }
-    if (nextDate) {
-      navButtons.push(Markup.button.callback('След. день →', `sched_next_${nextDate}`));
-    }
+    navButtons.push(Markup.button.callback(`← ${formatDateDisplay(prevDateStr)}`, `sched_prev_${prevDateStr}`));
+    navButtons.push(Markup.button.callback(`${formatDateDisplay(nextDateStr)} →`, `sched_next_${nextDateStr}`));
 
     const inlineKeyboard = navButtons.length > 0
       ? Markup.inlineKeyboard([navButtons])
