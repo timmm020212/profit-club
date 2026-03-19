@@ -588,7 +588,7 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
           }
         }
 
-        // Early finish: if this is the LAST appointment of the day
+        // Early finish: last appointment of the day AND no service fits in remaining time
         const isLast = newIdx === sorted.length - 1;
         if (isLast) {
           const shiftSlots = await db
@@ -605,8 +605,13 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
           if (shiftSlots.length > 0) {
             const shiftEndMin = timeToMinutes(shiftSlots[0].endTime);
             const freeGap = shiftEndMin - newEndMin;
-            console.log(`[booking-flow] Early finish: newEnd=${newEnd}, shiftEnd=${shiftSlots[0].endTime}, gap=${freeGap}min`);
-            if (freeGap > 0) {
+
+            // Find minimum duration of services this master can do
+            const allSvcs = await db.select({ duration: services.duration }).from(services);
+            const minDuration = allSvcs.length > 0 ? Math.min(...allSvcs.map(s => s.duration)) : 30;
+
+            console.log(`[booking-flow] Early finish: newEnd=${newEnd}, shiftEnd=${shiftSlots[0].endTime}, gap=${freeGap}min, minService=${minDuration}min`);
+            if (freeGap > 0 && freeGap < minDuration) {
               await notifyMasterEarlyFinish({
                 masterTelegramId: masterTgId,
                 appointmentDate: state.date!,

@@ -610,7 +610,10 @@ export async function POST(request: Request) {
             );
           if (shiftSlots.length > 0) {
             const freeGap = timeToMinutes(shiftSlots[0].shiftEnd) - timeToMinutes(endTime);
-            if (freeGap > 0) {
+            // Only notify if no service fits in remaining time
+            const allSvcs = await db.select({ duration: services.duration }).from(services);
+            const minDuration = allSvcs.length > 0 ? Math.min(...allSvcs.map((s: any) => s.duration)) : 30;
+            if (freeGap > 0 && freeGap < minDuration) {
               await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
