@@ -14,6 +14,8 @@ function uid(ctx: any): string {
   return String(ctx.from?.id ?? "");
 }
 
+const menuBtn = Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]);
+
 /** Check if appointment start is more than 2 hours from now */
 function canModify(appointmentDate: string, startTime: string): boolean {
   const aptDate = new Date(appointmentDate + "T" + startTime + ":00");
@@ -42,7 +44,10 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
 
       if (rows.length === 0) {
         const text = "У вас нет предстоящих записей.";
-        const kb = Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]);
+        const kb = Markup.inlineKeyboard([
+          [Markup.button.callback("📅 Записаться", "book")],
+          [Markup.button.callback("← Главное меню", "book_back_menu")],
+        ]);
         if (ctx.callbackQuery) {
           try { await ctx.editMessageText(text, kb); } catch {}
         } else {
@@ -90,19 +95,20 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
           `📅 ${formatDateRu(apt.appointmentDate)}, ${apt.startTime}–${apt.endTime}\n` +
           `💇 ${serviceName}\n` +
           `👩 ${masterName}\n` +
-          `💰 ${price} ₽`;
+          `💰 ${price}`;
 
         await ctx.reply(text, Markup.inlineKeyboard([
           [
             Markup.button.callback("Перенести", `reschedule_${apt.id}`),
             Markup.button.callback("Отменить", `cancel_apt_${apt.id}`),
           ],
+          [Markup.button.callback("← Главное меню", "book_back_menu")],
         ]));
       }
     } catch (e) {
       console.error("[appointment-manager] showAppointments error:", e);
       try {
-        await ctx.reply("Произошла ошибка при загрузке записей. Попробуйте позже.");
+        await ctx.reply("Произошла ошибка при загрузке записей.", menuBtn);
       } catch {}
     }
   }
@@ -139,14 +145,14 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
         );
 
       if (aptRows.length === 0) {
-        await ctx.editMessageText("Запись не найдена или уже отменена.");
+        await ctx.editMessageText("Запись не найдена или уже отменена.", menuBtn);
         return;
       }
 
       const apt = aptRows[0];
 
       if (!canModify(apt.appointmentDate, apt.startTime)) {
-        await ctx.editMessageText("❌ Отмена возможна не позднее чем за 2 часа до записи.");
+        await ctx.editMessageText("❌ Отмена возможна не позднее чем за 2 часа до записи.", menuBtn);
         return;
       }
 
@@ -188,7 +194,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
         );
 
       if (aptRows.length === 0) {
-        await ctx.editMessageText("Запись не найдена или уже отменена.");
+        await ctx.editMessageText("Запись не найдена или уже отменена.", menuBtn);
         return;
       }
 
@@ -216,7 +222,13 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
         });
       }
 
-      await ctx.editMessageText("✅ Запись отменена.");
+      await ctx.editMessageText(
+        "✅ Запись отменена.",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("📅 Записаться снова", "book")],
+          [Markup.button.callback("← Главное меню", "book_back_menu")],
+        ]),
+      );
     } catch (e) {
       console.error("[appointment-manager] cancel_confirm error:", e);
       try { await ctx.answerCbQuery("Ошибка, попробуйте позже"); } catch {}
@@ -226,7 +238,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
   bot.action("cancel_no", async (ctx) => {
     try {
       await ctx.answerCbQuery();
-      await ctx.editMessageText("Запись сохранена.");
+      await ctx.editMessageText("Запись сохранена.", menuBtn);
     } catch (e) {
       console.error("[appointment-manager] cancel_no error:", e);
     }
@@ -252,14 +264,14 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
         );
 
       if (aptRows.length === 0) {
-        await ctx.editMessageText("Запись не найдена или уже отменена.");
+        await ctx.editMessageText("Запись не найдена или уже отменена.", menuBtn);
         return;
       }
 
       const apt = aptRows[0];
 
       if (!canModify(apt.appointmentDate, apt.startTime)) {
-        await ctx.editMessageText("❌ Перенос возможен не позднее чем за 2 часа до записи.");
+        await ctx.editMessageText("❌ Перенос возможен не позднее чем за 2 часа до записи.", menuBtn);
         return;
       }
 
@@ -268,7 +280,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
       const masterRows = await db.select().from(masters).where(eq(masters.id, apt.masterId));
 
       if (svcRows.length === 0 || masterRows.length === 0) {
-        await ctx.editMessageText("Ошибка: услуга или мастер не найдены.");
+        await ctx.editMessageText("Ошибка: услуга или мастер не найдены.", menuBtn);
         return;
       }
 
@@ -287,7 +299,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
         rescheduleFromId: apt.id,
       });
 
-      // Show date selection (replicate from booking-flow)
+      // Show date selection
       const today = new Date();
       const dates: string[] = [];
       for (let i = 0; i < 7; i++) {
@@ -312,7 +324,8 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
       if (availableDates.length === 0) {
         bookingStates.delete(telegramId);
         await ctx.editMessageText(
-          `У мастера ${master.fullName} нет доступных дат на ближайшие 7 дней для переноса.`
+          `У мастера ${master.fullName} нет доступных дат на ближайшие 7 дней.`,
+          menuBtn,
         );
         return;
       }
@@ -320,7 +333,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
       const buttons = availableDates.map((d) => [
         Markup.button.callback(formatDateRu(d), `book_dt_${d}`),
       ]);
-      buttons.push([Markup.button.callback("« Отмена", "reschedule_cancel")]);
+      buttons.push([Markup.button.callback("← Отмена", "reschedule_cancel")]);
 
       await ctx.editMessageText(
         `♻️ Перенос записи\n💇 ${svc.name}\n👩 ${master.fullName}\n\n📅 Выберите новую дату:`,
@@ -336,7 +349,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
     try {
       await ctx.answerCbQuery();
       bookingStates.delete(uid(ctx));
-      await ctx.editMessageText("Перенос отменён. Запись сохранена.");
+      await ctx.editMessageText("Перенос отменён. Запись сохранена.", menuBtn);
     } catch (e) {
       console.error("[appointment-manager] reschedule_cancel error:", e);
     }
