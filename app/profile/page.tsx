@@ -27,6 +27,16 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-[#09090D]">
       <Header />
       <div className="mx-auto max-w-4xl px-4 py-10 space-y-8">
+        <a
+          href="/booking"
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+          </svg>
+          К услугам
+        </a>
         <ClientProfileCard />
         <ClientAppointments />
         <ClientFavoriteMasters />
