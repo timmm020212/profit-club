@@ -352,10 +352,10 @@ bot.on('callback_query', async (ctx) => {
     // Мастер отвечает на запрос от АДМИНИСТРАТОРА (confirm_request_X / reject_request_X)
     if (callbackData.startsWith('confirm_request_') || callbackData.startsWith('reject_request_')) {
       const changeRequestId = parseInt(callbackData.split('_').pop()!);
-      if (isNaN(changeRequestId)) { await ctx.answerCbQuery('Некорректный запрос'); return; }
+      if (isNaN(changeRequestId)) { try { await ctx.answerCbQuery('Некорректный запрос'); } catch {} return; }
 
       const reqs = await db.select().from(workSlotChangeRequests).where(eq(workSlotChangeRequests.id, changeRequestId)).limit(1);
-      if (!reqs.length) { await ctx.answerCbQuery('Запрос не найден'); return; }
+      if (!reqs.length) { try { await ctx.answerCbQuery('Запрос не найден'); } catch {} return; }
 
       const req = reqs[0];
       const isConfirm = callbackData.startsWith('confirm_request_');
@@ -369,12 +369,12 @@ bot.on('callback_query', async (ctx) => {
           adminUpdateStatus: 'accepted',
         }).where(eq(workSlots.id, req.workSlotId));
         await db.update(workSlotChangeRequests).set({ status: 'accepted' }).where(eq(workSlotChangeRequests.id, changeRequestId));
-        await ctx.editMessageText(`✅ Изменение подтверждено!\n\n📅 ${req.suggestedWorkDate}\n⏰ ${req.suggestedStartTime} — ${req.suggestedEndTime}`);
+        try { await ctx.editMessageText(`✅ Изменение подтверждено!\n\n📅 ${req.suggestedWorkDate}\n⏰ ${req.suggestedStartTime} — ${req.suggestedEndTime}`); } catch {}
       } else {
         await db.update(workSlotChangeRequests).set({ status: 'rejected' }).where(eq(workSlotChangeRequests.id, changeRequestId));
-        await ctx.editMessageText(`❌ Изменение отклонено.`);
+        try { await ctx.editMessageText(`❌ Изменение отклонено.`); } catch {}
       }
-      await ctx.answerCbQuery();
+      try { await ctx.answerCbQuery(); } catch {}
       return;
     }
 
@@ -388,22 +388,23 @@ bot.on('callback_query', async (ctx) => {
           isConfirmed,
           adminUpdateStatus: isConfirmed ? 'accepted' : 'rejected',
         }).where(eq(workSlots.id, workSlotId));
-        await ctx.editMessageText(`Рабочий день ${isConfirmed ? 'подтвержден' : 'отклонен'}!`);
-        await ctx.answerCbQuery();
+        try { await ctx.editMessageText(`Рабочий день ${isConfirmed ? '✅ подтвержден' : '❌ отклонен'}!`); } catch {}
+        try { await ctx.answerCbQuery(); } catch {}
       }
     }
   } catch (error) {
     console.error('Error handling callback query:', error);
-    await ctx.answerCbQuery('Произошла ошибка');
+    try { await ctx.answerCbQuery('Произошла ошибка'); } catch {}
   }
 });
 
 // Запуск бота
-bot.launch().then(() => {
-  console.log('Masters bot started successfully!');
+bot.launch({ dropPendingUpdates: true }).then(() => {
+  console.log('[masters-bot] Stopped.');
 }).catch((error) => {
-  console.error('Failed to start masters bot:', error);
+  console.error('[masters-bot] Failed to start:', error);
 });
+console.log('[masters-bot] Bot launched, listening for messages...');
 
 // Graceful shutdown
 process.once('SIGINT', () => bot.stop('SIGINT'));
