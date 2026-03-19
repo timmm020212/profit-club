@@ -119,6 +119,7 @@ export default function LoginForm() {
             pollRef.current = null;
             setTgStatus("Подтверждено!");
             saveAndRedirect({
+              id: statusData.id,
               name: statusData.name,
               phone: statusData.phone,
               telegramId: statusData.telegramId,

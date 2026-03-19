@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { clients, pendingClients } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { clients, pendingClients, telegramVerificationCodes } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,44 @@ export async function GET(request: Request) {
       );
     }
 
-    // Ищем клиента по коду подтверждения
+    // LOGIN_ codes — check telegramVerificationCodes table
+    if (code.startsWith("LOGIN_")) {
+      const codeRow = await db.select().from(telegramVerificationCodes)
+        .where(eq(telegramVerificationCodes.code, code))
+        .limit(1);
+
+      if (!codeRow.length) {
+        return NextResponse.json({ verified: false, error: "Код не найден" }, { status: 404 });
+      }
+
+      if (!codeRow[0].isUsed) {
+        return NextResponse.json({ verified: false, telegramId: null });
+      }
+
+      // Code was used by bot — find the client by telegramId
+      const telegramId = codeRow[0].telegramId;
+      if (!telegramId || telegramId === "pending") {
+        return NextResponse.json({ verified: false, telegramId: null });
+      }
+
+      const client = await db.select().from(clients)
+        .where(eq(clients.telegramId, telegramId))
+        .limit(1);
+
+      if (client.length > 0) {
+        return NextResponse.json({
+          verified: true,
+          id: client[0].id,
+          telegramId: client[0].telegramId,
+          name: client[0].name,
+          phone: client[0].phone,
+        });
+      }
+
+      return NextResponse.json({ verified: false, telegramId: null });
+    }
+
+    // Regular verification codes — existing logic
     const client = await db.select().from(clients).where(eq(clients.verificationCode, code)).limit(1);
 
     if (client.length === 0) {
@@ -40,10 +77,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Если клиент подтвержден, также сохраняем в localStorage через ответ
     if (client[0].isVerified) {
       return NextResponse.json({
         verified: true,
+        id: client[0].id,
         telegramId: client[0].telegramId || null,
         name: client[0].name,
         phone: client[0].phone,
