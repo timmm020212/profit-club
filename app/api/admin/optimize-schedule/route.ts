@@ -95,8 +95,8 @@ export async function POST(request: Request) {
       })
       .returning();
 
-    // Save all moves
-    const savedMoves = [];
+    // Save all moves and enrich with client/service data
+    const enrichedMoves = [];
     for (const move of moves) {
       const [saved] = await db
         .insert(optimizationMoves)
@@ -110,7 +110,19 @@ export async function POST(request: Request) {
           clientResponse: "pending",
         })
         .returning();
-      savedMoves.push(saved);
+
+      // Get client and service info
+      const apt = rows.find(r => r.id === move.appointmentId);
+      const aptFull = await db.select().from(appointments).where(eq(appointments.id, move.appointmentId)).limit(1);
+      const svc = aptFull.length ? await db.select().from(services).where(eq(services.id, aptFull[0].serviceId)).limit(1) : [];
+
+      enrichedMoves.push({
+        ...saved,
+        clientName: aptFull[0]?.clientName || "Клиент",
+        clientTelegramId: aptFull[0]?.clientTelegramId || null,
+        serviceName: svc[0]?.name || "Услуга",
+        status: "pending",
+      });
     }
 
     return NextResponse.json({
@@ -119,7 +131,7 @@ export async function POST(request: Request) {
         masterId: optimization.masterId,
         workDate: optimization.workDate,
         status: optimization.status,
-        moves: savedMoves,
+        moves: enrichedMoves,
       },
     });
   } catch (error) {

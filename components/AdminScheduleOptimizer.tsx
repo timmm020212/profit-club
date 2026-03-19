@@ -152,7 +152,11 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
   const statusBadge = (status: OptimizeMove["status"]) => {
     switch (status) {
       case "pending":
-        return null;
+        return (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-500/[0.08] border border-zinc-500/15 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+            Черновик
+          </span>
+        );
       case "sent":
         return (
           <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/[0.08] border border-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
