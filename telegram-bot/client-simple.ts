@@ -40,6 +40,45 @@ bot.start(async (ctx) => {
 
   // Если пришёл с кодом с сайта (site-initiated registration)
   const startPayload = ctx.startPayload;
+
+  // Handle site login via deep link
+  if (startPayload && startPayload.startsWith('LOGIN_')) {
+    try {
+      // Find the login code
+      const codeRows = await db.select().from(telegramVerificationCodes)
+        .where(and(
+          eq(telegramVerificationCodes.code, startPayload),
+          eq(telegramVerificationCodes.isUsed, false),
+          gt(telegramVerificationCodes.expiresAt, new Date())
+        ))
+        .limit(1);
+
+      if (codeRows.length > 0) {
+        // Check if user is a registered client
+        const clientRows = await db.select().from(clients)
+          .where(eq(clients.telegramId, telegramId))
+          .limit(1);
+
+        if (clientRows.length > 0) {
+          // Mark code as used and link telegramId
+          await db.update(telegramVerificationCodes)
+            .set({ isUsed: true, telegramId, phone: clientRows[0].phone })
+            .where(eq(telegramVerificationCodes.id, codeRows[0].id));
+
+          await ctx.reply('✅ Вход на сайт подтверждён!\n\nВернитесь на сайт — вы авторизованы.', mainMenuKeyboard);
+        } else {
+          await ctx.reply('❌ Вы не зарегистрированы. Сначала пройдите регистрацию на сайте.');
+        }
+      } else {
+        await ctx.reply('❌ Код устарел или уже использован. Попробуйте снова на сайте.');
+      }
+    } catch (e) {
+      console.error('Error handling LOGIN_ code:', e);
+      await ctx.reply('Произошла ошибка. Попробуйте позже.');
+    }
+    return;
+  }
+
   if (startPayload && startPayload.length > 0) {
     try {
       // Ищем в pendingClients по verificationCode
