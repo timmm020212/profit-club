@@ -153,6 +153,8 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
     }
   };
 
+  const [applied, setApplied] = useState(false);
+
   const handleApplyAccepted = async () => {
     if (!optimization) return;
     setApplying(true);
@@ -165,9 +167,9 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Ошибка применения");
-      if (data.optimization) {
-        setOptimization(data.optimization);
-      }
+      setApplied(true);
+      // Stop polling
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     } catch (e: any) {
       setError(e?.message || "Ошибка при применении");
     } finally {
@@ -274,8 +276,30 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           {/* Body */}
           <div className="px-6 py-5 overflow-y-auto flex-1">
 
+            {/* Applied / Completed state */}
+            {(applied || optimization?.status === "completed") && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-emerald-300">Оптимизировано</p>
+                  <p className="text-xs text-zinc-500 mt-1">Согласованные записи перенесены</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07] transition-all"
+                >
+                  Закрыть
+                </button>
+              </div>
+            )}
+
             {/* Loading state */}
-            {phase === "loading" && (
+            {phase === "loading" && !applied && optimization?.status !== "completed" && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <span className="h-8 w-8 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
                 <p className="text-sm text-zinc-400">Рассчитываем оптимальное расписание...</p>
@@ -302,7 +326,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
             )}
 
             {/* Results: no moves */}
-            {phase === "results" && optimization && optimization.moves.length === 0 && (
+            {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/10">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
@@ -317,7 +341,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
             )}
 
             {/* Results: moves exist */}
-            {phase === "results" && optimization && optimization.moves.length > 0 && (
+            {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length > 0 && (
               <div className="space-y-4">
                 {/* Column headers */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_140px_24px_140px_80px_40px] gap-2 items-center px-3 pb-2 border-b border-white/[0.05]">
@@ -449,7 +473,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           </div>
 
           {/* Footer buttons */}
-          {phase === "results" && optimization && optimization.moves.length > 0 && (
+          {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length > 0 && (
             <>
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent flex-shrink-0" />
               <div className="px-6 py-4 flex items-center justify-end gap-2 flex-shrink-0">
@@ -511,7 +535,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           )}
 
           {/* Footer for empty/close-only states */}
-          {phase === "results" && optimization && optimization.moves.length === 0 && (
+          {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length === 0 && (
             <>
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent flex-shrink-0" />
               <div className="px-6 py-4 flex items-center justify-end flex-shrink-0">

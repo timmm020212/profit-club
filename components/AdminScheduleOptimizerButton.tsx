@@ -31,6 +31,11 @@ export default function AdminScheduleOptimizerButton({ masterId, workDate, maste
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           const opt = data[0];
+          // Don't show notification if already completed
+          if (opt.status === "completed") {
+            setHasUpdate(false);
+            return;
+          }
           const hasResponse = opt.moves?.some(
             (m: any) => m.status === "accepted" || m.status === "declined" || m.clientResponse === "accepted" || m.clientResponse === "declined"
           );
