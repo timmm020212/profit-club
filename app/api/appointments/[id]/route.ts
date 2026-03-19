@@ -99,6 +99,43 @@ export async function PATCH(
         .where(eq(appointments.id, idNum))
         .returning();
 
+      // Notify master and client about cancellation
+      try {
+        const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
+        const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+        const masterRows = await db.select().from(masters).where(eq(masters.id, appt.masterId)).limit(1);
+        const serviceRows = await db.select().from(services).where(eq(services.id, appt.serviceId)).limit(1);
+        const dateObj = new Date(appt.appointmentDate + "T00:00:00");
+        const formattedDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+        const serviceName = serviceRows[0]?.name || "Услуга";
+
+        // Notify master
+        if (MASTERS_BOT_TOKEN && masterRows[0]?.telegramId) {
+          await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: masterRows[0].telegramId,
+              text: `❌ Запись отменена\n\n👤 ${appt.clientName}\n💇 ${serviceName}\n📅 ${formattedDate}, ${appt.startTime}–${appt.endTime}`,
+            }),
+          });
+        }
+
+        // Notify client
+        if (CLIENT_BOT_TOKEN && appt.clientTelegramId) {
+          await fetch(`https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: appt.clientTelegramId,
+              text: `❌ Ваша запись отменена\n\n💇 ${serviceName}\n👩 ${masterRows[0]?.fullName || "Мастер"}\n📅 ${formattedDate}, ${appt.startTime}–${appt.endTime}`,
+            }),
+          });
+        }
+      } catch (e) {
+        console.error("Failed to send cancellation notifications:", e);
+      }
+
       return NextResponse.json({ appointment: updated });
     }
 
@@ -228,6 +265,42 @@ export async function PATCH(
       .where(eq(masters.id, updatedRow.masterId));
 
     const masterName = masterRows[0]?.fullName || "Мастер";
+
+    // Notify master and client about reschedule
+    try {
+      const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
+      const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+      const serviceRows = await db.select().from(services).where(eq(services.id, updatedRow.serviceId)).limit(1);
+      const serviceName = serviceRows[0]?.name || "Услуга";
+      const oldDate = new Date(currentAppointment.appointmentDate + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+      const newDate = new Date(appointmentDate + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+
+      // Notify master
+      if (MASTERS_BOT_TOKEN && masterRows[0]?.telegramId) {
+        await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: masterRows[0].telegramId,
+            text: `🔄 Запись перенесена\n\n👤 ${updatedRow.clientName}\n💇 ${serviceName}\n❌ ${oldDate}, ${currentAppointment.startTime}–${currentAppointment.endTime}\n✅ ${newDate}, ${startTime}–${endTime}`,
+          }),
+        });
+      }
+
+      // Notify client
+      if (CLIENT_BOT_TOKEN && updatedRow.clientTelegramId) {
+        await fetch(`https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: updatedRow.clientTelegramId,
+            text: `🔄 Запись перенесена\n\n💇 ${serviceName}\n👩 ${masterName}\n❌ ${oldDate}, ${currentAppointment.startTime}–${currentAppointment.endTime}\n✅ ${newDate}, ${startTime}–${endTime}`,
+          }),
+        });
+      }
+    } catch (e) {
+      console.error("Failed to send reschedule notifications:", e);
+    }
 
     return NextResponse.json({
       appointment: {

@@ -627,6 +627,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // Notify client about new appointment
+    try {
+      const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+      const clientTgId = newAppointment[0].clientTelegramId;
+      if (CLIENT_BOT_TOKEN && clientTgId) {
+        const dateObj = new Date(appointmentDate + "T00:00:00");
+        const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+        const mName = masterInfo[0]?.fullName || "Мастер";
+        await fetch(`https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: clientTgId,
+            text: `✅ Вы записаны!\n\n💇 ${service[0].name}\n👩 ${mName}\n📅 ${fDate}, ${startTime}–${endTime}\n💰 ${service[0].price || ""}`,
+          }),
+        });
+      }
+    } catch (e) {
+      console.error("Failed to send client booking notification:", e);
+    }
+
     return NextResponse.json(newAppointment[0], { status: 201 });
   } catch (error) {
     console.error("Error creating appointment:", error);
