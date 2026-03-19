@@ -1,20 +1,13 @@
 import { NextResponse } from "next/server";
-import { db, testConnection } from "@/db";
+import { db } from "@/db";
 import { clients } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      return NextResponse.json(
-        { error: "Не удалось подключиться к базе данных. Убедитесь, что PostgreSQL запущен и доступен." },
-        { status: 503 }
-      );
-    }
-
     const body = await request.json();
     const phone = String(body?.phone || "").trim();
     const password = String(body?.password || "");
@@ -30,31 +23,37 @@ export async function POST(request: Request) {
 
     if (found.length === 0) {
       return NextResponse.json(
-        { error: "Пользователь не найден" },
-        { status: 404 }
+        { error: "Неверный телефон или пароль" },
+        { status: 401 }
       );
     }
 
     const client = found[0];
 
-    if (!client.isVerified) {
-      return NextResponse.json(
-        { error: "Аккаунт не подтверждён через Telegram" },
-        { status: 403 }
-      );
+    const storedPassword = client.password || "";
+    let valid: boolean;
+
+    // Support both bcrypt hashes and plain-text passwords (legacy)
+    if (storedPassword.startsWith("$2")) {
+      valid = await bcrypt.compare(password, storedPassword);
+    } else {
+      valid = storedPassword === password;
     }
 
-    if ((client.password || "") !== password) {
+    if (!valid) {
       return NextResponse.json(
-        { error: "Неверный пароль" },
+        { error: "Неверный телефон или пароль" },
         { status: 401 }
       );
     }
 
     return NextResponse.json({
       success: true,
+      id: client.id,
       name: client.name,
+      phone: client.phone,
       telegramId: client.telegramId || null,
+      isVerified: client.isVerified,
     });
   } catch (error: any) {
     return NextResponse.json(
