@@ -482,6 +482,8 @@ bot.on('text', async (ctx) => {
     }
   } else if (state?.waitingForChangeAction) {
     const action = ctx.message.text;
+    const master = await isMaster(telegramId);
+    if (!master) return;
 
     // Check for existing appointments on this day
     const dayAppts = await db
