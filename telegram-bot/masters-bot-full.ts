@@ -388,7 +388,10 @@ bot.action(/^chday_cancel_(\d+)$/, async (ctx) => {
   if (dayAppts.length > 0) {
     const list = dayAppts.map(a => `  ${a.startTime}–${a.endTime}`).join('\n');
     try {
-      await ctx.editMessageText(`❌ Невозможно отменить!\n\nНа ${formatDateDisplay(slot.workDate)} есть записи:\n${list}\n\nСначала отмените записи.`);
+      await ctx.editMessageText(
+        `❌ Невозможно отменить!\n\nНа ${formatDateDisplay(slot.workDate)} есть записи:\n${list}\n\nСначала отмените записи.`,
+        Markup.inlineKeyboard([[Markup.button.callback('← Главное меню', 'chday_back')]]),
+      );
     } catch {}
   } else {
     await handleWorkSlotChange(telegramId, slot, 'cancel');
@@ -599,6 +602,7 @@ bot.action(/^pick_end_(\d{2}:\d{2})$/, async (ctx) => {
     try {
       await ctx.editMessageText(
         `❌ Невозможно изменить время!\n\nЗаписи выходят за рамки ${newStart}–${newEnd}:\n${list}\n\nСначала перенесите или отмените эти записи.`,
+        Markup.inlineKeyboard([[Markup.button.callback('← Главное меню', 'chday_back')]]),
       );
     } catch {}
     userStates.delete(telegramId);
