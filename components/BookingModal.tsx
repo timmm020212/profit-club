@@ -158,6 +158,7 @@ export default function BookingModal({ service, onClose }: Props) {
           startTime: selectedSlot.startTime,
           clientName: clientName.trim(),
           clientPhone: clientPhone.trim(),
+          clientTelegramId: typeof window !== "undefined" ? localStorage.getItem("profit_club_telegram_id") || undefined : undefined,
         }),
       });
       const data = await res.json();
