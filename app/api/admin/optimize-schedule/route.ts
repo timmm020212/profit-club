@@ -184,6 +184,7 @@ export async function GET(request: Request) {
           sentAt: optimizationMoves.sentAt,
           clientName: appointments.clientName,
           clientPhone: appointments.clientPhone,
+          clientTelegramId: appointments.clientTelegramId,
           serviceName: services.name,
           serviceDuration: services.duration,
           masterName: masters.fullName,
@@ -199,11 +200,15 @@ export async function GET(request: Request) {
 
       result.push({
         ...opt,
-        moves: movesWithData,
+        moves: movesWithData.map(m => ({
+          ...m,
+          status: m.sentAt ? (m.clientResponse === "pending" ? "sent" : m.clientResponse) : "pending",
+          clientTelegramId: (m as any).clientTelegramId || null,
+        })),
       });
     }
 
-    return NextResponse.json({ optimizations: result });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("optimize-schedule GET error:", error);
     return NextResponse.json(

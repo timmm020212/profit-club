@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface OptimizeMove {
@@ -40,10 +40,30 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
   const [applying, setApplying] = useState(false);
   const [savingMove, setSavingMove] = useState(false);
 
+  const refreshStatuses = useCallback(async (optId: number) => {
+    try {
+      const res = await fetch(`/api/admin/optimize-schedule?masterId=${masterId}&workDate=${workDate}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data) && data.length > 0) {
+        const opt = data.find((o: any) => o.id === optId);
+        if (opt) setOptimization(opt);
+      }
+    } catch {}
+  }, [masterId, workDate]);
+
   const calculate = useCallback(async () => {
     setPhase("loading");
     setError(null);
     try {
+      // Check if optimization already exists
+      const checkRes = await fetch(`/api/admin/optimize-schedule?masterId=${masterId}&workDate=${workDate}`);
+      const checkData = await checkRes.json();
+      if (checkRes.ok && Array.isArray(checkData) && checkData.length > 0) {
+        setOptimization(checkData[0]);
+        setPhase("results");
+        return;
+      }
+
       const res = await fetch("/api/admin/optimize-schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,7 +71,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Ошибка расчёта");
-      setOptimization(data.optimization);
+      setOptimization(data.optimization || { id: 0, moves: data.moves || [] });
       setPhase("results");
     } catch (e: any) {
       setError(e?.message || "Ошибка при расчёте оптимизации");
@@ -62,6 +82,17 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
   useEffect(() => {
     calculate();
   }, [calculate]);
+
+  // Poll for status updates every 3 seconds when sent
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (optimization?.status === "sent" || optimization?.moves.some(m => m.status === "sent")) {
+      pollRef.current = setInterval(() => {
+        if (optimization?.id) refreshStatuses(optimization.id);
+      }, 3000);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [optimization?.id, optimization?.status, refreshStatuses]);
 
   const handleEditMove = (move: OptimizeMove) => {
     setEditingMoveId(move.id);
@@ -107,14 +138,14 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Ошибка отправки");
-      if (data.optimization) {
-        setOptimization(data.optimization);
-      } else {
-        setOptimization({
-          ...optimization,
-          moves: optimization.moves.map((m) => ({ ...m, status: "sent" as const })),
-        });
-      }
+      // Update moves to sent status and refresh
+      setOptimization({
+        ...optimization,
+        status: "sent",
+        moves: optimization.moves.map((m) => ({ ...m, status: "sent" as const })),
+      } as any);
+      // Refresh from server after a moment
+      setTimeout(() => { if (optimization?.id) refreshStatuses(optimization.id); }, 1000);
     } catch (e: any) {
       setError(e?.message || "Ошибка при отправке предложений");
     } finally {
