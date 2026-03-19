@@ -12,7 +12,7 @@ import {
   rolesMatch,
   timeRangesOverlap,
 } from "./utils";
-import { notifyMasterNewAppointment, notifyMasterCancellation } from "./notify-master";
+import { notifyMasterNewAppointment, notifyMasterCancellation, detectBreaks, notifyMasterBreak } from "./notify-master";
 
 function uid(ctx: any): string {
   return String(ctx.from?.id ?? "");
@@ -531,6 +531,33 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         `🕐 ${state.startTime}–${state.endTime}` +
         rescheduleNote
       );
+
+      // Detect and notify about breaks
+      try {
+        const dayAppointments = await db
+          .select({ startTime: appointments.startTime, endTime: appointments.endTime })
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.masterId, state.masterId!),
+              eq(appointments.appointmentDate, state.date!),
+              eq(appointments.status, "confirmed")
+            )
+          );
+
+        const gaps = detectBreaks(dayAppointments);
+        for (const gap of gaps) {
+          await notifyMasterBreak({
+            masterTelegramId: masterRows.length > 0 ? masterRows[0].telegramId : null,
+            appointmentDate: state.date!,
+            breakStart: gap.breakStart,
+            breakEnd: gap.breakEnd,
+            breakMinutes: gap.breakMinutes,
+          });
+        }
+      } catch (e) {
+        console.error("[booking-flow] break detection error:", e);
+      }
 
       // Clear state
       bookingStates.delete(telegramId);
