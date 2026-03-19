@@ -545,7 +545,7 @@ export default function AdminSiteServicesManager() {
             <p className="text-sm text-zinc-700 mt-1">Добавьте первую услугу</p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className={`grid gap-2.5 ${layoutMode === "mobile" ? "grid-cols-2 max-w-md mx-auto" : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"}`}>
             {ordered.map((service) => (
               <div
                 key={service.id}
@@ -558,7 +558,7 @@ export default function AdminSiteServicesManager() {
                 }`}
               >
                 {/* Image */}
-                <div className="relative h-36 bg-white/[0.03] overflow-hidden">
+                <div className={`relative bg-white/[0.03] overflow-hidden ${layoutMode === "mobile" ? "h-28" : "h-36"}`}>
                   {service.imageUrl ? (
                     <Image src={service.imageUrl} alt={service.name} fill className="object-cover" />
                   ) : (
@@ -593,19 +593,22 @@ export default function AdminSiteServicesManager() {
                 </div>
 
                 {/* Content */}
-                <div className="p-4">
-                  <h3 className="text-sm font-semibold text-zinc-100 leading-snug mb-1 line-clamp-2">{service.name}</h3>
-                  {service.description && (
+                <div className={layoutMode === "mobile" ? "p-2.5" : "p-4"}>
+                  <h3 className={`font-semibold text-zinc-100 leading-snug mb-1 line-clamp-2 ${layoutMode === "mobile" ? "text-xs" : "text-sm"}`}>{service.name}</h3>
+                  {service.description && !layoutMode.startsWith("m") && (
                     <p className="text-xs text-zinc-600 line-clamp-2 mb-3">{service.description}</p>
                   )}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {service.description && layoutMode === "mobile" && (
+                    <p className="text-[10px] text-zinc-600 line-clamp-1 mb-2">{service.description}</p>
+                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {service.price && (
-                      <span className="inline-flex items-center rounded-lg bg-white/[0.05] border border-white/[0.07] px-2 py-1 text-xs font-semibold text-zinc-200">
+                      <span className={`inline-flex items-center rounded-lg bg-white/[0.05] border border-white/[0.07] font-semibold text-zinc-200 ${layoutMode === "mobile" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-xs"}`}>
                         {service.price}
                       </span>
                     )}
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-white/[0.04] border border-white/[0.06] px-2 py-1 text-xs text-zinc-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                    <span className={`inline-flex items-center gap-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-zinc-500 ${layoutMode === "mobile" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-xs"}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={layoutMode === "mobile" ? "w-2.5 h-2.5" : "w-3 h-3"}>
                         <path fillRule="evenodd" d="M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8Zm7.75-4.25a.75.75 0 0 0-1.5 0V8c0 .414.336.75.75.75h3.25a.75.75 0 0 0 0-1.5h-2.5v-3.5Z" clipRule="evenodd" />
                       </svg>
                       {service.duration} мин
