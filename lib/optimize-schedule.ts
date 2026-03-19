@@ -101,9 +101,9 @@ export function computeOptimization(
     const gap = originalStart - cursor;
 
     if (gap > 60) {
-      // Large gap: attempt to move the appointment to the cursor position.
-      const newStart = cursor;
-      const newEnd = cursor + appt.duration;
+      // Large gap: move to the next 30-minute slot after cursor.
+      const newStart = Math.ceil(cursor / 30) * 30;
+      const newEnd = newStart + appt.duration;
 
       // --- Guard: new slot must fit inside the shift ---
       if (newStart < shiftStartMin || newEnd > shiftEndMin) {
