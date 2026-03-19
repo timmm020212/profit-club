@@ -39,6 +39,7 @@ export const masters = sqliteTable("masters", {
   photoUrl: text("photoUrl", { length: 500 }),
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
   showOnSite: integer("showOnSite", { mode: "boolean" }).default(true).notNull(),
+  notificationSettings: text("notificationSettings"),
   createdAt: text("createdAt").default(new Date().toISOString()).notNull(),
 });
 
