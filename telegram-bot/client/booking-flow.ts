@@ -618,14 +618,24 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         ? "\n\n♻️ Предыдущая запись отменена."
         : "";
 
+      const dateDisplay = new Date(state.date + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+      const confirmText =
+        `✅ Ваша запись оформлена!\n\n` +
+        `💆 Услуга: ${state.serviceName}\n` +
+        `👨‍💼 Мастер: ${state.masterName}\n` +
+        `📅 Дата: ${dateDisplay}\n` +
+        `🕒 Время: ${state.startTime}–${state.endTime}\n\n` +
+        `✏️ Вы можете изменить время и мастера не позднее чем за 2 часа до записи.\n\n` +
+        `Ждём вас в салоне Profit Club!` +
+        rescheduleNote;
+
       await ctx.editMessageText(
-        `✅ Вы записаны!\n\n` +
-        `💇 ${state.serviceName}\n` +
-        `👨‍🔧 ${state.masterName}\n` +
-        `📅 ${formatDateRu(state.date)}\n` +
-        `🕐 ${state.startTime}–${state.endTime}` +
-        rescheduleNote,
-        Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]),
+        confirmText,
+        Markup.inlineKeyboard([
+          [Markup.button.callback("📋 Мои записи", "my_appointments")],
+          [Markup.button.callback("📅 Записаться ещё", "book")],
+          [Markup.button.callback("← Главное меню", "book_back_menu")],
+        ]),
       );
 
       // Clear state

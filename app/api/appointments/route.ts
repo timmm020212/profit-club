@@ -633,14 +633,28 @@ export async function POST(request: Request) {
       const clientTgId = newAppointment[0].clientTelegramId;
       if (CLIENT_BOT_TOKEN && clientTgId) {
         const dateObj = new Date(appointmentDate + "T00:00:00");
-        const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+        const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
         const mName = masterInfo[0]?.fullName || "Мастер";
+        const confirmText =
+          `✅ Ваша запись оформлена!\n\n` +
+          `💆 Услуга: ${service[0].name}\n` +
+          `👨‍💼 Мастер: ${mName}\n` +
+          `📅 Дата: ${fDate}\n` +
+          `🕒 Время: ${startTime}–${endTime}\n\n` +
+          `✏️ Вы можете изменить время и мастера не позднее чем за 2 часа до записи.\n\n` +
+          `Ждём вас в салоне Profit Club!`;
         await fetch(`https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: clientTgId,
-            text: `✅ Вы записаны!\n\n💇 ${service[0].name}\n👩 ${mName}\n📅 ${fDate}, ${startTime}–${endTime}\n💰 ${service[0].price || ""}`,
+            text: confirmText,
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📋 Мои записи", callback_data: "my_appointments" }],
+                [{ text: "📅 Записаться ещё", callback_data: "book" }],
+              ],
+            },
           }),
         });
       }
