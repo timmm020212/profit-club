@@ -522,28 +522,7 @@ export async function POST(request: Request) {
       console.log("No Telegram ID found, skipping notification");
     }
 
-    // Уведомляем мастера о новой записи
-    if (masterInfo[0]?.telegramId) {
-      try {
-        await sendMasterNotification({
-          masterTelegramId: masterInfo[0].telegramId,
-          masterName: masterInfo[0].fullName || "Мастер",
-          serviceName: service[0].name,
-          appointmentDate,
-          startTime,
-          endTime,
-          clientName: finalClientName,
-          clientPhone: finalClientPhone,
-        });
-        console.log(`✅ Master notification sent to ${masterInfo[0].fullName}`);
-      } catch (e) {
-        console.error("Failed to send master appointment notification", e);
-      }
-    } else {
-      console.log("Master has no telegramId, skipping notification");
-    }
-
-    // Detect breaks and early finish — only for THIS new appointment's neighbors
+    // 1. Detect breaks and early finish FIRST — only for THIS new appointment's neighbors
     try {
       const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
       const masterTelegramId = masterInfo[0]?.telegramId;
@@ -628,6 +607,24 @@ export async function POST(request: Request) {
       }
     } catch (breakError) {
       console.error("Break notification error:", breakError);
+    }
+
+    // 2. Then notify master about the new appointment
+    if (masterInfo[0]?.telegramId) {
+      try {
+        await sendMasterNotification({
+          masterTelegramId: masterInfo[0].telegramId,
+          masterName: masterInfo[0].fullName || "Мастер",
+          serviceName: service[0].name,
+          appointmentDate,
+          startTime,
+          endTime,
+          clientName: finalClientName,
+          clientPhone: finalClientPhone,
+        });
+      } catch (e) {
+        console.error("Failed to send master appointment notification", e);
+      }
     }
 
     return NextResponse.json(newAppointment[0], { status: 201 });

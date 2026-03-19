@@ -500,39 +500,13 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         createdAt,
       });
 
-      // Notify master
+      // Fetch master info
       const masterRows = await db
         .select()
         .from(masters)
         .where(eq(masters.id, state.masterId));
 
-      if (masterRows.length > 0) {
-        await notifyMasterNewAppointment({
-          masterTelegramId: masterRows[0].telegramId,
-          clientName,
-          clientPhone,
-          serviceName: state.serviceName || "Услуга",
-          appointmentDate: state.date,
-          startTime: state.startTime,
-          endTime: state.endTime,
-        });
-      }
-
-      // Success message
-      const rescheduleNote = state.rescheduleFromId
-        ? "\n\n♻️ Предыдущая запись отменена."
-        : "";
-
-      await ctx.editMessageText(
-        `✅ Вы записаны!\n\n` +
-        `💇 ${state.serviceName}\n` +
-        `👨‍🔧 ${state.masterName}\n` +
-        `📅 ${formatDateRu(state.date)}\n` +
-        `🕐 ${state.startTime}–${state.endTime}` +
-        rescheduleNote
-      );
-
-      // Notify about gap/early-finish related to THIS new appointment only
+      // 1. Notify about breaks/early-finish FIRST
       try {
         const masterTgId = masterRows.length > 0 ? masterRows[0].telegramId : null;
         const newStart = state.startTime!;
@@ -625,6 +599,33 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       } catch (e) {
         console.error("[booking-flow] break/earlyFinish error:", e);
       }
+
+      // 2. Then notify master about the new appointment
+      if (masterRows.length > 0) {
+        await notifyMasterNewAppointment({
+          masterTelegramId: masterRows[0].telegramId,
+          clientName,
+          clientPhone,
+          serviceName: state.serviceName || "Услуга",
+          appointmentDate: state.date,
+          startTime: state.startTime,
+          endTime: state.endTime,
+        });
+      }
+
+      // 3. Success message to client
+      const rescheduleNote = state.rescheduleFromId
+        ? "\n\n♻️ Предыдущая запись отменена."
+        : "";
+
+      await ctx.editMessageText(
+        `✅ Вы записаны!\n\n` +
+        `💇 ${state.serviceName}\n` +
+        `👨‍🔧 ${state.masterName}\n` +
+        `📅 ${formatDateRu(state.date)}\n` +
+        `🕐 ${state.startTime}–${state.endTime}` +
+        rescheduleNote
+      );
 
       // Clear state
       bookingStates.delete(telegramId);
