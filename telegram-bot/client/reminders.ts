@@ -1,5 +1,5 @@
-import { db } from "../db";
-import { appointments, services, masters, reminderSent } from "../db/schema";
+import { db } from "../../db";
+import { appointments, services, masters, reminderSent } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 

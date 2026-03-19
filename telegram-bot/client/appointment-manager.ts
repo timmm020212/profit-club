@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { eq, and, gte } from "drizzle-orm";
-import { db } from "../db";
-import { appointments, services, masters, workSlots } from "../db/schema";
+import { db } from "../../db";
+import { appointments, services, masters, workSlots } from "../../db/schema";
 import { bookingStates } from "./types";
 import {
   timeToMinutes,
