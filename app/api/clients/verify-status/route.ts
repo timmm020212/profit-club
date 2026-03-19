@@ -51,7 +51,14 @@ export async function GET(request: Request) {
         });
       }
 
-      return NextResponse.json({ verified: false, telegramId: null });
+      // Client not found by telegramId — but code is confirmed
+      // Return verified with telegramId so site can link it
+      return NextResponse.json({
+        verified: true,
+        telegramId,
+        name: null,
+        phone: null,
+      });
     }
 
     // Regular verification codes — existing logic

@@ -56,21 +56,12 @@ bot.start(async (ctx) => {
         .limit(1);
 
       if (codeRows.length > 0) {
-        // Check if user is a registered client
-        const clientRows = await db.select().from(clients)
-          .where(eq(clients.telegramId, telegramId))
-          .limit(1);
+        // Mark code as used and link telegramId
+        await db.update(telegramVerificationCodes)
+          .set({ isUsed: true, telegramId })
+          .where(eq(telegramVerificationCodes.id, codeRows[0].id));
 
-        if (clientRows.length > 0) {
-          // Mark code as used and link telegramId
-          await db.update(telegramVerificationCodes)
-            .set({ isUsed: true, telegramId, phone: clientRows[0].phone })
-            .where(eq(telegramVerificationCodes.id, codeRows[0].id));
-
-          await ctx.reply('✅ Вход на сайт подтверждён!\n\nВернитесь на сайт — вы авторизованы.', mainMenuKeyboard);
-        } else {
-          await ctx.reply('❌ Вы не зарегистрированы. Сначала пройдите регистрацию на сайте.');
-        }
+        await ctx.reply('✅ Вход на сайт подтверждён!\n\nВернитесь на сайт — вы авторизованы.', mainMenuKeyboard);
       } else {
         await ctx.reply('❌ Код устарел или уже использован. Попробуйте снова на сайте.');
       }
