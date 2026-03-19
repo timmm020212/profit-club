@@ -42,10 +42,11 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
 
       if (rows.length === 0) {
         const text = "У вас нет предстоящих записей.";
+        const kb = Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]);
         if (ctx.callbackQuery) {
-          await ctx.editMessageText(text);
+          try { await ctx.editMessageText(text, kb); } catch {}
         } else {
-          await ctx.reply(text);
+          await ctx.reply(text, kb);
         }
         return;
       }

@@ -624,7 +624,8 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         `👨‍🔧 ${state.masterName}\n` +
         `📅 ${formatDateRu(state.date)}\n` +
         `🕐 ${state.startTime}–${state.endTime}` +
-        rescheduleNote
+        rescheduleNote,
+        Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]),
       );
 
       // Clear state
