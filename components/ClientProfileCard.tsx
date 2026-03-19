@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const FONT = "var(--font-montserrat)";
 const FONT_HEADING = "var(--font-playfair)";
@@ -15,6 +16,7 @@ function getInitials(name: string) {
 }
 
 export default function ClientProfileCard() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [telegramId, setTelegramId] = useState("");
@@ -294,6 +296,40 @@ export default function ClientProfileCard() {
               Мастеров
             </div>
           </div>
+        </div>
+
+        {/* Logout */}
+        <div
+          className="h-px mt-6 mb-4"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)" }}
+        />
+        <div className="flex justify-center md:justify-end">
+          <button
+            onClick={() => {
+              localStorage.removeItem("profit_club_client_id");
+              localStorage.removeItem("profit_club_user_name");
+              localStorage.removeItem("profit_club_client_phone");
+              localStorage.removeItem("profit_club_telegram_id");
+              localStorage.removeItem("profit_club_user_registered");
+              window.dispatchEvent(new Event("profit_club_auth_changed"));
+              router.push("/");
+            }}
+            className="inline-flex items-center gap-2 text-[11px] text-white/20 hover:text-red-400/70 transition-colors duration-300 group"
+            style={{ fontFamily: FONT, letterSpacing: "0.05em" }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="transition-transform group-hover:translate-x-0.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            Выйти из аккаунта
+          </button>
         </div>
       </div>
 
