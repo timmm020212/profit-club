@@ -9,6 +9,8 @@ import { Suspense } from "react";
 import AdminAppointmentManager from "@/components/AdminAppointmentManager";
 import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
+import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
+import AdminOptimizeSettings from "@/components/AdminOptimizeSettings";
 import { and, eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
@@ -293,9 +295,16 @@ export default async function AdminDashboardPage({
                             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600/20 text-violet-300 text-[10px] font-bold flex-shrink-0">
                               {(master.fullName || "?")[0].toUpperCase()}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs font-semibold text-zinc-200 truncate">{master.fullName}</p>
                             </div>
+                            {apps.length > 0 && (
+                              <AdminScheduleOptimizerButton
+                                masterId={master.id}
+                                workDate={dateStr}
+                                masterName={master.fullName || "Мастер"}
+                              />
+                            )}
                           </div>
 
                           {/* Timeline body */}
@@ -431,6 +440,14 @@ export default async function AdminDashboardPage({
           <div className="space-y-4 lg:sticky lg:top-36">
             <AdminWorkSlotChangeRequests />
             <AdminWorkSlotsCreator masters={mastersData} currentDate={dateStr} />
+            <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D10] overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/[0.05]">
+                <h3 className="text-xs font-semibold text-zinc-300">Настройки оптимизации</h3>
+              </div>
+              <div className="p-3">
+                <AdminOptimizeSettings />
+              </div>
+            </section>
           </div>
         </div>
 
