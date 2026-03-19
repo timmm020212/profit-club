@@ -61,11 +61,46 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { masterId, appointmentDate, startTime } = body as {
+    const { masterId, appointmentDate, startTime, status } = body as {
       masterId?: number;
       appointmentDate?: string;
       startTime?: string;
+      status?: string;
     };
+
+    // Handle cancellation separately
+    if (status === "cancelled") {
+      const existingRows = await db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.id, idNum));
+
+      if (!existingRows.length) {
+        return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+      }
+
+      const appt = existingRows[0];
+
+      // 2-hour cancellation rule
+      const apptDateTime = new Date(appt.appointmentDate + "T" + appt.startTime + ":00");
+      const now = new Date();
+      const diffMs = apptDateTime.getTime() - now.getTime();
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      if (diffMs < twoHoursMs) {
+        return NextResponse.json(
+          { error: "Отменить запись можно не позднее чем за 2 часа до начала" },
+          { status: 400 }
+        );
+      }
+
+      const [updated] = await db
+        .update(appointments)
+        .set({ status: "cancelled" })
+        .where(eq(appointments.id, idNum))
+        .returning();
+
+      return NextResponse.json({ appointment: updated });
+    }
 
     if (!masterId || !appointmentDate || !startTime) {
       return NextResponse.json(
