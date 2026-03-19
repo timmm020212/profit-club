@@ -92,3 +92,20 @@ export async function notifyMasterBreak(opts: {
     `🕐 ${opts.breakStart}–${opts.breakEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
 }
+
+export async function notifyMasterEarlyFinish(opts: {
+  masterTelegramId: string | null;
+  appointmentDate: string;
+  freeFrom: string;
+  shiftEnd: string;
+  freeMinutes: number;
+}) {
+  if (!opts.masterTelegramId) return;
+  const date = formatDateRu(opts.appointmentDate);
+  const text =
+    `🏁 Вы свободны с ${opts.freeFrom}\n\n` +
+    `📅 ${date}\n` +
+    `🕐 Последняя запись заканчивается в ${opts.freeFrom}\n` +
+    `📋 Конец смены: ${opts.shiftEnd}`;
+  await sendToMaster(opts.masterTelegramId, text);
+}

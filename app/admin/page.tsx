@@ -384,6 +384,33 @@ export default async function AdminDashboardPage({
                               );
                             })}
 
+                            {/* End-of-shift gap: last appointment ends before shift ends */}
+                            {apps.length > 0 && slots.length > 0 && (() => {
+                              const lastApp = apps[apps.length - 1];
+                              const lastEnd = timeToMinutes(lastApp.endTime);
+                              const shiftEnd = timeToMinutes(slots[slots.length - 1].endTime);
+                              const gap = shiftEnd - lastEnd;
+                              if (gap <= 0 || gap >= 30) return null;
+                              const top = (lastEnd - roundedMin) * PX_PER_MIN;
+                              const height = gap * PX_PER_MIN;
+                              return (
+                                <div
+                                  className="absolute left-1 right-1 rounded-lg flex flex-col items-center justify-center"
+                                  style={{
+                                    top: `${top}px`,
+                                    height: `${height}px`,
+                                    border: "1px dashed rgba(76,175,80,0.3)",
+                                    background: "rgba(76,175,80,0.04)",
+                                    color: "rgba(76,175,80,0.5)",
+                                    fontSize: "10px",
+                                    fontFamily: "var(--font-montserrat)",
+                                  }}
+                                >
+                                  <span>🏁 Свободны с {lastApp.endTime}</span>
+                                </div>
+                              );
+                            })()}
+
                             {/* Free time indicator */}
                             {apps.length === 0 && slots.length > 0 && (
                               <div className="absolute inset-0 flex items-center justify-center">

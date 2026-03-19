@@ -12,7 +12,7 @@ import {
   rolesMatch,
   timeRangesOverlap,
 } from "./utils";
-import { notifyMasterNewAppointment, notifyMasterCancellation, detectBreaks, notifyMasterBreak } from "./notify-master";
+import { notifyMasterNewAppointment, notifyMasterCancellation, detectBreaks, notifyMasterBreak, notifyMasterEarlyFinish } from "./notify-master";
 
 function uid(ctx: any): string {
   return String(ctx.from?.id ?? "");
@@ -554,6 +554,35 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
             breakEnd: gap.breakEnd,
             breakMinutes: gap.breakMinutes,
           });
+        }
+
+        // Check if last appointment ends before shift — notify early finish
+        if (dayAppointments.length > 0 && masterRows.length > 0) {
+          const shiftSlots = await db
+            .select({ endTime: workSlots.endTime })
+            .from(workSlots)
+            .where(
+              and(
+                eq(workSlots.masterId, state.masterId!),
+                eq(workSlots.workDate, state.date!),
+                eq(workSlots.isConfirmed, true)
+              )
+            );
+          if (shiftSlots.length > 0) {
+            const sorted = [...dayAppointments].sort((a, b) => a.endTime.localeCompare(b.endTime));
+            const lastEndMin = timeToMinutes(sorted[sorted.length - 1].endTime);
+            const shiftEndMin = timeToMinutes(shiftSlots[0].endTime);
+            const freeGap = shiftEndMin - lastEndMin;
+            if (freeGap > 0 && freeGap < 30) {
+              await notifyMasterEarlyFinish({
+                masterTelegramId: masterRows[0].telegramId,
+                appointmentDate: state.date!,
+                freeFrom: sorted[sorted.length - 1].endTime,
+                shiftEnd: shiftSlots[0].endTime,
+                freeMinutes: freeGap,
+              });
+            }
+          }
         }
       } catch (e) {
         console.error("[booking-flow] break detection error:", e);
