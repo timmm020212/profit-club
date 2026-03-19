@@ -93,9 +93,8 @@ export default function Header() {
           </div>
 
           {/* Auth button */}
-          <button
-            type="button"
-            onClick={isRegistered ? handleLogout : registration.openLogin}
+          <a
+            href={isRegistered ? "/profile" : "/login"}
             className={`flex-shrink-0 flex items-center gap-2.5 rounded-full px-4 py-2 text-sm transition-all duration-200 ${
               isRegistered
                 ? "bg-[#B2223C] hover:bg-[#c9294a] text-white"
@@ -111,7 +110,7 @@ export default function Header() {
             <span className="hidden sm:block max-w-[120px] truncate">
               {isRegistered ? (userName || "Профиль") : "Войти"}
             </span>
-          </button>
+          </a>
 
         </div>
       </div>
