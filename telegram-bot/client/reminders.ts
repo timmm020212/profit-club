@@ -144,114 +144,122 @@ async function checkAndSendReminders(): Promise<void> {
 }
 
 async function checkAutoOptimization(): Promise<void> {
-  const enabled = process.env.AUTO_OPTIMIZE_ENABLED === "true";
-  if (!enabled) return;
-
-  const hoursAhead = parseInt(process.env.AUTO_OPTIMIZE_HOURS || "24");
-
   try {
-    // Find all active masters
+    const { computeOptimization } = await import("../../lib/optimize-schedule");
     const allMasters = await db.select().from(masters).where(eq(masters.isActive, true));
 
-    // Target date: N hours from now
-    const targetDate = new Date();
-    targetDate.setHours(targetDate.getHours() + hoursAhead);
-    const dateStr =
-      `${targetDate.getFullYear()}-` +
-      `${String(targetDate.getMonth() + 1).padStart(2, "0")}-` +
-      `${String(targetDate.getDate()).padStart(2, "0")}`;
+    // Check today and next 7 days
+    const now = new Date();
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    }
+
+    const botToken = getBotToken();
 
     for (const master of allMasters) {
-      try {
-        // Check if a confirmed workSlot exists for this master on the target date
-        const slots = await db
-          .select()
-          .from(workSlots)
-          .where(
-            and(
-              eq(workSlots.masterId, master.id),
-              eq(workSlots.workDate, dateStr),
-              eq(workSlots.isConfirmed, true)
-            )
+      for (const dateStr of dates) {
+        try {
+          // Need confirmed workSlot
+          const slots = await db.select().from(workSlots)
+            .where(and(eq(workSlots.masterId, master.id), eq(workSlots.workDate, dateStr), eq(workSlots.isConfirmed, true)));
+          if (!slots.length) continue;
+
+          // Skip if non-completed optimization already exists
+          const existing = await db.select().from(scheduleOptimizations)
+            .where(and(eq(scheduleOptimizations.masterId, master.id), eq(scheduleOptimizations.workDate, dateStr)));
+          const active = existing.filter(e => e.status !== "completed");
+          if (active.length > 0) continue;
+
+          // Need 2+ appointments
+          const appts = await db.select().from(appointments)
+            .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, dateStr), eq(appointments.status, "confirmed")));
+          if (appts.length < 2) continue;
+
+          // Get service durations
+          const svcIds = [...new Set(appts.map(a => a.serviceId))];
+          const svcMap = new Map<number, number>();
+          for (const sid of svcIds) {
+            const [svc] = await db.select({ duration: services.duration }).from(services).where(eq(services.id, sid));
+            if (svc) svcMap.set(sid, svc.duration);
+          }
+
+          const moves = computeOptimization(
+            appts.map(a => ({
+              id: a.id,
+              startTime: a.startTime,
+              endTime: a.endTime,
+              duration: svcMap.get(a.serviceId) || 60,
+            })),
+            slots[0].startTime,
+            slots[0].endTime,
+            dateStr,
           );
 
-        if (!slots.length) continue;
+          if (moves.length === 0) continue;
 
-        // Skip if optimization already exists for this master+date
-        const existing = await db
-          .select()
-          .from(scheduleOptimizations)
-          .where(
-            and(
-              eq(scheduleOptimizations.masterId, master.id),
-              eq(scheduleOptimizations.workDate, dateStr)
-            )
-          );
-
-        if (existing.length > 0) continue;
-
-        // Fetch confirmed appointments for this master on the target date
-        const appts = await db
-          .select()
-          .from(appointments)
-          .where(
-            and(
-              eq(appointments.masterId, master.id),
-              eq(appointments.appointmentDate, dateStr),
-              eq(appointments.status, "confirmed")
-            )
-          );
-
-        if (appts.length < 2) continue;
-
-        // Compute optimization moves
-        const { computeOptimization } = await import("../../lib/optimize-schedule");
-        const moves = computeOptimization(
-          appts.map((a) => ({
-            id: a.id,
-            startTime: a.startTime,
-            endTime: a.endTime,
-            duration: 0,
-          })),
-          slots[0].startTime,
-          slots[0].endTime
-        );
-
-        if (moves.length === 0) continue;
-
-        // Persist the optimization record
-        const createdAt = new Date().toISOString();
-
-        const [opt] = await db
-          .insert(scheduleOptimizations)
-          .values({
+          // Save optimization
+          const [opt] = await db.insert(scheduleOptimizations).values({
             masterId: master.id,
             workDate: dateStr,
-            status: "draft",
-            createdAt,
-          })
-          .returning();
+            status: "sent",
+            createdAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
+          }).returning();
 
-        for (const move of moves) {
-          await db.insert(optimizationMoves).values({
-            optimizationId: opt.id,
-            appointmentId: move.appointmentId,
-            oldStartTime: move.oldStartTime,
-            oldEndTime: move.oldEndTime,
-            newStartTime: move.newStartTime,
-            newEndTime: move.newEndTime,
-            clientResponse: "pending",
-          });
+          // Save moves and send proposals to clients immediately
+          for (const move of moves) {
+            const [saved] = await db.insert(optimizationMoves).values({
+              optimizationId: opt.id,
+              appointmentId: move.appointmentId,
+              oldStartTime: move.oldStartTime,
+              oldEndTime: move.oldEndTime,
+              newStartTime: move.newStartTime,
+              newEndTime: move.newEndTime,
+              clientResponse: "pending",
+              sentAt: new Date().toISOString(),
+            }).returning();
+
+            // Send proposal to client
+            const apt = appts.find(a => a.id === move.appointmentId);
+            if (apt?.clientTelegramId && botToken) {
+              const [svc] = await db.select().from(services).where(eq(services.id, apt.serviceId));
+              const dateObj = new Date(dateStr + "T00:00:00");
+              const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+
+              const text =
+                `🔄 Предложение о переносе\n\n` +
+                `💇 ${svc?.name || "Услуга"}\n` +
+                `👩 ${master.fullName}\n\n` +
+                `❌ Текущее время: ${move.oldStartTime}–${move.oldEndTime}\n` +
+                `✅ Предлагаемое: ${move.newStartTime}–${move.newEndTime}\n\n` +
+                `Это позволит оптимизировать расписание мастера.`;
+
+              try {
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: apt.clientTelegramId,
+                    text,
+                    reply_markup: {
+                      inline_keyboard: [[
+                        { text: "✅ Согласиться", callback_data: `opt_accept_${saved.id}` },
+                        { text: "❌ Оставить как есть", callback_data: `opt_decline_${saved.id}` },
+                      ]],
+                    },
+                  }),
+                });
+              } catch {}
+            }
+          }
+
+          console.log(`[auto-optimize] Sent ${moves.length} proposals for ${master.fullName} on ${dateStr}`);
+        } catch (err) {
+          console.error(`[auto-optimize] Error for master ${master.id} on ${dateStr}:`, err);
         }
-
-        console.log(
-          `[auto-optimize] Created optimization for ${master.fullName} on ${dateStr}: ${moves.length} moves`
-        );
-      } catch (err) {
-        console.error(
-          `[auto-optimize] Error processing master ${master.id}:`,
-          err
-        );
       }
     }
   } catch (e) {

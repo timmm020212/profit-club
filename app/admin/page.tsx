@@ -10,7 +10,7 @@ import AdminAppointmentManager from "@/components/AdminAppointmentManager";
 import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
 import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
-import AdminOptimizeSettings from "@/components/AdminOptimizeSettings";
+// AdminOptimizeSettings removed — auto-optimization runs automatically
 import { and, eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
@@ -445,7 +445,6 @@ export default async function AdminDashboardPage({
                 <h3 className="text-xs font-semibold text-zinc-300">Настройки оптимизации</h3>
               </div>
               <div className="p-3">
-                <AdminOptimizeSettings />
               </div>
             </section>
           </div>
