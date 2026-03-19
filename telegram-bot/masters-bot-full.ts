@@ -343,6 +343,39 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
 
 // ── Настройки ─────────────────────────────────────────────────
 
+const SETTINGS_LABELS: Record<string, string> = {
+  newAppointments: 'Новые записи',
+  cancellations: 'Отмены записей',
+  breaks: 'Перерывы',
+  morningReminder: 'Утреннее напоминание',
+};
+
+const SETTINGS_DEFAULTS: Record<string, boolean> = {
+  newAppointments: true,
+  cancellations: true,
+  breaks: true,
+  morningReminder: false,
+};
+
+function parseSettings(raw: string | null): Record<string, boolean> {
+  try {
+    if (!raw) return { ...SETTINGS_DEFAULTS };
+    return { ...SETTINGS_DEFAULTS, ...JSON.parse(raw) };
+  } catch { return { ...SETTINGS_DEFAULTS }; }
+}
+
+function buildSettingsMessage(settings: Record<string, boolean>) {
+  let msg = '⚙️ Настройки уведомлений\n\n';
+  const buttons: any[] = [];
+  for (const [key, label] of Object.entries(SETTINGS_LABELS)) {
+    const on = settings[key] ?? SETTINGS_DEFAULTS[key];
+    msg += `${on ? '✅' : '❌'} ${label}\n`;
+    buttons.push([Markup.button.callback(`${on ? '✅' : '❌'} ${label}`, `toggle_notif_${key}`)]);
+  }
+  buttons.push([Markup.button.callback('← Назад', 'settings_back')]);
+  return { msg, keyboard: Markup.inlineKeyboard(buttons) };
+}
+
 bot.hears('⚙️ Настройки', async (ctx) => {
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
@@ -350,7 +383,36 @@ bot.hears('⚙️ Настройки', async (ctx) => {
   const master = await isMaster(telegramId);
   if (!master) return;
 
-  ctx.reply('В разработке', masterMenu);
+  const settings = parseSettings(master.notificationSettings || null);
+  const { msg, keyboard } = buildSettingsMessage(settings);
+  ctx.reply(msg, keyboard);
+});
+
+bot.action(/^toggle_notif_(.+)$/, async (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+
+  const master = await isMaster(telegramId);
+  if (!master) { try { await ctx.answerCbQuery(); } catch {} return; }
+
+  const key = ctx.match[1];
+  if (!SETTINGS_LABELS[key]) { try { await ctx.answerCbQuery(); } catch {} return; }
+
+  const current = parseSettings(master.notificationSettings || null);
+  current[key] = !current[key];
+
+  await db.update(masters)
+    .set({ notificationSettings: JSON.stringify(current) })
+    .where(eq(masters.id, master.id));
+
+  const { msg, keyboard } = buildSettingsMessage(current);
+  try { await ctx.editMessageText(msg, keyboard); } catch {}
+  try { await ctx.answerCbQuery(); } catch {}
+});
+
+bot.action('settings_back', async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  try { await ctx.editMessageText('Главное меню ⬇️'); } catch {}
 });
 
 // ── Возврат в главное меню ────────────────────────────────────
