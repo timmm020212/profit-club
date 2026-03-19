@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { appointments, services, masters, reminderSent } from "../../db/schema";
+import { appointments, services, masters, reminderSent, workSlots, scheduleOptimizations, optimizationMoves } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 
@@ -138,6 +138,124 @@ async function checkAndSendReminders(): Promise<void> {
     }
   } catch (err) {
     console.error("[reminders] Error in checkAndSendReminders:", err);
+  }
+
+  await checkAutoOptimization();
+}
+
+async function checkAutoOptimization(): Promise<void> {
+  const enabled = process.env.AUTO_OPTIMIZE_ENABLED === "true";
+  if (!enabled) return;
+
+  const hoursAhead = parseInt(process.env.AUTO_OPTIMIZE_HOURS || "24");
+
+  try {
+    // Find all active masters
+    const allMasters = await db.select().from(masters).where(eq(masters.isActive, true));
+
+    // Target date: N hours from now
+    const targetDate = new Date();
+    targetDate.setHours(targetDate.getHours() + hoursAhead);
+    const dateStr =
+      `${targetDate.getFullYear()}-` +
+      `${String(targetDate.getMonth() + 1).padStart(2, "0")}-` +
+      `${String(targetDate.getDate()).padStart(2, "0")}`;
+
+    for (const master of allMasters) {
+      try {
+        // Check if a confirmed workSlot exists for this master on the target date
+        const slots = await db
+          .select()
+          .from(workSlots)
+          .where(
+            and(
+              eq(workSlots.masterId, master.id),
+              eq(workSlots.workDate, dateStr),
+              eq(workSlots.isConfirmed, true)
+            )
+          );
+
+        if (!slots.length) continue;
+
+        // Skip if optimization already exists for this master+date
+        const existing = await db
+          .select()
+          .from(scheduleOptimizations)
+          .where(
+            and(
+              eq(scheduleOptimizations.masterId, master.id),
+              eq(scheduleOptimizations.workDate, dateStr)
+            )
+          );
+
+        if (existing.length > 0) continue;
+
+        // Fetch confirmed appointments for this master on the target date
+        const appts = await db
+          .select()
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.masterId, master.id),
+              eq(appointments.appointmentDate, dateStr),
+              eq(appointments.status, "confirmed")
+            )
+          );
+
+        if (appts.length < 2) continue;
+
+        // Compute optimization moves
+        const { computeOptimization } = await import("../../lib/optimize-schedule");
+        const moves = computeOptimization(
+          appts.map((a) => ({
+            id: a.id,
+            startTime: a.startTime,
+            endTime: a.endTime,
+            duration: 0,
+          })),
+          slots[0].startTime,
+          slots[0].endTime
+        );
+
+        if (moves.length === 0) continue;
+
+        // Persist the optimization record
+        const createdAt = new Date().toISOString();
+
+        const [opt] = await db
+          .insert(scheduleOptimizations)
+          .values({
+            masterId: master.id,
+            workDate: dateStr,
+            status: "draft",
+            createdAt,
+          })
+          .returning();
+
+        for (const move of moves) {
+          await db.insert(optimizationMoves).values({
+            optimizationId: opt.id,
+            appointmentId: move.appointmentId,
+            oldStartTime: move.oldStartTime,
+            oldEndTime: move.oldEndTime,
+            newStartTime: move.newStartTime,
+            newEndTime: move.newEndTime,
+            clientResponse: "pending",
+          });
+        }
+
+        console.log(
+          `[auto-optimize] Created optimization for ${master.fullName} on ${dateStr}: ${moves.length} moves`
+        );
+      } catch (err) {
+        console.error(
+          `[auto-optimize] Error processing master ${master.id}:`,
+          err
+        );
+      }
+    }
+  } catch (e) {
+    console.error("[auto-optimize] Error:", e);
   }
 }
 
