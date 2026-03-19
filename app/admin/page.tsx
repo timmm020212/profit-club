@@ -355,6 +355,35 @@ export default async function AdminDashboardPage({
                               );
                             })}
 
+                            {/* Break gaps between appointments */}
+                            {apps.length >= 2 && apps.map((app, i) => {
+                              if (i === 0) return null;
+                              const prevEnd = timeToMinutes(apps[i - 1].endTime);
+                              const currStart = timeToMinutes(app.startTime);
+                              const gap = currStart - prevEnd;
+                              if (gap <= 0 || gap >= 30) return null;
+                              const top = (prevEnd - roundedMin) * PX_PER_MIN;
+                              const height = gap * PX_PER_MIN;
+                              return (
+                                <div
+                                  key={`break-${app.id}`}
+                                  className="absolute left-1 right-1 rounded-lg flex flex-col items-center justify-center"
+                                  style={{
+                                    top: `${top}px`,
+                                    height: `${height}px`,
+                                    border: "1px dashed rgba(255,255,255,0.15)",
+                                    background: "rgba(255,255,255,0.02)",
+                                    color: "rgba(255,255,255,0.3)",
+                                    fontSize: "10px",
+                                    fontFamily: "var(--font-montserrat)",
+                                  }}
+                                >
+                                  <span>{"\u2615"} Перерыв</span>
+                                  {height >= 40 && <span>{gap} мин</span>}
+                                </div>
+                              );
+                            })}
+
                             {/* Free time indicator */}
                             {apps.length === 0 && slots.length > 0 && (
                               <div className="absolute inset-0 flex items-center justify-center">
