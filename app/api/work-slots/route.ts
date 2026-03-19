@@ -341,16 +341,25 @@ export async function POST(request: Request) {
     }
 
     // Запрещаем создавать второй рабочий день этому мастеру на ту же дату
+    // (исключаем отклонённые мастером — на них можно пересоздать)
     const existingSlots = await db
       .select()
       .from(workSlots)
       .where(and(eq(workSlots.masterId, masterId), eq(workSlots.workDate, workDate)));
 
-    if (existingSlots.length > 0) {
+    const activeSlots = existingSlots.filter(s => s.adminUpdateStatus !== "rejected");
+
+    if (activeSlots.length > 0) {
       return NextResponse.json(
         { error: "На выбранную дату у мастера уже есть рабочий день. Измените его в разделе «Рабочие дни мастеров»." },
         { status: 400 }
       );
+    }
+
+    // Удаляем отклонённые слоты на эту дату чтобы не мусорить
+    const rejectedSlots = existingSlots.filter(s => s.adminUpdateStatus === "rejected");
+    for (const rs of rejectedSlots) {
+      await db.delete(workSlots).where(eq(workSlots.id, rs.id));
     }
 
     const inserted = await db
