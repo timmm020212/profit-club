@@ -532,8 +532,15 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         rescheduleNote
       );
 
-      // Detect and notify about breaks
+      // Notify about gaps related to THIS new appointment only
       try {
+        const masterTgId = masterRows.length > 0 ? masterRows[0].telegramId : null;
+        const newStart = state.startTime!;
+        const newEnd = state.endTime!;
+        const newStartMin = timeToMinutes(newStart);
+        const newEndMin = timeToMinutes(newEnd);
+
+        // Get all OTHER confirmed appointments on this date
         const dayAppointments = await db
           .select({ startTime: appointments.startTime, endTime: appointments.endTime })
           .from(appointments)
@@ -545,50 +552,75 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
             )
           );
 
-        const gaps = detectBreaks(dayAppointments);
-        for (const gap of gaps) {
-          await notifyMasterBreak({
-            masterTelegramId: masterRows.length > 0 ? masterRows[0].telegramId : null,
-            appointmentDate: state.date!,
-            breakStart: gap.breakStart,
-            breakEnd: gap.breakEnd,
-            breakMinutes: gap.breakMinutes,
-          });
-        }
+        const sorted = [...dayAppointments].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        // Check if last appointment ends before shift — notify early finish
-        if (dayAppointments.length > 0 && masterRows.length > 0) {
-          const shiftSlots = await db
-            .select({ endTime: workSlots.endTime })
-            .from(workSlots)
-            .where(
-              and(
-                eq(workSlots.masterId, state.masterId!),
-                eq(workSlots.workDate, state.date!),
-                eq(workSlots.isConfirmed, true)
-              )
-            );
-          if (shiftSlots.length > 0) {
-            const sorted = [...dayAppointments].sort((a, b) => a.endTime.localeCompare(b.endTime));
-            const lastEnd = sorted[sorted.length - 1].endTime;
-            const shiftEnd = shiftSlots[0].endTime;
-            const lastEndMin = timeToMinutes(lastEnd);
-            const shiftEndMin = timeToMinutes(shiftEnd);
-            const freeGap = shiftEndMin - lastEndMin;
-            console.log(`[booking-flow] Early finish check: lastEnd=${lastEnd}, shiftEnd=${shiftEnd}, gap=${freeGap}min`);
-            if (freeGap > 0) {
-              await notifyMasterEarlyFinish({
-                masterTelegramId: masterRows[0].telegramId,
+        // Find the appointment right BEFORE this one
+        for (const apt of sorted) {
+          const aptEndMin = timeToMinutes(apt.endTime);
+          if (aptEndMin <= newStartMin && aptEndMin > newStartMin - 30) {
+            const gap = newStartMin - aptEndMin;
+            if (gap > 0 && gap < 30) {
+              await notifyMasterBreak({
+                masterTelegramId: masterTgId,
                 appointmentDate: state.date!,
-                freeFrom: sorted[sorted.length - 1].endTime,
-                shiftEnd: shiftSlots[0].endTime,
-                freeMinutes: freeGap,
+                breakStart: apt.endTime,
+                breakEnd: newStart,
+                breakMinutes: gap,
               });
             }
           }
         }
+
+        // Find the appointment right AFTER this one
+        for (const apt of sorted) {
+          const aptStartMin = timeToMinutes(apt.startTime);
+          if (aptStartMin >= newEndMin && aptStartMin < newEndMin + 30) {
+            const gap = aptStartMin - newEndMin;
+            if (gap > 0 && gap < 30) {
+              await notifyMasterBreak({
+                masterTelegramId: masterTgId,
+                appointmentDate: state.date!,
+                breakStart: newEnd,
+                breakEnd: apt.startTime,
+                breakMinutes: gap,
+              });
+            }
+          }
+        }
+
+        // Check if this is the last appointment — early finish before shift end
+        const shiftSlots = await db
+          .select({ endTime: workSlots.endTime })
+          .from(workSlots)
+          .where(
+            and(
+              eq(workSlots.masterId, state.masterId!),
+              eq(workSlots.workDate, state.date!),
+              eq(workSlots.isConfirmed, true)
+            )
+          );
+
+        if (shiftSlots.length > 0) {
+          // Find the actual last appointment of the day
+          const lastApt = sorted[sorted.length - 1];
+          const lastEndMin = timeToMinutes(lastApt.endTime);
+          const shiftEndMin = timeToMinutes(shiftSlots[0].endTime);
+          const freeGap = shiftEndMin - lastEndMin;
+          console.log(`[booking-flow] Early finish check: lastEnd=${lastApt.endTime}, shiftEnd=${shiftSlots[0].endTime}, gap=${freeGap}min`);
+
+          // Only notify if THIS appointment is the last one (or changed the last one)
+          if (freeGap > 0 && freeGap < 30 && lastApt.endTime === newEnd) {
+            await notifyMasterEarlyFinish({
+              masterTelegramId: masterTgId,
+              appointmentDate: state.date!,
+              freeFrom: lastApt.endTime,
+              shiftEnd: shiftSlots[0].endTime,
+              freeMinutes: freeGap,
+            });
+          }
+        }
       } catch (e) {
-        console.error("[booking-flow] break detection error:", e);
+        console.error("[booking-flow] break/earlyFinish error:", e);
       }
 
       // Clear state
