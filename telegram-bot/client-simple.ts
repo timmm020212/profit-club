@@ -49,7 +49,7 @@ bot.start(async (ctx) => {
         .where(and(
           eq(telegramVerificationCodes.code, startPayload),
           eq(telegramVerificationCodes.isUsed, false),
-          gt(telegramVerificationCodes.expiresAt, new Date())
+          gt(telegramVerificationCodes.expiresAt, new Date().toISOString())
         ))
         .limit(1);
 
@@ -126,7 +126,7 @@ bot.start(async (ctx) => {
         .where(and(
           eq(telegramVerificationCodes.code, startPayload),
           eq(telegramVerificationCodes.isUsed, false),
-          gt(telegramVerificationCodes.expiresAt, new Date())
+          gt(telegramVerificationCodes.expiresAt, new Date().toISOString())
         ))
         .limit(1);
 
@@ -204,7 +204,7 @@ bot.action('check_registration', async (ctx) => {
     .where(and(
       eq(telegramVerificationCodes.telegramId, telegramId),
       eq(telegramVerificationCodes.isUsed, false),
-      gt(telegramVerificationCodes.expiresAt, new Date())
+      gt(telegramVerificationCodes.expiresAt, new Date().toISOString())
     ))
     .limit(1);
 
