@@ -55,13 +55,17 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
     setPhase("loading");
     setError(null);
     try {
-      // Check if optimization already exists
+      // Check if active (non-completed) optimization already exists
       const checkRes = await fetch(`/api/admin/optimize-schedule?masterId=${masterId}&workDate=${workDate}`);
       const checkData = await checkRes.json();
       if (checkRes.ok && Array.isArray(checkData) && checkData.length > 0) {
-        setOptimization(checkData[0]);
-        setPhase("results");
-        return;
+        const active = checkData.find((o: any) => o.status !== "completed");
+        if (active) {
+          setOptimization(active);
+          setPhase("results");
+          return;
+        }
+        // All completed — compute fresh
       }
 
       const res = await fetch("/api/admin/optimize-schedule", {
@@ -276,8 +280,8 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           {/* Body */}
           <div className="px-6 py-5 overflow-y-auto flex-1">
 
-            {/* Applied / Completed state */}
-            {(applied || optimization?.status === "completed") && (
+            {/* Applied state — only right after clicking Apply */}
+            {applied && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/10">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
@@ -299,7 +303,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
             )}
 
             {/* Loading state */}
-            {phase === "loading" && !applied && optimization?.status !== "completed" && (
+            {phase === "loading" && !applied && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <span className="h-8 w-8 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
                 <p className="text-sm text-zinc-400">Рассчитываем оптимальное расписание...</p>
@@ -326,7 +330,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
             )}
 
             {/* Results: no moves */}
-            {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length === 0 && (
+            {phase === "results" && !applied && optimization && optimization.moves.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/10">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-emerald-400">
@@ -341,7 +345,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
             )}
 
             {/* Results: moves exist */}
-            {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length > 0 && (
+            {phase === "results" && !applied && optimization && optimization.moves.length > 0 && (
               <div className="space-y-4">
                 {/* Column headers */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_140px_24px_140px_80px_40px] gap-2 items-center px-3 pb-2 border-b border-white/[0.05]">
@@ -473,7 +477,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           </div>
 
           {/* Footer buttons */}
-          {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length > 0 && (
+          {phase === "results" && !applied && optimization && optimization.moves.length > 0 && (
             <>
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent flex-shrink-0" />
               <div className="px-6 py-4 flex items-center justify-end gap-2 flex-shrink-0">
@@ -535,7 +539,7 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
           )}
 
           {/* Footer for empty/close-only states */}
-          {phase === "results" && !applied && optimization?.status !== "completed" && optimization && optimization.moves.length === 0 && (
+          {phase === "results" && !applied && optimization && optimization.moves.length === 0 && (
             <>
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent flex-shrink-0" />
               <div className="px-6 py-4 flex items-center justify-end flex-shrink-0">
