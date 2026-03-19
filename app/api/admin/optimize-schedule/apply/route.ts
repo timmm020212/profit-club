@@ -100,7 +100,8 @@ export async function POST(request: Request) {
         } catch {}
       }
 
-      // Check for breaks after optimization
+      // Check for breaks only adjacent to MOVED appointments
+      const movedTimes = new Set(applied.map(a => a.newStart));
       const allAppts = await db
         .select({ startTime: appointments.startTime, endTime: appointments.endTime })
         .from(appointments)
@@ -114,8 +115,10 @@ export async function POST(request: Request) {
 
       const sorted = [...allAppts].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-      // Find breaks between appointments
       for (let i = 0; i < sorted.length - 1; i++) {
+        // Only check gaps adjacent to moved appointments
+        if (!movedTimes.has(sorted[i].startTime) && !movedTimes.has(sorted[i + 1].startTime)) continue;
+
         const endMin = timeToMinutes(sorted[i].endTime);
         const nextStartMin = timeToMinutes(sorted[i + 1].startTime);
         const gap = nextStartMin - endMin;
