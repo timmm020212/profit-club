@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent mobile viewport resize jank */
+html, body {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Snap scroll only on mobile */
+@media (max-width: 767px) {
+  .snap-y-mobile { scroll-snap-type: y mandatory; }
+  .snap-x-mobile { scroll-snap-type: x mandatory; }
+  .snap-start-mobile { scroll-snap-align: start; }
+}
+
 /* ─── PROFIT CLUB DESIGN SYSTEM ─── */
 
 /* Keyframes */
@@ -177,7 +190,13 @@
 /* Section divider line */
 .pc-gold-line {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(200,169,110,0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(200,169,110,0.3), transparent);
+}
+
+/* Section separator */
+.pc-section-sep {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.04) 70%, transparent 95%);
 }
 
 /* Number counter shimmer */

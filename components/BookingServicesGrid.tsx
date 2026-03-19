@@ -19,7 +19,7 @@ interface Service {
   badgeType?: "dark" | "light" | "accent" | "discount" | null;
 }
 
-export default function BookingServicesGrid() {
+export default function BookingServicesGrid({ carousel = false }: { carousel?: boolean }) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeService, setActiveService] = useState<Service | null>(null);
@@ -37,7 +37,6 @@ export default function BookingServicesGrid() {
       .finally(() => setLoading(false));
   }, []);
 
-  /* Listen to header search */
   useEffect(() => {
     const handler = (e: Event) => {
       setSearch((e as CustomEvent<{ query: string }>).detail.query ?? "");
@@ -57,7 +56,6 @@ export default function BookingServicesGrid() {
   }, [cats, activeFilters]);
 
   const toggleFilter = (cat: string) => {
-    // snapshot positions before state change
     chipRefs.current.forEach((el, key) => {
       prevRects.current.set(key, el.getBoundingClientRect());
     });
@@ -103,7 +101,7 @@ export default function BookingServicesGrid() {
   useEffect(() => {
     if (!gridRef.current) return;
     const items = gridRef.current.querySelectorAll<HTMLElement>("[data-card]");
-    items.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(20px)"; });
+    items.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(16px)"; });
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -112,7 +110,7 @@ export default function BookingServicesGrid() {
           setTimeout(() => {
             el.style.opacity = "1";
             el.style.transform = "translateY(0)";
-          }, Number(el.dataset.card ?? 0) * 60);
+          }, Number(el.dataset.card ?? 0) * 50);
           io.unobserve(el);
         });
       },
@@ -147,9 +145,9 @@ export default function BookingServicesGrid() {
                 style={{
                   fontFamily: "var(--font-montserrat)",
                   fontWeight: active ? 500 : 400,
-                  background: active ? "#B2223C" : "#ffffff",
-                  border: active ? "1.5px solid #B2223C" : "1.5px solid #c0bdb8",
-                  color: active ? "#fff" : "#444",
+                  background: active ? "#B2223C" : "rgba(255,255,255,0.04)",
+                  border: active ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
+                  color: active ? "#fff" : "rgba(255,255,255,0.45)",
                   boxShadow: active ? "0 2px 10px rgba(178,34,60,0.25)" : undefined,
                   transition: "background 0.2s, color 0.2s, box-shadow 0.2s, padding 0.2s",
                 }}
@@ -171,11 +169,11 @@ export default function BookingServicesGrid() {
       {/* Grid */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <svg className="w-8 h-8 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
-          <p className="text-sm text-zinc-600" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
+          <p className="text-sm text-white/30" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
             Ничего не найдено
           </p>
           <button
@@ -188,37 +186,46 @@ export default function BookingServicesGrid() {
           </button>
         </div>
       ) : (
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((service, i) => (
+        <div className="relative">
+          <div
+            ref={gridRef}
+            className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${carousel ? "overflow-y-auto scrollbar-none snap-y-mobile" : ""}`}
+            style={carousel ? { maxHeight: 580 } : undefined}
+          >
+            {filtered.map((service, i) => (
+              <div
+                key={service.id}
+                data-card={i}
+                className={carousel ? "snap-start-mobile" : ""}
+                style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
+              >
+                <BookingServiceCard
+                  id={service.id}
+                  name={service.name}
+                  description={service.description}
+                  price={service.price}
+                  imageUrl={service.imageUrl}
+                  duration={service.duration}
+                  category={service.category}
+                  badgeText={service.badgeText}
+                  badgeType={service.badgeType}
+                  onBook={() => setActiveService(service)}
+                />
+              </div>
+            ))}
+          </div>
+          {carousel && (
             <div
-              key={service.id}
-              data-card={i}
-              style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
-            >
-              <BookingServiceCard
-                id={service.id}
-                name={service.name}
-                description={service.description}
-                price={service.price}
-                imageUrl={service.imageUrl}
-                duration={service.duration}
-                category={service.category}
-                badgeText={service.badgeText}
-                badgeType={service.badgeType}
-                onBook={() => setActiveService(service)}
-              />
-            </div>
-          ))}
+              className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none z-10"
+              style={{ background: "linear-gradient(to top, #09090D, transparent)" }}
+            />
+          )}
         </div>
       )}
 
       <style jsx global>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes chipSlideIn {
-          from { opacity: 0; transform: translateX(-12px) scale(0.9); }
-          to   { opacity: 1; transform: translateX(0)     scale(1);   }
-        }
       `}</style>
 
       {activeService && (

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
 
@@ -13,20 +12,34 @@ const STATS = [
 
 export default function HeroParallax() {
   const [scrollY, setScrollY] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    // Lock height on mobile to prevent browser chrome jank
+    if (mobile && heroRef.current) {
+      heroRef.current.style.height = `${window.innerHeight}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) return;
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isMobile]);
 
-  const parallaxOffset = scrollY * 0.28;
-  const contentOpacity = Math.max(0, 1 - scrollY / 650);
+  const parallaxOffset = isMobile ? 0 : scrollY * 0.28;
+  const contentOpacity = isMobile ? 1 : Math.max(0, 1 - scrollY / 650);
 
   return (
-    <div ref={heroRef} className="relative w-full overflow-hidden bg-[#06060A]" style={{ height: "100svh", minHeight: 600 }}>
-
+    <div
+      ref={heroRef}
+      className="relative w-full overflow-hidden bg-[#06060A]"
+      style={{ height: "100svh", minHeight: 600 }}
+    >
       {/* Ambient gradient orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -49,7 +62,7 @@ export default function HeroParallax() {
           }}
         />
         <div
-          className="absolute"
+          className="absolute hidden md:block"
           style={{
             top: "40%", left: "30%",
             width: "30vw", height: "30vw", maxWidth: 350,
@@ -65,15 +78,10 @@ export default function HeroParallax() {
         className="absolute inset-0"
         style={{ transform: `translateY(${parallaxOffset}px)`, willChange: "transform" }}
       >
-        <Image
-          src="/hero-image.png"
-          alt="Profit Club"
-          fill
-          className="object-cover object-center"
-          priority
-          unoptimized
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url(/hero-image.png)" }}
         />
-        {/* Multi-layer overlay */}
         <div
           className="absolute inset-0"
           style={{
@@ -100,15 +108,16 @@ export default function HeroParallax() {
 
       {/* Main content */}
       <div
-        className="absolute inset-0 flex flex-col justify-center px-8 md:px-16 lg:px-24 xl:px-32 z-20"
-        style={{ opacity: contentOpacity, paddingTop: "80px" }}
+        className="absolute inset-0 flex flex-col justify-center px-6 md:px-16 lg:px-24 xl:px-32 z-20"
+        style={{ opacity: contentOpacity, paddingTop: 60, paddingBottom: 80 }}
       >
         {/* Overline */}
         <div
-          className="flex items-center gap-4 mb-7 pc-fade-in"
+          className="flex items-center gap-3 md:gap-4 mb-3 md:mb-7 pc-fade-in"
           style={{ animationDelay: "0.1s" }}
         >
-          <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, #C8A96E, rgba(200,169,110,0.3))" }} />
+          <div className="hidden md:block" style={{ width: 40, height: 1, background: "linear-gradient(90deg, #C8A96E, rgba(200,169,110,0.3))" }} />
+          <div className="md:hidden" style={{ width: 28, height: 1, background: "linear-gradient(90deg, #C8A96E, rgba(200,169,110,0.3))" }} />
           <span
             className="text-[#C8A96E] uppercase tracking-[0.35em]"
             style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
@@ -117,38 +126,77 @@ export default function HeroParallax() {
           </span>
         </div>
 
-        {/* Giant title */}
-        <div style={{ overflow: "hidden", marginBottom: 4 }}>
-          <h1
-            className="text-white pc-slide-up"
-            style={{
-              fontFamily: "var(--font-playfair)",
-              fontWeight: 700,
-              fontSize: "clamp(4.5rem, 13vw, 12.5rem)",
-              lineHeight: 0.9,
-              animationDelay: "0.2s",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            PROFIT
-          </h1>
+        {/* Giant title — desktop: stacked large, mobile: inline compact */}
+        {/* Desktop */}
+        <div className="hidden md:block">
+          <div style={{ overflow: "hidden", marginBottom: 4 }}>
+            <h1
+              className="text-white pc-slide-up"
+              style={{
+                fontFamily: "var(--font-playfair)",
+                fontWeight: 700,
+                fontSize: "clamp(4.5rem, 13vw, 12.5rem)",
+                lineHeight: 0.9,
+                animationDelay: "0.2s",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              PROFIT
+            </h1>
+          </div>
+          <div style={{ overflow: "hidden", marginBottom: 32 }}>
+            <h1
+              className="pc-slide-up"
+              style={{
+                fontFamily: "var(--font-playfair)",
+                fontWeight: 700,
+                fontSize: "clamp(4.5rem, 13vw, 12.5rem)",
+                lineHeight: 0.9,
+                animationDelay: "0.35s",
+                letterSpacing: "-0.01em",
+                color: "transparent",
+                WebkitTextStroke: "1.5px rgba(200,169,110,0.55)",
+              }}
+            >
+              CLUB
+            </h1>
+          </div>
         </div>
-        <div style={{ overflow: "hidden", marginBottom: 32 }}>
-          <h1
-            className="pc-slide-up"
-            style={{
-              fontFamily: "var(--font-playfair)",
-              fontWeight: 700,
-              fontSize: "clamp(4.5rem, 13vw, 12.5rem)",
-              lineHeight: 0.9,
-              animationDelay: "0.35s",
-              letterSpacing: "-0.01em",
-              color: "transparent",
-              WebkitTextStroke: "1.5px rgba(200,169,110,0.55)",
-            }}
-          >
-            CLUB
-          </h1>
+
+        {/* Mobile */}
+        <div className="md:hidden flex flex-wrap items-baseline gap-x-3 mb-3">
+          <div style={{ overflow: "hidden" }}>
+            <h1
+              className="text-white pc-slide-up"
+              style={{
+                fontFamily: "var(--font-playfair)",
+                fontWeight: 700,
+                fontSize: "clamp(2.8rem, 12vw, 5rem)",
+                lineHeight: 0.92,
+                animationDelay: "0.2s",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              PROFIT
+            </h1>
+          </div>
+          <div style={{ overflow: "hidden" }}>
+            <h1
+              className="pc-slide-up"
+              style={{
+                fontFamily: "var(--font-playfair)",
+                fontWeight: 700,
+                fontSize: "clamp(2.8rem, 12vw, 5rem)",
+                lineHeight: 0.92,
+                animationDelay: "0.35s",
+                letterSpacing: "-0.01em",
+                color: "transparent",
+                WebkitTextStroke: "1.5px rgba(200,169,110,0.55)",
+              }}
+            >
+              CLUB
+            </h1>
+          </div>
         </div>
 
         {/* Subtitle */}
@@ -157,7 +205,7 @@ export default function HeroParallax() {
           style={{
             fontFamily: "var(--font-montserrat)",
             fontWeight: 200,
-            fontSize: "clamp(13px, 1.6vw, 17px)",
+            fontSize: "clamp(12px, 1.6vw, 17px)",
             color: "rgba(255,255,255,0.45)",
             maxWidth: 380,
             lineHeight: 1.7,
@@ -188,12 +236,10 @@ export default function HeroParallax() {
               fontSize: 12,
               color: "rgba(255,255,255,0.35)",
               letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              transition: "color 0.3s ease",
+              textTransform: "uppercase" as const,
               textDecoration: "none",
+              transition: "color 0.3s ease",
             }}
-            onMouseEnter={e => ((e.target as HTMLElement).style.color = "rgba(200,169,110,0.7)")}
-            onMouseLeave={e => ((e.target as HTMLElement).style.color = "rgba(255,255,255,0.35)")}
           >
             Наши услуги ↓
           </a>
@@ -201,11 +247,11 @@ export default function HeroParallax() {
 
         {/* Stats row */}
         <div
-          className="pc-fade-in flex items-center gap-8 flex-wrap"
+          className="pc-fade-in flex items-center gap-5 md:gap-8 flex-wrap"
           style={{
             position: "absolute",
             bottom: 44,
-            left: "clamp(32px, 6.5vw, 128px)",
+            left: "clamp(24px, 6.5vw, 128px)",
             animationDelay: "0.95s",
           }}
         >
@@ -216,7 +262,7 @@ export default function HeroParallax() {
                 style={{
                   fontFamily: "var(--font-playfair)",
                   fontWeight: 500,
-                  fontSize: "clamp(1.4rem, 2.5vw, 2rem)",
+                  fontSize: "clamp(1rem, 2.5vw, 2rem)",
                   lineHeight: 1,
                   marginBottom: 4,
                 }}
@@ -227,10 +273,10 @@ export default function HeroParallax() {
                 style={{
                   fontFamily: "var(--font-montserrat)",
                   fontWeight: 300,
-                  fontSize: 10,
+                  fontSize: "clamp(8px, 1vw, 10px)",
                   color: "rgba(255,255,255,0.28)",
                   letterSpacing: "0.18em",
-                  textTransform: "uppercase",
+                  textTransform: "uppercase" as const,
                 }}
               >
                 {label}
@@ -239,9 +285,9 @@ export default function HeroParallax() {
           ))}
         </div>
 
-        {/* Scroll indicator */}
+        {/* Scroll indicator — desktop only */}
         <div
-          className="pc-fade-in flex flex-col items-center gap-2"
+          className="pc-fade-in hidden md:flex flex-col items-center gap-2"
           style={{
             position: "absolute",
             bottom: 36,
@@ -254,7 +300,6 @@ export default function HeroParallax() {
               width: 1,
               height: 56,
               background: "linear-gradient(to bottom, rgba(200,169,110,0.6), rgba(200,169,110,0))",
-              animation: "pc-fade-in 1s 1.4s both",
             }}
           />
           <span
@@ -264,8 +309,8 @@ export default function HeroParallax() {
               fontWeight: 300,
               color: "rgba(255,255,255,0.2)",
               letterSpacing: "0.25em",
-              textTransform: "uppercase",
-              writingMode: "vertical-rl",
+              textTransform: "uppercase" as const,
+              writingMode: "vertical-rl" as const,
               marginTop: 8,
             }}
           >
@@ -274,11 +319,12 @@ export default function HeroParallax() {
         </div>
       </div>
 
-      {/* Bottom gradient fade into page */}
+      {/* Bottom gradient fade */}
       <div
         className="absolute bottom-0 left-0 right-0 pointer-events-none z-10"
         style={{ height: 120, background: "linear-gradient(to bottom, transparent, #06060A)" }}
       />
+
     </div>
   );
 }

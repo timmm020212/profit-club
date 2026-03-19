@@ -184,6 +184,7 @@ export async function PATCH(request: Request) {
           startTime: changeRequest.suggestedStartTime,
           endTime: changeRequest.suggestedEndTime,
           adminUpdateStatus: "accepted",
+          isConfirmed: true,
         })
         .where(eq(workSlots.id, changeRequest.workSlotId));
     } else {

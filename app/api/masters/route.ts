@@ -27,20 +27,26 @@ export async function PATCH(request: Request) {
   try {
 
     const body = await request.json();
-    const { id, fullName, specialization } = body || {};
+    const { id, fullName, specialization, showOnSite, photoUrl } = body || {};
 
     const idNum = Number(id);
     if (!id || Number.isNaN(idNum)) {
       return NextResponse.json({ error: "Некорректный id мастера" }, { status: 400 });
     }
 
-    const updateData: Partial<{ fullName: string; specialization: string }> = {};
+    const updateData: Partial<{ fullName: string; specialization: string; showOnSite: boolean; photoUrl: string | null }> = {};
 
     if (typeof fullName === "string" && fullName.trim()) {
       updateData.fullName = fullName.trim();
     }
     if (typeof specialization === "string" && specialization.trim()) {
       updateData.specialization = specialization.trim();
+    }
+    if (typeof showOnSite === "boolean") {
+      updateData.showOnSite = showOnSite;
+    }
+    if (typeof photoUrl === "string") {
+      updateData.photoUrl = photoUrl.trim() || null;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -110,11 +116,13 @@ export async function POST(request: Request) {
       phone,
       telegramId,
       staffPassword,
+      showOnSite,
+      photoUrl,
     } = body || {};
 
-    if (!fullName || !specialization || !staffPassword) {
+    if (!fullName || !specialization) {
       return NextResponse.json(
-        { error: "fullName, specialization и staffPassword обязательны" },
+        { error: "fullName и specialization обязательны" },
         { status: 400 },
       );
     }
@@ -123,9 +131,8 @@ export async function POST(request: Request) {
     const trimmedSpec = String(specialization).trim();
     const trimmedPhone = phone ? String(phone).trim() : null;
     const trimmedTelegramId = telegramId ? String(telegramId).trim() : null;
-    const trimmedPassword = String(staffPassword).trim();
 
-    if (!trimmedFullName || !trimmedSpec || !trimmedPassword) {
+    if (!trimmedFullName || !trimmedSpec) {
       return NextResponse.json(
         { error: "Некорректные данные мастера" },
         { status: 400 },
@@ -139,8 +146,10 @@ export async function POST(request: Request) {
         specialization: trimmedSpec,
         phone: trimmedPhone || null,
         telegramId: trimmedTelegramId || null,
-        staffPassword: trimmedPassword,
+        staffPassword: staffPassword ? String(staffPassword).trim() : null,
+        photoUrl: photoUrl ? String(photoUrl).trim() : null,
         isActive: true,
+        showOnSite: showOnSite !== false,
       })
       .returning();
 

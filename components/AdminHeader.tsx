@@ -13,6 +13,7 @@ interface Props {
 const navItems = [
   { href: "/admin", label: "Расписание" },
   { href: "/admin/services", label: "Услуги" },
+  { href: "/admin/analytics", label: "Аналитика" },
 ];
 
 export default function AdminHeader({ masters }: Props) {

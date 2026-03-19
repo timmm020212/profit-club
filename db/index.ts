@@ -1,1 +1,1 @@
-export { db, testConnection } from "./index-postgres";
+export { db, testConnection } from "./index-sqlite";

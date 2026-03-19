@@ -77,7 +77,7 @@ export default function Header() {
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Найти услугу..."
               className="w-full rounded-full border border-white/[0.09] bg-white/[0.05] pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-[#B2223C]/50 focus:bg-white/[0.07]"
-              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400, fontSize: 13 }}
+              style={{ fontFamily: "var(--font-montserrat)", fontWeight: 400, fontSize: 16 }}
             />
             {search && (
               <button

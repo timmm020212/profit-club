@@ -36,7 +36,9 @@ export const masters = sqliteTable("masters", {
   telegramId: text("telegramId", { length: 50 }),
   phone: text("phone", { length: 50 }),
   staffPassword: text("staffPassword", { length: 255 }),
+  photoUrl: text("photoUrl", { length: 500 }),
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
+  showOnSite: integer("showOnSite", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt").default(new Date().toISOString()).notNull(),
 });
 

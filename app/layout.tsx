@@ -33,8 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body className={`${inter.variable} ${montserrat.variable} ${playfairDisplay.variable}`}>
+    <html lang="ru" suppressHydrationWarning>
+      <body className={`${inter.variable} ${montserrat.variable} ${playfairDisplay.variable}`} suppressHydrationWarning>
         <AuthSessionProvider>
           <RegistrationProvider>{children}</RegistrationProvider>
         </AuthSessionProvider>

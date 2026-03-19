@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { Master, WorkSlot } from "@/db/schema";
+import type { WorkSlot } from "@/db/schema";
 
 export default function AdminWorkSlotsList({ masters, currentDate }: { masters: any[]; currentDate?: string }) {
   const { data: session } = useSession();
@@ -84,6 +84,24 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
         },
       }));
       setEditingId(null);
+    } catch (e: any) {
+      setError(e?.message || "Ошибка");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleConfirm(slot: WorkSlot) {
+    try {
+      setPending(true); setError(null);
+      const res = await fetch(`/api/work-slots-admin?id=${slot.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isConfirmed: true, adminUpdateStatus: "accepted" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Не удалось подтвердить");
+      setItems((prev) => prev.map((it) => it.id === slot.id ? { ...it, isConfirmed: true, adminUpdateStatus: "accepted" } : it));
     } catch (e: any) {
       setError(e?.message || "Ошибка");
     } finally {
@@ -261,6 +279,16 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
                   </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {(displayStatus === 'pending' || displayStatus === 'unconfirmed') && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => handleConfirm(slot)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 text-xs font-medium text-emerald-400 disabled:opacity-50 transition-all"
+                        >
+                          Подтвердить
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={pending}

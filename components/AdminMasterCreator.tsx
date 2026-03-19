@@ -16,6 +16,9 @@ export default function AdminMasterCreator({ masters }: Props) {
   const [phone, setPhone] = useState("");
   const [telegramId, setTelegramId] = useState("");
   const [specialization, setSpecialization] = useState("");
+  const [showOnSite, setShowOnSite] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +26,9 @@ export default function AdminMasterCreator({ masters }: Props) {
   const [editingMasterId, setEditingMasterId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingRole, setEditingRole] = useState("");
+  const [editingShowOnSite, setEditingShowOnSite] = useState(true);
+  const [editingPhotoUrl, setEditingPhotoUrl] = useState("");
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [localMasters, setLocalMasters] = useState<Master[]>(masters);
 
@@ -56,9 +62,23 @@ export default function AdminMasterCreator({ masters }: Props) {
     return Array.from(normalized).sort((a, b) => a.localeCompare(b));
   }, [masters, customRoles]);
 
+  const handlePhotoUpload = async (file: File, target: "create" | "edit") => {
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/uploads/masters", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Ошибка загрузки");
+      if (target === "create") setPhotoUrl(data.url);
+      else setEditingPhotoUrl(data.url);
+    } catch (e: any) { setError(e?.message || "Ошибка загрузки фото"); }
+    finally { setUploadingPhoto(false); }
+  };
+
   const resetForm = () => {
     setFirstName(""); setLastName(""); setPhone(""); setTelegramId("");
-    setSpecialization(""); setError(null); setSuccess(null);
+    setSpecialization(""); setShowOnSite(true); setPhotoUrl(""); setError(null); setSuccess(null);
   };
 
   const handleClose = () => { if (loading) return; setIsOpen(false); };
@@ -75,7 +95,7 @@ export default function AdminMasterCreator({ masters }: Props) {
       const res = await fetch("/api/masters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, specialization, phone: phone || null, telegramId: telegramId || null }),
+        body: JSON.stringify({ fullName, specialization, phone: phone || null, telegramId: telegramId || null, showOnSite, photoUrl: photoUrl || null }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Не удалось создать мастера");
@@ -90,9 +110,13 @@ export default function AdminMasterCreator({ masters }: Props) {
     setEditingMasterId(master.id);
     setEditingName(master.fullName || "");
     setEditingRole(master.specialization || "");
+    setEditingShowOnSite((master as any).showOnSite !== false);
+    setEditingPhotoUrl((master as any).photoUrl || "");
+    setIsEditOpen(true);
+    setError(null); setSuccess(null);
   };
 
-  const cancelEditMaster = () => { setEditingMasterId(null); setEditingName(""); setEditingRole(""); };
+  const cancelEditMaster = () => { setIsEditOpen(false); setEditingMasterId(null); setEditingName(""); setEditingRole(""); };
 
   const applyEditMaster = async () => {
     if (!editingMasterId) return;
@@ -103,11 +127,12 @@ export default function AdminMasterCreator({ masters }: Props) {
       const res = await fetch("/api/masters", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingMasterId, fullName: name, specialization: role }),
+        body: JSON.stringify({ id: editingMasterId, fullName: name, specialization: role, showOnSite: editingShowOnSite, photoUrl: editingPhotoUrl || null }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Не удалось обновить мастера");
       setSuccess("Мастер обновлён");
+      setIsEditOpen(false);
       setEditingMasterId(null); setEditingName(""); setEditingRole("");
       router.refresh();
     } catch (e: any) { setError(e?.message || "Ошибка при обновлении"); }
@@ -220,13 +245,46 @@ export default function AdminMasterCreator({ masters }: Props) {
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
                   <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">Данные мастера</p>
+
+                  {/* Photo upload */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.03] flex-shrink-0 flex items-center justify-center">
+                      {photoUrl ? (
+                        <img src={photoUrl} alt="Фото" className="w-full h-full object-cover" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-zinc-700">
+                          <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z" />
+                        </svg>
+                      )}
+                      {uploadingPhoto && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] text-xs text-zinc-300 hover:bg-white/[0.07] transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-violet-400">
+                          <path d="M7.25 10.25a.75.75 0 0 0 1.5 0V4.56l2.22 2.22a.75.75 0 1 0 1.06-1.06l-3.5-3.5a.75.75 0 0 0-1.06 0l-3.5 3.5a.75.75 0 0 0 1.06 1.06l2.22-2.22v5.69Z" />
+                          <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z" />
+                        </svg>
+                        Загрузить фото
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f, "create"); }} />
+                      </label>
+                      <p className="text-[10px] text-zinc-600">Рекомендуемый размер: 300×300 px</p>
+                      {photoUrl && (
+                        <button type="button" onClick={() => setPhotoUrl("")} className="text-[11px] text-red-400/60 hover:text-red-400 transition-colors text-left">Удалить фото</button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Имя</label>
+                      <label className="text-xs font-medium text-zinc-400">Имя <span className="text-red-400">*</span></label>
                       <input className={inp} type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Маргарита" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Фамилия</label>
+                      <label className="text-xs font-medium text-zinc-400">Фамилия <span className="text-red-400">*</span></label>
                       <input className={inp} type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Иванова" />
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -243,8 +301,22 @@ export default function AdminMasterCreator({ masters }: Props) {
                   <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">Доступ</p>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Специализация</label>
+                    <label className="text-xs font-medium text-zinc-400">Специализация <span className="text-red-400">*</span></label>
                     <AdminSelect value={specialization} onChange={(v) => setSpecialization(String(v))} options={roleOptions.map((r) => ({ value: r, label: r }))} placeholder="Выберите роль" />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <div>
+                      <p className="text-xs font-medium text-zinc-400">Отображать на сайте</p>
+                      <p className="text-[11px] text-zinc-600 mt-0.5">Показывать в секции «Наши мастера»</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowOnSite(!showOnSite)}
+                      className={`relative flex-shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 ${showOnSite ? "bg-violet-600" : "bg-white/[0.08]"}`}
+                    >
+                      <span className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${showOnSite ? "left-[22px]" : "left-[3px]"}`} />
+                    </button>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-1 mt-auto">
@@ -282,26 +354,10 @@ export default function AdminMasterCreator({ masters }: Props) {
                   ) : (
                     <div className="space-y-1.5">
                       {localMasters.map((m, idx) => {
-                        const isEditing = editingMasterId === m.id;
                         const initials = getInitials(m.fullName || "?");
                         const grad = avatarGradients[idx % avatarGradients.length];
                         return (
                           <div key={m.id} className="rounded-xl bg-white/[0.025] border border-white/[0.04] overflow-hidden">
-                            {isEditing ? (
-                              <div className="p-3 space-y-2">
-                                <input
-                                  className="w-full rounded-lg bg-white/[0.05] border border-white/[0.08] px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/15 transition-all"
-                                  value={editingName}
-                                  onChange={(e) => setEditingName(e.target.value)}
-                                  placeholder="Имя мастера"
-                                />
-                                <AdminSelect value={editingRole} onChange={(v) => setEditingRole(String(v))} options={roleOptions.map((r) => ({ value: r, label: r }))} placeholder="Выберите роль" />
-                                <div className="flex gap-1.5">
-                                  <button type="button" onClick={applyEditMaster} className="flex-1 py-1.5 rounded-lg bg-violet-600/20 border border-violet-500/20 text-[11px] text-violet-300 hover:bg-violet-600/30 transition-all">Сохранить</button>
-                                  <button type="button" onClick={cancelEditMaster} className="flex-1 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] text-zinc-400 hover:bg-white/[0.08] transition-all">Отмена</button>
-                                </div>
-                              </div>
-                            ) : (
                               <div className="group flex items-center gap-3 px-3 py-2.5 hover:bg-white/[0.03] transition-all">
                                 <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${grad} border text-[11px] font-semibold text-white`}>
                                   {initials}
@@ -324,12 +380,140 @@ export default function AdminMasterCreator({ masters }: Props) {
                                   </button>
                                 </div>
                               </div>
-                            )}
                           </div>
                         );
                       })}
                     </div>
                   )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Edit master modal ── */}
+      {isEditOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !loading) cancelEditMaster(); }}
+        >
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+
+          <div className="relative w-full max-w-md">
+            <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-violet-500/20 to-transparent pointer-events-none" />
+
+            <div className="relative rounded-2xl bg-[#0D0D11] border border-white/[0.07] shadow-2xl shadow-black/70 overflow-hidden">
+
+              {/* Header */}
+              <div className="relative px-6 pt-6 pb-5">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-600/[0.07] to-transparent pointer-events-none" />
+                <div className="relative flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/30 to-violet-800/20 border border-violet-500/20 shadow-lg shadow-violet-900/30">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 text-violet-300">
+                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.263a1.75 1.75 0 0 0 0-2.474Z" />
+                        <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9a.75.75 0 0 1 1.5 0v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-[15px] font-semibold text-white leading-tight">Редактирование мастера</h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">{editingName || "—"}</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={cancelEditMaster} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.07] transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+
+              {/* Alert */}
+              {error && (
+                <div className="px-6 pt-4">
+                  <div className="flex items-center gap-2.5 rounded-xl bg-red-500/[0.07] border border-red-500/15 px-3.5 py-2.5 text-xs text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                      <path fillRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0-10a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 5zm0 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clipRule="evenodd" />
+                    </svg>
+                    {error}
+                  </div>
+                </div>
+              )}
+
+              {/* Body */}
+              <div className="px-6 py-5 flex flex-col gap-4">
+                {/* Photo */}
+                <div className="flex items-center gap-4">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.03] flex-shrink-0 flex items-center justify-center">
+                    {editingPhotoUrl ? (
+                      <img src={editingPhotoUrl} alt="Фото" className="w-full h-full object-cover" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-zinc-700">
+                        <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z" />
+                      </svg>
+                    )}
+                    {uploadingPhoto && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] text-xs text-zinc-300 hover:bg-white/[0.07] transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-violet-400">
+                        <path d="M7.25 10.25a.75.75 0 0 0 1.5 0V4.56l2.22 2.22a.75.75 0 1 0 1.06-1.06l-3.5-3.5a.75.75 0 0 0-1.06 0l-3.5 3.5a.75.75 0 0 0 1.06 1.06l2.22-2.22v5.69Z" />
+                        <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z" />
+                      </svg>
+                      Загрузить фото
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f, "edit"); }} />
+                    </label>
+                    <p className="text-[10px] text-zinc-600">Рекомендуемый размер: 300×300 px</p>
+                    {editingPhotoUrl && (
+                      <button type="button" onClick={() => setEditingPhotoUrl("")} className="text-[11px] text-red-400/60 hover:text-red-400 transition-colors text-left">Удалить фото</button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Имя мастера <span className="text-red-400">*</span></label>
+                  <input className={inp} type="text" value={editingName} onChange={(e) => setEditingName(e.target.value)} placeholder="Имя Фамилия" />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Специализация <span className="text-red-400">*</span></label>
+                  <AdminSelect value={editingRole} onChange={(v) => setEditingRole(String(v))} options={roleOptions.map((r) => ({ value: r, label: r }))} placeholder="Выберите роль" />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 py-1">
+                  <div>
+                    <p className="text-xs font-medium text-zinc-400">Отображать на сайте</p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5">Показывать в секции «Наши мастера»</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingShowOnSite(!editingShowOnSite)}
+                    className={`relative flex-shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 ${editingShowOnSite ? "bg-violet-600" : "bg-white/[0.08]"}`}
+                  >
+                    <span className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${editingShowOnSite ? "left-[22px]" : "left-[3px]"}`} />
+                  </button>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={cancelEditMaster} className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07] transition-all">
+                    Отмена
+                  </button>
+                  <button type="button" onClick={applyEditMaster} disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25">
+                    {loading ? (
+                      <><span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />Сохраняем...</>
+                    ) : (
+                      "Сохранить"
+                    )}
+                  </button>
                 </div>
               </div>
 
