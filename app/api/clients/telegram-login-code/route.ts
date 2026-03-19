@@ -33,7 +33,7 @@ export async function POST() {
   try {
     // "LOGIN_" (6 chars) + 4 hex chars = 10 chars — fits the code column (length: 10)
     const code = "LOGIN_" + crypto.randomBytes(2).toString("hex").toUpperCase();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
 
     await db.insert(telegramVerificationCodes).values({
       code,
