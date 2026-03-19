@@ -440,13 +440,6 @@ export default async function AdminDashboardPage({
           <div className="space-y-4 lg:sticky lg:top-36">
             <AdminWorkSlotChangeRequests />
             <AdminWorkSlotsCreator masters={mastersData} currentDate={dateStr} />
-            <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D10] overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/[0.05]">
-                <h3 className="text-xs font-semibold text-zinc-300">Настройки оптимизации</h3>
-              </div>
-              <div className="p-3">
-              </div>
-            </section>
           </div>
         </div>
 
