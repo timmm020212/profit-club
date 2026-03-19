@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { registerBookingHandlers } from './client/booking-flow';
 import { registerAppointmentHandlers } from './client/appointment-manager';
 import { startReminderLoop } from './client/reminders';
+import { registerOptimizationHandlers } from './client/optimization-handler';
 
 config({ path: '.env.local' });
 
@@ -16,6 +17,7 @@ const bot = new Telegraf(CLIENT_BOT_TOKEN);
 
 registerBookingHandlers(bot);
 registerAppointmentHandlers(bot);
+registerOptimizationHandlers(bot);
 
 function generateCode(): string {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
