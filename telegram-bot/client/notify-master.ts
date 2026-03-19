@@ -8,15 +8,23 @@ async function sendToMaster(chatId: string, text: string) {
   const token = getMastersBotToken();
   if (!token || !chatId) return;
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[notify-master] Telegram API error:", err);
+    }
   } catch (e) {
     console.error("[notify-master] Error:", e);
   }
 }
+
+// Dedup: track sent break/earlyFinish notifications to avoid repeats
+// Key format: "masterId:date:breakStart-breakEnd" or "masterId:date:earlyFinish:freeFrom"
+const sentNotifications = new Set<string>();
 
 export async function notifyMasterNewAppointment(opts: {
   masterTelegramId: string | null;
@@ -54,6 +62,13 @@ export async function notifyMasterCancellation(opts: {
     `💇 ${opts.serviceName}\n` +
     `📅 ${date}, ${opts.startTime}–${opts.endTime}`;
   await sendToMaster(opts.masterTelegramId, text);
+
+  // On cancellation, clear dedup for this date so breaks recalculate
+  for (const key of sentNotifications) {
+    if (key.includes(`:${opts.appointmentDate}:`)) {
+      sentNotifications.delete(key);
+    }
+  }
 }
 
 export function detectBreaks(
@@ -85,12 +100,17 @@ export async function notifyMasterBreak(opts: {
   breakMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
+  const key = `${opts.masterTelegramId}:${opts.appointmentDate}:${opts.breakStart}-${opts.breakEnd}`;
+  if (sentNotifications.has(key)) return;
+  sentNotifications.add(key);
+
   const date = formatDateRu(opts.appointmentDate);
   const text =
     `☕ Перерыв ${opts.breakMinutes} мин\n\n` +
     `📅 ${date}\n` +
     `🕐 ${opts.breakStart}–${opts.breakEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
+  console.log(`[notify-master] Sent break notification: ${key}`);
 }
 
 export async function notifyMasterEarlyFinish(opts: {
@@ -101,6 +121,10 @@ export async function notifyMasterEarlyFinish(opts: {
   freeMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
+  const key = `${opts.masterTelegramId}:${opts.appointmentDate}:earlyFinish:${opts.freeFrom}`;
+  if (sentNotifications.has(key)) return;
+  sentNotifications.add(key);
+
   const date = formatDateRu(opts.appointmentDate);
   const text =
     `🏁 Вы свободны с ${opts.freeFrom}\n\n` +
@@ -108,4 +132,5 @@ export async function notifyMasterEarlyFinish(opts: {
     `🕐 Последняя запись заканчивается в ${opts.freeFrom}\n` +
     `📋 Конец смены: ${opts.shiftEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
+  console.log(`[notify-master] Sent early finish notification: ${key}`);
 }

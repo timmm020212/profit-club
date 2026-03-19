@@ -570,10 +570,13 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
             );
           if (shiftSlots.length > 0) {
             const sorted = [...dayAppointments].sort((a, b) => a.endTime.localeCompare(b.endTime));
-            const lastEndMin = timeToMinutes(sorted[sorted.length - 1].endTime);
-            const shiftEndMin = timeToMinutes(shiftSlots[0].endTime);
+            const lastEnd = sorted[sorted.length - 1].endTime;
+            const shiftEnd = shiftSlots[0].endTime;
+            const lastEndMin = timeToMinutes(lastEnd);
+            const shiftEndMin = timeToMinutes(shiftEnd);
             const freeGap = shiftEndMin - lastEndMin;
-            if (freeGap > 0 && freeGap < 30) {
+            console.log(`[booking-flow] Early finish check: lastEnd=${lastEnd}, shiftEnd=${shiftEnd}, gap=${freeGap}min`);
+            if (freeGap > 0) {
               await notifyMasterEarlyFinish({
                 masterTelegramId: masterRows[0].telegramId,
                 appointmentDate: state.date!,
