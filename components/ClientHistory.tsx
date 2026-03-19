@@ -5,9 +5,6 @@ import dynamic from "next/dynamic";
 
 const BookingModal = dynamic(() => import("./BookingModal"), { ssr: false });
 
-const FONT = "var(--font-montserrat)";
-const FONT_HEADING = "var(--font-playfair)";
-
 interface Appointment {
   id: number;
   serviceId: number;
@@ -45,7 +42,9 @@ export default function ClientHistory() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  const [bookingService, setBookingService] = useState<BookingService | null>(null);
+  const [bookingService, setBookingService] = useState<BookingService | null>(
+    null
+  );
 
   const clientId =
     typeof window !== "undefined"
@@ -53,7 +52,10 @@ export default function ClientHistory() {
       : null;
 
   const fetchHistory = useCallback(async () => {
-    if (!clientId) { setLoading(false); return; }
+    if (!clientId) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(
         `/api/clients/appointments?clientId=${clientId}&status=all&future=false`
@@ -83,17 +85,41 @@ export default function ClientHistory() {
     });
   };
 
+  /* ── Section header ── */
+  const SectionHeader = () => (
+    <div className="mb-8 pc-fade-in">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-8 h-px bg-gradient-to-r from-[#C8A96E] to-transparent" />
+        <span
+          className="text-[11px] tracking-[0.2em] uppercase text-[#C8A96E]/80"
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
+          История
+        </span>
+      </div>
+      <h2
+        className="text-2xl sm:text-3xl font-semibold text-white"
+        style={{ fontFamily: "var(--font-playfair)" }}
+      >
+        Прошлые{" "}
+        <span
+          className="text-transparent"
+          style={{
+            WebkitTextStroke: "1px rgba(255,255,255,0.5)",
+          }}
+        >
+          записи
+        </span>
+      </h2>
+    </div>
+  );
+
   if (loading) {
     return (
       <section>
-        <h2
-          className="text-xl font-semibold text-white mb-4"
-          style={{ fontFamily: FONT_HEADING }}
-        >
-          История записей
-        </h2>
-        <div className="flex justify-center py-6">
-          <div className="w-6 h-6 rounded-full border-2 border-[#B2223C]/30 border-t-[#B2223C] animate-spin" />
+        <SectionHeader />
+        <div className="flex justify-center py-10">
+          <div className="w-7 h-7 rounded-full border-2 border-[#C8A96E]/20 border-t-[#C8A96E] animate-spin" />
         </div>
       </section>
     );
@@ -105,23 +131,23 @@ export default function ClientHistory() {
 
   return (
     <section>
-      <h2
-        className="text-xl font-semibold text-white mb-4"
-        style={{ fontFamily: FONT_HEADING }}
-      >
-        История записей
-      </h2>
+      <SectionHeader />
 
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
-        {visibleAppointments.map((appt) => (
+      <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent overflow-hidden">
+        {visibleAppointments.map((appt, i) => (
           <div
             key={appt.id}
-            className="flex items-center gap-3 px-4 py-3"
+            className={`pc-slide-up flex items-center gap-3 sm:gap-4 px-5 py-4 transition-colors duration-200 hover:bg-white/[0.02] ${
+              i !== visibleAppointments.length - 1
+                ? "border-b border-white/[0.04]"
+                : ""
+            }`}
+            style={{ animationDelay: `${i * 60}ms` }}
           >
             {/* Date */}
             <span
-              className="flex-shrink-0 w-16 text-xs text-white/40"
-              style={{ fontFamily: FONT }}
+              className="flex-shrink-0 w-16 text-xs font-medium text-[#C8A96E]/70"
+              style={{ fontFamily: "var(--font-montserrat)" }}
             >
               {formatShortDate(appt.appointmentDate)}
             </span>
@@ -130,13 +156,13 @@ export default function ClientHistory() {
             <div className="flex-1 min-w-0">
               <p
                 className="text-sm text-white/80 truncate"
-                style={{ fontFamily: FONT }}
+                style={{ fontFamily: "var(--font-montserrat)" }}
               >
                 {appt.serviceName || "Услуга"}
               </p>
               <p
-                className="text-[11px] text-white/30 truncate"
-                style={{ fontFamily: FONT }}
+                className="text-[11px] text-white/30 truncate mt-0.5"
+                style={{ fontFamily: "var(--font-montserrat)" }}
               >
                 {appt.masterName || "Мастер"}
               </p>
@@ -144,23 +170,27 @@ export default function ClientHistory() {
 
             {/* Status badge */}
             <span
-              className={`flex-shrink-0 text-[11px] px-2 py-0.5 rounded-full ${
+              className={`flex-shrink-0 text-[11px] px-2.5 py-1 rounded-full font-medium ${
                 appt.status === "confirmed"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20"
                   : appt.status === "cancelled"
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                  ? "bg-red-500/10 text-red-400/80 border border-red-500/20"
                   : "bg-white/[0.04] text-white/30 border border-white/[0.06]"
               }`}
-              style={{ fontFamily: FONT }}
+              style={{ fontFamily: "var(--font-montserrat)" }}
             >
-              {appt.status === "confirmed" ? "Выполнена" : appt.status === "cancelled" ? "Отменена" : appt.status}
+              {appt.status === "confirmed"
+                ? "\u2713"
+                : appt.status === "cancelled"
+                ? "\u2715"
+                : appt.status}
             </span>
 
             {/* Rebook button */}
             <button
               onClick={() => openRebook(appt)}
-              className="flex-shrink-0 rounded-full border border-[#B2223C]/20 bg-[#B2223C]/10 px-3 py-1.5 text-[10px] text-[#e8556e] hover:bg-[#B2223C]/20 transition-all"
-              style={{ fontFamily: FONT }}
+              className="flex-shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.08] hover:border-white/[0.12] transition-all duration-200"
+              style={{ fontFamily: "var(--font-montserrat)" }}
             >
               Снова
             </button>
@@ -168,23 +198,21 @@ export default function ClientHistory() {
         ))}
       </div>
 
-      {appointments.length > 5 && !showAll && (
+      {/* Show all / collapse */}
+      {appointments.length > 5 && (
         <button
-          onClick={() => setShowAll(true)}
-          className="mt-3 w-full text-center text-xs text-white/30 hover:text-white/60 transition-colors py-2"
-          style={{ fontFamily: FONT }}
+          onClick={() => setShowAll(!showAll)}
+          className="mt-4 w-full text-center py-2.5 text-xs transition-colors duration-200 group"
+          style={{ fontFamily: "var(--font-montserrat)" }}
         >
-          Показать все ({appointments.length})
-        </button>
-      )}
-
-      {showAll && appointments.length > 5 && (
-        <button
-          onClick={() => setShowAll(false)}
-          className="mt-3 w-full text-center text-xs text-white/30 hover:text-white/60 transition-colors py-2"
-          style={{ fontFamily: FONT }}
-        >
-          Свернуть
+          <span className="text-[#C8A96E]/50 group-hover:text-[#C8A96E]/80 transition-colors">
+            {showAll
+              ? "Свернуть"
+              : `Показать все (${appointments.length})`}
+          </span>
+          <span className="inline-block ml-1.5 text-[#C8A96E]/30 group-hover:text-[#C8A96E]/60 transition-all">
+            {showAll ? "\u2191" : "\u2193"}
+          </span>
         </button>
       )}
 

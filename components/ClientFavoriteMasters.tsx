@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from "react";
 
-const FONT = "var(--font-montserrat)";
-const FONT_HEADING = "var(--font-playfair)";
-
 const AVATAR_GRADS = [
-  "from-violet-600 to-purple-800",
-  "from-rose-500 to-pink-700",
-  "from-amber-500 to-orange-700",
-  "from-teal-500 to-cyan-700",
-  "from-indigo-500 to-blue-700",
+  "linear-gradient(135deg, #C8A96E 0%, #8B6914 100%)",
+  "linear-gradient(135deg, #B2223C 0%, #7a1228 100%)",
+  "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
+  "linear-gradient(135deg, #C8A96E 0%, #a08545 100%)",
+  "linear-gradient(135deg, #e8556e 0%, #B2223C 100%)",
 ];
 
 function getInitials(name: string) {
@@ -54,15 +51,24 @@ export default function ClientFavoriteMasters() {
         const apptRes = await fetch(
           `/api/clients/appointments?clientId=${clientId}&status=all`
         );
-        if (!apptRes.ok) { setLoading(false); return; }
+        if (!apptRes.ok) {
+          setLoading(false);
+          return;
+        }
         const apptData: AppointmentRow[] = await apptRes.json();
 
         const uniqueMasterIds = [...new Set(apptData.map((a) => a.masterId))];
-        if (uniqueMasterIds.length === 0) { setLoading(false); return; }
+        if (uniqueMasterIds.length === 0) {
+          setLoading(false);
+          return;
+        }
 
         // Fetch all active masters and filter
         const mastersRes = await fetch("/api/masters");
-        if (!mastersRes.ok) { setLoading(false); return; }
+        if (!mastersRes.ok) {
+          setLoading(false);
+          return;
+        }
         const allMasters: Master[] = await mastersRes.json();
 
         const filtered = allMasters.filter((m) =>
@@ -79,17 +85,41 @@ export default function ClientFavoriteMasters() {
     load();
   }, [clientId]);
 
+  /* ── Section header ── */
+  const SectionHeader = () => (
+    <div className="mb-8 pc-fade-in">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-8 h-px bg-gradient-to-r from-[#C8A96E] to-transparent" />
+        <span
+          className="text-[11px] tracking-[0.2em] uppercase text-[#C8A96E]/80"
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
+          Команда
+        </span>
+      </div>
+      <h2
+        className="text-2xl sm:text-3xl font-semibold text-white"
+        style={{ fontFamily: "var(--font-playfair)" }}
+      >
+        Мои{" "}
+        <span
+          className="text-transparent"
+          style={{
+            WebkitTextStroke: "1px rgba(255,255,255,0.5)",
+          }}
+        >
+          мастера
+        </span>
+      </h2>
+    </div>
+  );
+
   if (loading) {
     return (
       <section>
-        <h2
-          className="text-xl font-semibold text-white mb-4"
-          style={{ fontFamily: FONT_HEADING }}
-        >
-          Мои мастера
-        </h2>
-        <div className="flex justify-center py-6">
-          <div className="w-6 h-6 rounded-full border-2 border-[#B2223C]/30 border-t-[#B2223C] animate-spin" />
+        <SectionHeader />
+        <div className="flex justify-center py-10">
+          <div className="w-7 h-7 rounded-full border-2 border-[#C8A96E]/20 border-t-[#C8A96E] animate-spin" />
         </div>
       </section>
     );
@@ -99,58 +129,74 @@ export default function ClientFavoriteMasters() {
 
   return (
     <section>
-      <h2
-        className="text-xl font-semibold text-white mb-4"
-        style={{ fontFamily: FONT_HEADING }}
-      >
-        Мои мастера
-      </h2>
+      <SectionHeader />
 
-      {/* Horizontal scroll on mobile, grid on desktop */}
-      <div className="flex gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-x-visible scrollbar-hide">
+      {/* Horizontal scroll carousel */}
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
         {masters.map((master, idx) => (
           <div
             key={master.id}
-            className="flex-shrink-0 w-52 sm:w-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+            className="pc-slide-up flex-shrink-0 w-56 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-300 hover:border-white/[0.12] group relative overflow-hidden"
+            style={{ animationDelay: `${idx * 80}ms` }}
           >
-            <div className="flex items-center gap-3 mb-3">
+            {/* Subtle radial gradient at bottom */}
+            <div
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, rgba(200,169,110,0.06) 0%, transparent 70%)",
+              }}
+            />
+
+            <div className="relative z-10 flex flex-col items-center text-center">
+              {/* Photo / initials circle */}
               {master.photoUrl ? (
                 <img
                   src={master.photoUrl}
                   alt={master.fullName}
-                  className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                  className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-white/[0.06] mb-4"
                 />
               ) : (
                 <div
-                  className={`w-11 h-11 rounded-full bg-gradient-to-br ${AVATAR_GRADS[idx % AVATAR_GRADS.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 mb-4 border-2 border-white/[0.06]"
+                  style={{ background: AVATAR_GRADS[idx % AVATAR_GRADS.length] }}
                 >
                   {getInitials(master.fullName)}
                 </div>
               )}
-              <div className="min-w-0">
+
+              {/* Name */}
+              <p
+                className="text-sm font-medium text-white truncate w-full"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                {master.fullName}
+              </p>
+
+              {/* Specialization */}
+              {master.specialization && (
                 <p
-                  className="text-sm font-semibold text-white truncate"
-                  style={{ fontFamily: FONT }}
+                  className="text-[11px] text-[#C8A96E]/70 truncate w-full mt-1"
+                  style={{ fontFamily: "var(--font-montserrat)" }}
                 >
-                  {master.fullName}
+                  {master.specialization}
                 </p>
-                {master.specialization && (
-                  <p
-                    className="text-[11px] text-white/35 truncate mt-0.5"
-                    style={{ fontFamily: FONT }}
-                  >
-                    {master.specialization}
-                  </p>
-                )}
-              </div>
+              )}
+
+              {/* Book button */}
+              <a
+                href="/booking"
+                className="mt-4 w-full block text-center rounded-full py-2 text-xs font-medium text-white/80 hover:text-white transition-all duration-200"
+                style={{
+                  fontFamily: "var(--font-montserrat)",
+                  background:
+                    "linear-gradient(135deg, rgba(178,34,60,0.15) 0%, rgba(232,85,110,0.08) 100%)",
+                  border: "1px solid rgba(178,34,60,0.2)",
+                }}
+              >
+                Записаться
+              </a>
             </div>
-            <a
-              href="/booking"
-              className="block w-full text-center rounded-full border border-[#B2223C]/20 bg-[#B2223C]/10 py-2 text-[11px] text-[#e8556e] hover:bg-[#B2223C]/20 transition-all"
-              style={{ fontFamily: FONT }}
-            >
-              Записаться
-            </a>
           </div>
         ))}
       </div>
