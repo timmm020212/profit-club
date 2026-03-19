@@ -318,6 +318,7 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
       .where(and(
         eq(workSlots.masterId, master.id),
         gte(workSlots.workDate, today),
+        eq(workSlots.isConfirmed, true),
       ))
       .orderBy(asc(workSlots.workDate), asc(workSlots.startTime));
 
@@ -325,20 +326,121 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
       return ctx.reply('У вас нет запланированных рабочих дней для изменения');
     }
 
-    const buttons = workSlotsList.map(slot =>
-      Markup.button.text(`${slot.workDate} ${slot.startTime}-${slot.endTime}`),
-    );
+    const buttons = workSlotsList.map(slot => [
+      Markup.button.callback(
+        `${formatDateDisplay(slot.workDate)} ${slot.startTime}–${slot.endTime}`,
+        `chday_select_${slot.id}`,
+      ),
+    ]);
+    buttons.push([Markup.button.callback('← Назад', 'chday_back')]);
 
-    await ctx.reply('Выберите рабочий день для изменения:', Markup.keyboard([
-      buttons,
-      ['🔙 Главное меню'],
-    ]).resize());
-
-    userStates.set(telegramId, { waitingForSlotToChange: true });
+    await ctx.reply('📅 Выберите рабочий день:', Markup.inlineKeyboard(buttons));
   } catch (error) {
     console.error('Error fetching work slots for change:', error);
     ctx.reply('Произошла ошибка');
   }
+});
+
+// Select a day to change
+bot.action(/^chday_select_(\d+)$/, async (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+  const master = await isMaster(telegramId);
+  if (!master) { try { await ctx.answerCbQuery(); } catch {} return; }
+
+  const slotId = parseInt(ctx.match[1]);
+  const slotRows = await db.select().from(workSlots).where(eq(workSlots.id, slotId)).limit(1);
+  if (!slotRows.length) { try { await ctx.answerCbQuery('Не найдено'); } catch {} return; }
+
+  const slot = slotRows[0];
+  userStates.set(telegramId, { selectedSlotId: slot.id, selectedSlot: slot });
+
+  try {
+    await ctx.editMessageText(
+      `📅 ${formatDateDisplay(slot.workDate)}\n⏰ ${slot.startTime}–${slot.endTime}\n\nЧто вы хотите сделать?`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback('🕐 Изменить время', `chday_time_${slot.id}`)],
+        [Markup.button.callback('❌ Отменить рабочий день', `chday_cancel_${slot.id}`)],
+        [Markup.button.callback('← Назад', 'chday_back')],
+      ]),
+    );
+  } catch {}
+  try { await ctx.answerCbQuery(); } catch {}
+});
+
+// Cancel day
+bot.action(/^chday_cancel_(\d+)$/, async (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+  const master = await isMaster(telegramId);
+  if (!master) { try { await ctx.answerCbQuery(); } catch {} return; }
+
+  const slotId = parseInt(ctx.match[1]);
+  const slotRows = await db.select().from(workSlots).where(eq(workSlots.id, slotId)).limit(1);
+  if (!slotRows.length) { try { await ctx.answerCbQuery(); } catch {} return; }
+  const slot = slotRows[0];
+
+  // Check for appointments
+  const dayAppts = await db.select({ id: appointments.id, startTime: appointments.startTime, endTime: appointments.endTime })
+    .from(appointments)
+    .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, slot.workDate), eq(appointments.status, 'confirmed')));
+
+  if (dayAppts.length > 0) {
+    const list = dayAppts.map(a => `  ${a.startTime}–${a.endTime}`).join('\n');
+    try {
+      await ctx.editMessageText(`❌ Невозможно отменить!\n\nНа ${formatDateDisplay(slot.workDate)} есть записи:\n${list}\n\nСначала отмените записи.`);
+    } catch {}
+  } else {
+    await handleWorkSlotChange(telegramId, slot, 'cancel');
+    try { await ctx.editMessageText(`✅ Запрос на отмену ${formatDateDisplay(slot.workDate)} отправлен администратору`); } catch {}
+  }
+  try { await ctx.answerCbQuery(); } catch {}
+});
+
+// Change time — show start picker
+bot.action(/^chday_time_(\d+)$/, async (ctx) => {
+  const telegramId = ctx.from?.id.toString();
+  if (!telegramId) return;
+  const master = await isMaster(telegramId);
+  if (!master) { try { await ctx.answerCbQuery(); } catch {} return; }
+
+  const slotId = parseInt(ctx.match[1]);
+  const slotRows = await db.select().from(workSlots).where(eq(workSlots.id, slotId)).limit(1);
+  if (!slotRows.length) { try { await ctx.answerCbQuery(); } catch {} return; }
+  const slot = slotRows[0];
+
+  // Check for appointments
+  const dayAppts = await db.select({ id: appointments.id, startTime: appointments.startTime, endTime: appointments.endTime })
+    .from(appointments)
+    .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, slot.workDate), eq(appointments.status, 'confirmed')));
+
+  userStates.set(telegramId, { selectedSlotId: slot.id, selectedSlot: slot, dayAppts });
+
+  const startOptions: string[] = [];
+  for (let m = 7 * 60; m <= 14 * 60; m += 60) startOptions.push(minutesToTime(m));
+
+  const rows: any[][] = [];
+  for (let i = 0; i < startOptions.length; i += 2) {
+    const row = [Markup.button.callback(startOptions[i] === slot.startTime ? `✅ ${startOptions[i]}` : startOptions[i], `pick_start_${startOptions[i]}`)];
+    if (i + 1 < startOptions.length) {
+      row.push(Markup.button.callback(startOptions[i+1] === slot.startTime ? `✅ ${startOptions[i+1]}` : startOptions[i+1], `pick_start_${startOptions[i+1]}`));
+    }
+    rows.push(row);
+  }
+  rows.push([Markup.button.callback('← Назад', 'chday_back')]);
+
+  try {
+    await ctx.editMessageText(
+      `🕐 Новое время начала смены\n📅 ${formatDateDisplay(slot.workDate)}\nСейчас: ${slot.startTime}–${slot.endTime}`,
+      Markup.inlineKeyboard(rows),
+    );
+  } catch {}
+  try { await ctx.answerCbQuery(); } catch {}
+});
+
+bot.action('chday_back', async (ctx) => {
+  try { await ctx.editMessageText('Главное меню ⬇️'); } catch {}
+  try { await ctx.answerCbQuery(); } catch {}
 });
 
 // ── Настройки ─────────────────────────────────────────────────
@@ -425,129 +527,6 @@ bot.hears('🔙 Главное меню', (ctx) => {
   ctx.reply('Главное меню:', masterMenu);
 });
 
-// ── Text handler (change day conversation) ────────────────────
-
-bot.on('text', async (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (!telegramId) return;
-
-  // Главное меню всегда имеет приоритет
-  if (ctx.message.text === '🔙 Главное меню') {
-    userStates.delete(telegramId);
-    return ctx.reply('Главное меню:', masterMenu);
-  }
-
-  const state = userStates.get(telegramId);
-
-  if (state?.waitingForSlotToChange) {
-    try {
-      const master = await isMaster(telegramId);
-      if (!master) return;
-
-      const workSlotsList = await db
-        .select()
-        .from(workSlots)
-        .where(and(
-          eq(workSlots.masterId, master.id),
-          gte(workSlots.workDate, todayStr()),
-        ));
-
-      const selectedSlot = workSlotsList.find(slot =>
-        ctx.message.text.includes(slot.workDate) &&
-        ctx.message.text.includes(slot.startTime),
-      );
-
-      if (!selectedSlot) {
-        return ctx.reply('Рабочий день не найден. Попробуйте еще раз:');
-      }
-
-      // Сохраняем выбранный слот и показываем опции изменения
-      userStates.set(telegramId, {
-        waitingForChangeAction: true,
-        selectedSlotId: selectedSlot.id,
-        selectedSlot: selectedSlot,
-      });
-
-      ctx.reply(
-        `Выбран рабочий день: ${formatDateDisplay(selectedSlot.workDate)}\n⏰ ${selectedSlot.startTime}–${selectedSlot.endTime}\n\nЧто вы хотите сделать?`,
-        Markup.keyboard([
-          ['🕐 Изменить время'],
-          ['❌ Отменить рабочий день'],
-          ['🔙 Главное меню'],
-        ]).resize(),
-      );
-    } catch (error) {
-      console.error('Error processing slot selection:', error);
-      ctx.reply('Произошла ошибка');
-    }
-  } else if (state?.waitingForChangeAction) {
-    const action = ctx.message.text;
-    const master = await isMaster(telegramId);
-    if (!master) return;
-
-    // Check for existing appointments on this day
-    const dayAppts = await db
-      .select({ id: appointments.id, startTime: appointments.startTime, endTime: appointments.endTime })
-      .from(appointments)
-      .where(and(
-        eq(appointments.masterId, master.id),
-        eq(appointments.appointmentDate, state.selectedSlot.workDate),
-        eq(appointments.status, 'confirmed'),
-      ));
-
-    if (action === '🕐 Изменить время') {
-      // Show time picker with inline buttons
-      const slot = state.selectedSlot;
-      const currentStart = timeToMinutes(slot.startTime);
-      const currentEnd = timeToMinutes(slot.endTime);
-
-      // Generate start time options (7:00 to 14:00, step 1h)
-      const startOptions: string[] = [];
-      for (let m = 7 * 60; m <= 14 * 60; m += 60) {
-        startOptions.push(minutesToTime(m));
-      }
-
-      userStates.set(telegramId, {
-        waitingForStartTimePick: true,
-        selectedSlotId: state.selectedSlotId,
-        selectedSlot: state.selectedSlot,
-        dayAppts,
-      });
-
-      const buttons = startOptions.map(t => {
-        const label = t === slot.startTime ? `✅ ${t}` : t;
-        return [Markup.button.callback(label, `pick_start_${t}`)];
-      });
-      // 2 columns
-      const rows: any[][] = [];
-      for (let i = 0; i < buttons.length; i += 2) {
-        const row = [buttons[i][0]];
-        if (i + 1 < buttons.length) row.push(buttons[i + 1][0]);
-        rows.push(row);
-      }
-      rows.push([Markup.button.callback('← Назад', 'change_back_action')]);
-
-      ctx.reply(
-        `🕐 Выберите новое время начала смены\n📅 ${formatDateDisplay(slot.workDate)}\nСейчас: ${slot.startTime}–${slot.endTime}`,
-        Markup.inlineKeyboard(rows),
-      );
-    } else if (action === '❌ Отменить рабочий день') {
-      if (dayAppts.length > 0) {
-        const apptList = dayAppts.map(a => `  ${a.startTime}–${a.endTime}`).join('\n');
-        ctx.reply(
-          `❌ Невозможно отменить рабочий день!\n\nНа ${formatDateDisplay(state.selectedSlot.workDate)} есть записи:\n${apptList}\n\nСначала нужно перенести или отменить записи.`,
-          masterMenu,
-        );
-        userStates.delete(telegramId);
-      } else {
-        await handleWorkSlotChange(telegramId, state.selectedSlot, 'cancel');
-        userStates.delete(telegramId);
-        ctx.reply('✅ Запрос на отмену рабочего дня отправлен администратору', masterMenu);
-      }
-    }
-  }
-});
-
 // ── Time picker callbacks ─────────────────────────────────────
 
 bot.action(/^pick_start_(\d{2}:\d{2})$/, async (ctx) => {
@@ -584,7 +563,7 @@ bot.action(/^pick_start_(\d{2}:\d{2})$/, async (ctx) => {
     if (i + 1 < buttons.length) row.push(buttons[i + 1][0]);
     rows.push(row);
   }
-  rows.push([Markup.button.callback('← Назад', 'change_back_action')]);
+  rows.push([Markup.button.callback('← Назад', 'chday_back')]);
 
   try {
     await ctx.editMessageText(
@@ -638,13 +617,6 @@ bot.action(/^pick_end_(\d{2}:\d{2})$/, async (ctx) => {
     );
   } catch {}
   userStates.delete(telegramId);
-  try { await ctx.answerCbQuery(); } catch {}
-});
-
-bot.action('change_back_action', async (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  if (telegramId) userStates.delete(telegramId);
-  try { await ctx.editMessageText('Главное меню ⬇️'); } catch {}
   try { await ctx.answerCbQuery(); } catch {}
 });
 
