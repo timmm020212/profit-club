@@ -543,12 +543,11 @@ export async function POST(request: Request) {
       console.log("Master has no telegramId, skipping notification");
     }
 
-    // Detect breaks and notify master
+    // Detect breaks and early finish — only for THIS new appointment's neighbors
     try {
       const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
       const masterTelegramId = masterInfo[0]?.telegramId;
       if (MASTERS_BOT_TOKEN && masterTelegramId) {
-        // Get all confirmed appointments for this master on this date
         const dayAppts = await db
           .select({ startTime: appointments.startTime, endTime: appointments.endTime })
           .from(appointments)
@@ -560,21 +559,67 @@ export async function POST(request: Request) {
             )
           );
 
-        // Sort and find gaps
         const sorted = [...dayAppts].sort((a, b) => a.startTime.localeCompare(b.startTime));
-        for (let i = 0; i < sorted.length - 1; i++) {
-          const endMin = timeToMinutes(sorted[i].endTime);
-          const nextStartMin = timeToMinutes(sorted[i + 1].startTime);
-          const gap = nextStartMin - endMin;
+        const newIdx = sorted.findIndex(a => a.startTime === startTime && a.endTime === endTime);
+        const dateObj = new Date(appointmentDate + "T00:00:00");
+        const formattedDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+
+        // Gap BEFORE this appointment (immediate predecessor only)
+        if (newIdx > 0) {
+          const prev = sorted[newIdx - 1];
+          const gap = timeToMinutes(startTime) - timeToMinutes(prev.endTime);
           if (gap > 0 && gap < 30) {
-            const dateObj = new Date(appointmentDate + "T00:00:00");
-            const formattedDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
-            const breakText = `☕ Перерыв ${gap} мин\n\n📅 ${formattedDate}\n🕐 ${sorted[i].endTime}–${sorted[i + 1].startTime}`;
             await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: masterTelegramId, text: breakText }),
+              body: JSON.stringify({
+                chat_id: masterTelegramId,
+                text: `☕ Перерыв ${gap} мин\n\n📅 ${formattedDate}\n🕐 ${prev.endTime}–${startTime}`,
+              }),
             });
+          }
+        }
+
+        // Gap AFTER this appointment (immediate successor only)
+        if (newIdx >= 0 && newIdx < sorted.length - 1) {
+          const next = sorted[newIdx + 1];
+          const gap = timeToMinutes(next.startTime) - timeToMinutes(endTime);
+          if (gap > 0 && gap < 30) {
+            await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: masterTelegramId,
+                text: `☕ Перерыв ${gap} мин\n\n📅 ${formattedDate}\n🕐 ${endTime}–${next.startTime}`,
+              }),
+            });
+          }
+        }
+
+        // Early finish: if this is the last appointment of the day
+        if (newIdx === sorted.length - 1) {
+          const shiftSlots = await db
+            .select({ shiftEnd: workSlots.endTime })
+            .from(workSlots)
+            .where(
+              and(
+                eq(workSlots.masterId, masterIdNum),
+                eq(workSlots.workDate, appointmentDate),
+                eq(workSlots.isConfirmed, true)
+              )
+            );
+          if (shiftSlots.length > 0) {
+            const freeGap = timeToMinutes(shiftSlots[0].shiftEnd) - timeToMinutes(endTime);
+            if (freeGap > 0) {
+              await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: masterTelegramId,
+                  text: `🏁 Вы свободны с ${endTime}\n\n📅 ${formattedDate}\n🕐 Последняя запись заканчивается в ${endTime}\n📋 Конец смены: ${shiftSlots[0].shiftEnd}`,
+                }),
+              });
+            }
           }
         }
       }
