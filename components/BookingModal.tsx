@@ -107,10 +107,11 @@ export default function BookingModal({ service, onClose }: Props) {
       .then((data: Master[]) => {
         if (service.executorRole) {
           const role = service.executorRole.trim().toLowerCase();
-          const filtered = data.filter((m) =>
-            String(m.specialization || "").split(",").map((s) => s.trim().toLowerCase()).includes(role)
-          );
-          setMasters(filtered.length > 0 ? filtered : data);
+          const filtered = data.filter((m) => {
+            const tokens = String(m.specialization || "").split(",").map((s) => s.trim().toLowerCase());
+            return tokens.some(t => t === role || t.includes(role) || role.includes(t));
+          });
+          setMasters(filtered);
         } else {
           setMasters(data);
         }
