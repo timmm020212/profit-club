@@ -205,11 +205,15 @@ bot.action('menu', async (ctx) => {
 
 // Запуск
 startReminderLoop();
-bot.launch().then(() => {
-  console.log('Client bot started successfully!');
+console.log('[client-bot] Starting...');
+bot.launch({
+  dropPendingUpdates: true,
+}).then(() => {
+  console.log('[client-bot] Stopped.');
 }).catch((error) => {
-  console.error('Failed to start client bot:', error);
+  console.error('[client-bot] Failed to start:', error);
 });
+console.log('[client-bot] Bot launched, listening for messages...');
 
 process.once('SIGINT',  () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
