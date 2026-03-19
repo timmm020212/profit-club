@@ -1,4 +1,30 @@
 import { formatDateRu, timeToMinutes } from "./utils";
+import { db } from "../../db";
+import { masters } from "../../db/schema";
+import { eq } from "drizzle-orm";
+
+export interface NotificationSettings {
+  newAppointments: boolean;
+  cancellations: boolean;
+  breaks: boolean;
+  morningReminder: boolean;
+}
+
+export const NOTIFICATION_DEFAULTS: NotificationSettings = {
+  newAppointments: true,
+  cancellations: true,
+  breaks: true,
+  morningReminder: false,
+};
+
+export async function getMasterSettings(masterTelegramId: string): Promise<NotificationSettings> {
+  try {
+    const rows = await db.select({ notificationSettings: masters.notificationSettings })
+      .from(masters).where(eq(masters.telegramId, masterTelegramId)).limit(1);
+    if (rows.length === 0 || !rows[0].notificationSettings) return NOTIFICATION_DEFAULTS;
+    return { ...NOTIFICATION_DEFAULTS, ...JSON.parse(rows[0].notificationSettings) };
+  } catch { return NOTIFICATION_DEFAULTS; }
+}
 
 function getMastersBotToken(): string {
   return process.env.MASTERS_BOT_TOKEN || "";
@@ -36,6 +62,8 @@ export async function notifyMasterNewAppointment(opts: {
   endTime: string;
 }) {
   if (!opts.masterTelegramId) return;
+  const s = await getMasterSettings(opts.masterTelegramId);
+  if (!s.newAppointments) return;
   const date = formatDateRu(opts.appointmentDate);
   const phone = opts.clientPhone ? `\n📞 ${opts.clientPhone}` : "";
   const text =
@@ -55,6 +83,8 @@ export async function notifyMasterCancellation(opts: {
   endTime: string;
 }) {
   if (!opts.masterTelegramId) return;
+  const s = await getMasterSettings(opts.masterTelegramId);
+  if (!s.cancellations) return;
   const date = formatDateRu(opts.appointmentDate);
   const text =
     `❌ Запись отменена\n\n` +
@@ -100,6 +130,8 @@ export async function notifyMasterBreak(opts: {
   breakMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
+  const s = await getMasterSettings(opts.masterTelegramId);
+  if (!s.breaks) return;
   const key = `${opts.masterTelegramId}:${opts.appointmentDate}:${opts.breakStart}-${opts.breakEnd}`;
   if (sentNotifications.has(key)) return;
   sentNotifications.add(key);
@@ -121,6 +153,8 @@ export async function notifyMasterEarlyFinish(opts: {
   freeMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
+  const s = await getMasterSettings(opts.masterTelegramId);
+  if (!s.breaks) return;
   const key = `${opts.masterTelegramId}:${opts.appointmentDate}:earlyFinish:${opts.freeFrom}`;
   if (sentNotifications.has(key)) return;
   sentNotifications.add(key);
