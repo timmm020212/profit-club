@@ -61,6 +61,7 @@ export function computeOptimization(
   appointments: AppointmentInput[],
   shiftStart: string, // HH:MM
   shiftEnd: string,   // HH:MM
+  appointmentDate?: string, // YYYY-MM-DD — needed for freeze check
 ): Move[] {
   const moves: Move[] = [];
 
@@ -70,10 +71,12 @@ export function computeOptimization(
   const shiftStartMin = timeToMinutes(shiftStart);
   const shiftEndMin = timeToMinutes(shiftEnd);
 
-  // Current time in minutes-since-midnight (used for the 2-hour freeze window).
+  // Freeze window: only apply if appointments are TODAY
   const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const isToday = appointmentDate === todayStr;
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const freezeUntil = nowMin + 120; // appointments starting before this are frozen
+  const freezeUntil = isToday ? nowMin + 120 : -1; // only freeze today's appointments
 
   // Sort by original startTime (ascending) — do not mutate the caller's array.
   const sorted = [...appointments].sort(

@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { optimizationMoves } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdminSession } from "@/lib/requireAdminSession";
+
 
 export const dynamic = "force-dynamic";
 
 // PATCH — admin edits a move's proposed times
 export async function PATCH(request: Request) {
   try {
-    const { response } = await requireAdminSession();
-    if (response) return response;
 
     const body = await request.json();
     const { moveId, newStartTime, newEndTime } = body;

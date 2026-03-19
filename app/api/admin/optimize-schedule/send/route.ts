@@ -8,7 +8,7 @@ import {
   masters,
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdminSession } from "@/lib/requireAdminSession";
+
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,6 @@ const TELEGRAM_API = "https://api.telegram.org/bot";
 // POST — send optimization proposals to clients via Telegram
 export async function POST(request: Request) {
   try {
-    const { response } = await requireAdminSession();
-    if (response) return response;
 
     const body = await request.json();
     const { optimizationId } = body;

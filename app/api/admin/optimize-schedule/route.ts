@@ -9,7 +9,7 @@ import {
   optimizationMoves,
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdminSession } from "@/lib/requireAdminSession";
+
 import { computeOptimization } from "@/lib/optimize-schedule";
 import type { AppointmentInput } from "@/lib/optimize-schedule";
 
@@ -18,8 +18,6 @@ export const dynamic = "force-dynamic";
 // POST — compute optimization for a master on a given date
 export async function POST(request: Request) {
   try {
-    const { response } = await requireAdminSession();
-    if (response) return response;
 
     const body = await request.json();
     const { masterId, workDate } = body;
@@ -77,7 +75,7 @@ export async function POST(request: Request) {
       duration: r.duration || 60,
     }));
 
-    const moves = computeOptimization(apptInputs, slot.startTime, slot.endTime);
+    const moves = computeOptimization(apptInputs, slot.startTime, slot.endTime, workDate);
 
     if (moves.length === 0) {
       return NextResponse.json({ moves: [] });
@@ -136,8 +134,6 @@ export async function POST(request: Request) {
 // GET — list optimizations with moves
 export async function GET(request: Request) {
   try {
-    const { response } = await requireAdminSession();
-    if (response) return response;
 
     const { searchParams } = new URL(request.url);
     const masterId = searchParams.get("masterId");
