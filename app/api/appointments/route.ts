@@ -282,6 +282,12 @@ export async function DELETE(request: Request) {
   }
 }
 
+// Helper: converts "HH:MM" to total minutes
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
 // POST /api/appointments - создать новую запись
 export async function POST(request: Request) {
   try {
@@ -535,6 +541,45 @@ export async function POST(request: Request) {
       }
     } else {
       console.log("Master has no telegramId, skipping notification");
+    }
+
+    // Detect breaks and notify master
+    try {
+      const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
+      const masterTelegramId = masterInfo[0]?.telegramId;
+      if (MASTERS_BOT_TOKEN && masterTelegramId) {
+        // Get all confirmed appointments for this master on this date
+        const dayAppts = await db
+          .select({ startTime: appointments.startTime, endTime: appointments.endTime })
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.masterId, masterIdNum),
+              eq(appointments.appointmentDate, appointmentDate),
+              eq(appointments.status, "confirmed")
+            )
+          );
+
+        // Sort and find gaps
+        const sorted = [...dayAppts].sort((a, b) => a.startTime.localeCompare(b.startTime));
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const endMin = timeToMinutes(sorted[i].endTime);
+          const nextStartMin = timeToMinutes(sorted[i + 1].startTime);
+          const gap = nextStartMin - endMin;
+          if (gap > 0 && gap < 30) {
+            const dateObj = new Date(appointmentDate + "T00:00:00");
+            const formattedDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+            const breakText = `☕ Перерыв ${gap} мин\n\n📅 ${formattedDate}\n🕐 ${sorted[i].endTime}–${sorted[i + 1].startTime}`;
+            await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: masterTelegramId, text: breakText }),
+            });
+          }
+        }
+      }
+    } catch (breakError) {
+      console.error("Break notification error:", breakError);
     }
 
     return NextResponse.json(newAppointment[0], { status: 201 });
