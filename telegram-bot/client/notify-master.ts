@@ -1,4 +1,4 @@
-import { formatDateRu } from "./utils";
+import { formatDateRu, timeToMinutes } from "./utils";
 
 function getMastersBotToken(): string {
   return process.env.MASTERS_BOT_TOKEN || "";
@@ -53,5 +53,42 @@ export async function notifyMasterCancellation(opts: {
     `👤 ${opts.clientName}\n` +
     `💇 ${opts.serviceName}\n` +
     `📅 ${date}, ${opts.startTime}–${opts.endTime}`;
+  await sendToMaster(opts.masterTelegramId, text);
+}
+
+export function detectBreaks(
+  appointmentsList: { startTime: string; endTime: string }[],
+  slotInterval: number = 30
+): { breakStart: string; breakEnd: string; breakMinutes: number }[] {
+  const sorted = [...appointmentsList].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const breaks: { breakStart: string; breakEnd: string; breakMinutes: number }[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const endMin = timeToMinutes(sorted[i].endTime);
+    const nextStartMin = timeToMinutes(sorted[i + 1].startTime);
+    const gap = nextStartMin - endMin;
+    if (gap > 0 && gap < slotInterval) {
+      breaks.push({
+        breakStart: sorted[i].endTime,
+        breakEnd: sorted[i + 1].startTime,
+        breakMinutes: gap,
+      });
+    }
+  }
+  return breaks;
+}
+
+export async function notifyMasterBreak(opts: {
+  masterTelegramId: string | null;
+  appointmentDate: string;
+  breakStart: string;
+  breakEnd: string;
+  breakMinutes: number;
+}) {
+  if (!opts.masterTelegramId) return;
+  const date = formatDateRu(opts.appointmentDate);
+  const text =
+    `☕ Перерыв ${opts.breakMinutes} мин\n\n` +
+    `📅 ${date}\n` +
+    `🕐 ${opts.breakStart}–${opts.breakEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
 }
