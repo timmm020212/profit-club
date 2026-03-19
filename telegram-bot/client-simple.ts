@@ -1,15 +1,21 @@
 import { Telegraf, Markup } from 'telegraf';
 import { config } from 'dotenv';
 import { db } from '../db';
-import { masters, services, appointments, clients, pendingClients, telegramVerificationCodes } from '../db/schema';
+import { clients, pendingClients, telegramVerificationCodes } from '../db/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import crypto from 'crypto';
+import { registerBookingHandlers } from './client/booking-flow';
+import { registerAppointmentHandlers } from './client/appointment-manager';
+import { startReminderLoop } from './client/reminders';
 
 config({ path: '.env.local' });
 
 const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30';
 const SITE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const bot = new Telegraf(CLIENT_BOT_TOKEN);
+
+registerBookingHandlers(bot);
+registerAppointmentHandlers(bot);
 
 function generateCode(): string {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -176,65 +182,6 @@ bot.action('check_registration', async (ctx) => {
   );
 });
 
-// Записаться
-bot.action('book', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.reply('🚧 Онлайн-запись через бот будет добавлена позже.\n\nПока вы можете записаться на нашем сайте или позвонив нам.',
-    Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
-  );
-});
-
-// Мои записи
-bot.action('my_appointments', async (ctx) => {
-  await ctx.answerCbQuery();
-  const telegramId = ctx.from?.id.toString();
-  if (!telegramId) return;
-
-  try {
-    const list = await db
-      .select({
-        id:              appointments.id,
-        serviceName:     services.name,
-        masterName:      masters.fullName,
-        appointmentDate: appointments.appointmentDate,
-        startTime:       appointments.startTime,
-        endTime:         appointments.endTime,
-        status:          appointments.status,
-      })
-      .from(appointments)
-      .leftJoin(services, eq(appointments.serviceId, services.id))
-      .leftJoin(masters,  eq(appointments.masterId,  masters.id))
-      .where(eq(appointments.clientTelegramId, telegramId))
-      .orderBy(appointments.appointmentDate, appointments.startTime);
-
-    if (list.length === 0) {
-      return ctx.reply('У вас пока нет записей.',
-        Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
-      );
-    }
-
-    const statusLabel: Record<string, string> = {
-      confirmed: '✅ Подтверждена',
-      pending:   '⏳ Ожидает',
-      cancelled: '❌ Отменена',
-    };
-
-    let msg = '📋 *Ваши записи:*\n\n';
-    list.forEach((apt, i) => {
-      msg += `*${i + 1}.* ${apt.appointmentDate}, ${apt.startTime}–${apt.endTime}\n`;
-      msg += `💇 ${apt.serviceName ?? '—'}\n`;
-      msg += `👤 ${apt.masterName ?? '—'}\n`;
-      msg += `${statusLabel[apt.status ?? ''] ?? apt.status}\n\n`;
-    });
-
-    await ctx.replyWithMarkdown(msg,
-      Markup.inlineKeyboard([[Markup.button.callback('« Главное меню', 'menu')]])
-    );
-  } catch (e) {
-    await ctx.reply('Произошла ошибка при получении записей.');
-  }
-});
-
 // О нас
 bot.action('about', async (ctx) => {
   await ctx.answerCbQuery();
@@ -257,6 +204,7 @@ bot.action('menu', async (ctx) => {
 });
 
 // Запуск
+startReminderLoop();
 bot.launch().then(() => {
   console.log('Client bot started successfully!');
 }).catch((error) => {

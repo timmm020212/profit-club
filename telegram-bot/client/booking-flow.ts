@@ -28,7 +28,8 @@ function getState(ctx: any): BookingState {
 
 export function registerBookingHandlers(bot: Telegraf<any>) {
   // ── 1. Entry: show categories ──────────────────────────────
-  bot.action("book_start", async (ctx) => {
+  // Both 'book' (main menu button) and 'book_start' trigger the same flow
+  async function showCategories(ctx: any) {
     try {
       const id = uid(ctx);
       bookingStates.set(id, { step: "category" });
@@ -47,13 +48,13 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         return;
       }
 
-      const buttons = categories.map((cat, i) =>
+      const buttons = categories.map((cat: string, i: number) =>
         [Markup.button.callback(cat, `book_cat_${i}`)]
       );
       buttons.push([Markup.button.callback("« Назад", "book_back_menu")]);
 
-      // Store category mapping on the state so we can look up by index
-      (getState(ctx) as any)._categories = categories;
+      const state = getState(ctx);
+      (state as any)._categories = categories;
 
       await ctx.editMessageText(
         "📋 Выберите категорию услуг:",
@@ -61,9 +62,17 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       );
       await ctx.answerCbQuery();
     } catch (e) {
-      console.error("[booking-flow] book_start error:", e);
+      console.error("[booking-flow] showCategories error:", e);
       try { await ctx.answerCbQuery("Ошибка, попробуйте позже"); } catch {}
     }
+  }
+
+  bot.action("book", async (ctx) => {
+    await showCategories(ctx);
+  });
+
+  bot.action("book_start", async (ctx) => {
+    await showCategories(ctx);
   });
 
   // ── 2. Category selected → show services ──────────────────
