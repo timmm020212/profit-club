@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { eq, and, gte } from "drizzle-orm";
 import { db } from "../../db";
-import { appointments, services, masters, workSlots } from "../../db/schema";
+import { appointments, services, masters, workSlots, scheduleOptimizations, optimizationMoves } from "../../db/schema";
 import { bookingStates } from "./types";
 import {
   timeToMinutes,
@@ -221,6 +221,20 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
           endTime: apt.endTime,
         });
       }
+
+      // Invalidate active optimizations for this master+date
+      try {
+        const activeOpts = await db.select().from(scheduleOptimizations)
+          .where(and(
+            eq(scheduleOptimizations.masterId, apt.masterId),
+            eq(scheduleOptimizations.workDate, apt.appointmentDate),
+          ));
+        for (const opt of activeOpts) {
+          if (opt.status === "completed") continue;
+          await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+          await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
+        }
+      } catch {}
 
       await ctx.editMessageText(
         "✅ Запись отменена.",

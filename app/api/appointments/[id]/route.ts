@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, masters, services, workSlots } from "@/db/schema";
+import { appointments, masters, services, workSlots, scheduleOptimizations, optimizationMoves } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 
 export async function GET(
@@ -134,6 +134,23 @@ export async function PATCH(
         }
       } catch (e) {
         console.error("Failed to send cancellation notifications:", e);
+      }
+
+      // Invalidate active optimizations for this master+date so they recalculate
+      try {
+        const activeOpts = await db.select().from(scheduleOptimizations)
+          .where(and(
+            eq(scheduleOptimizations.masterId, appt.masterId),
+            eq(scheduleOptimizations.workDate, appt.appointmentDate),
+          ));
+
+        for (const opt of activeOpts) {
+          if (opt.status === "completed") continue;
+          await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+          await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
+        }
+      } catch (e) {
+        console.error("Failed to invalidate optimizations:", e);
       }
 
       return NextResponse.json({ appointment: updated });
