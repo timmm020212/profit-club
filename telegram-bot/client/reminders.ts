@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { appointments, services, masters, reminderSent, workSlots, scheduleOptimizations, optimizationMoves } from "../../db/schema";
+import { appointments, services, masters, reminderSent, workSlots, scheduleOptimizations, optimizationMoves, adminSettings } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 
@@ -139,8 +139,6 @@ async function checkAndSendReminders(): Promise<void> {
   } catch (err) {
     console.error("[reminders] Error in checkAndSendReminders:", err);
   }
-
-  await checkAutoOptimization();
 }
 
 async function checkAutoOptimization(): Promise<void> {
@@ -267,8 +265,36 @@ async function checkAutoOptimization(): Promise<void> {
   }
 }
 
+async function getOptimizeDelay(): Promise<number> {
+  try {
+    const rows = await db.select().from(adminSettings).where(eq(adminSettings.key, "autoOptimizeDelayMinutes"));
+    if (rows.length > 0 && rows[0].value) {
+      const val = parseInt(rows[0].value);
+      if (val > 0) return val;
+    }
+  } catch {}
+  return 5; // default 5 minutes
+}
+
 export function startReminderLoop(): void {
-  console.log("[reminders] Loop started, checking every 5 minutes");
+  console.log("[reminders] Loop started");
+
+  // Reminders: every 5 min
   checkAndSendReminders();
   setInterval(checkAndSendReminders, 5 * 60 * 1000);
+
+  // Auto-optimize: configurable interval from DB, re-reads each cycle
+  async function optimizeLoop() {
+    const delay = await getOptimizeDelay();
+    console.log(`[auto-optimize] Next check in ${delay} min`);
+    setTimeout(async () => {
+      try {
+        await checkAutoOptimization();
+      } catch (e) {
+        console.error("[auto-optimize] Loop error:", e);
+      }
+      optimizeLoop();
+    }, delay * 60 * 1000);
+  }
+  optimizeLoop();
 }

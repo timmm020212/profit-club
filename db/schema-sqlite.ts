@@ -152,6 +152,12 @@ export const optimizationMoves = sqliteTable("optimizationMoves", {
   sentAt: text("sentAt"),
 });
 
+// Настройки админки
+export const adminSettings = sqliteTable("adminSettings", {
+  key: text("key").primaryKey(),
+  value: text("value"),
+});
+
 export type Service = typeof services.$inferSelect;
 export type NewService = typeof services.$inferInsert;
 export type Admin = typeof admins.$inferSelect;
