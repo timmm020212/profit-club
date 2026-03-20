@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function AdminAutoOptimizeDelay() {
   const [minutes, setMinutes] = useState("5");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Timer state
+  const [countdown, setCountdown] = useState<number | null>(null); // seconds left
+  const [timerTarget, setTimerTarget] = useState<string | null>(null); // master+date being optimized
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/settings")
@@ -15,6 +21,65 @@ export default function AdminAutoOptimizeDelay() {
       })
       .catch(() => {});
   }, []);
+
+  // Poll for pending optimizations (draft with sentAt = null)
+  useEffect(() => {
+    const check = async () => {
+      try {
+        // Check all recent optimizations
+        const res = await fetch("/api/admin/optimize-schedule?status=draft");
+        if (!res.ok) return;
+        const data = await res.json();
+        const drafts = Array.isArray(data) ? data.filter((o: any) => o.status === "draft" || o.status === "sent") : [];
+
+        if (drafts.length > 0 && countdown === null) {
+          // New draft found — start countdown
+          const opt = drafts[0];
+          const createdAt = new Date(opt.createdAt).getTime();
+          const delayMs = parseInt(minutes) * 60 * 1000;
+          const targetMs = createdAt + delayMs;
+          const remainingMs = targetMs - Date.now();
+
+          if (remainingMs > 0) {
+            setTimerTarget(`${opt.masterName || "Мастер"} · ${opt.workDate}`);
+            setCountdown(Math.ceil(remainingMs / 1000));
+          } else {
+            // Already past — sent or sending
+            setCountdown(null);
+            setTimerTarget(null);
+          }
+        } else if (drafts.length === 0) {
+          setCountdown(null);
+          setTimerTarget(null);
+        }
+      } catch {}
+    };
+
+    check();
+    pollRef.current = setInterval(check, 10000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [minutes, countdown]);
+
+  // Countdown tick
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (countdown !== null && countdown <= 0) {
+        setCountdown(null);
+        setTimerTarget(null);
+      }
+      return;
+    }
+
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) return null;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [countdown]);
 
   const handleSave = async (val: string) => {
     setMinutes(val);
@@ -32,6 +97,12 @@ export default function AdminAutoOptimizeDelay() {
     }
   };
 
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-[#0D0D10] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.05] flex items-center gap-2">
@@ -39,10 +110,25 @@ export default function AdminAutoOptimizeDelay() {
           <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
         </svg>
         <h3 className="text-xs font-semibold text-zinc-300">Авто-оптимизация</h3>
+        {countdown !== null && (
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-mono font-bold tabular-nums bg-violet-500/15 border border-violet-500/25 text-violet-300 animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+            {formatCountdown(countdown)}
+          </span>
+        )}
       </div>
       <div className="px-4 py-3 space-y-2.5">
+        {countdown !== null && timerTarget && (
+          <div className="rounded-lg bg-violet-500/[0.06] border border-violet-500/15 px-3 py-2 space-y-1">
+            <p className="text-[11px] text-violet-300 font-medium">
+              Предложения отправятся через {formatCountdown(countdown)}
+            </p>
+            <p className="text-[10px] text-violet-400/50">{timerTarget}</p>
+          </div>
+        )}
+
         <p className="text-[11px] text-zinc-500">
-          Через сколько минут после новой записи проверять и отправлять предложения клиентам
+          Задержка перед отправкой предложений
         </p>
         <div className="flex items-center gap-2">
           {["3", "5", "10", "15", "30"].map(v => (

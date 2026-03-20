@@ -150,6 +150,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const masterId = searchParams.get("masterId");
     const workDate = searchParams.get("workDate");
+    const status = searchParams.get("status");
 
     // Build conditions
     const conditions = [];
@@ -158,6 +159,9 @@ export async function GET(request: Request) {
     }
     if (workDate) {
       conditions.push(eq(scheduleOptimizations.workDate, workDate));
+    }
+    if (status) {
+      conditions.push(eq(scheduleOptimizations.status, status));
     }
 
     const whereClause =
@@ -198,8 +202,12 @@ export async function GET(request: Request) {
         .leftJoin(masters, eq(appointments.masterId, masters.id))
         .where(eq(optimizationMoves.optimizationId, opt.id));
 
+      // Get master name
+      const [masterRow] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, opt.masterId));
+
       result.push({
         ...opt,
+        masterName: masterRow?.fullName || "Мастер",
         moves: movesWithData
           .filter(m => m.clientName !== null) // skip moves with deleted appointments
           .map(m => ({
