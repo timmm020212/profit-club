@@ -165,10 +165,55 @@ async function checkAutoOptimization(): Promise<void> {
             .where(and(eq(workSlots.masterId, master.id), eq(workSlots.workDate, dateStr), eq(workSlots.isConfirmed, true)));
           if (!slots.length) continue;
 
-          // Skip if non-completed optimization already exists
+          // Check existing optimizations
           const existing = await db.select().from(scheduleOptimizations)
             .where(and(eq(scheduleOptimizations.masterId, master.id), eq(scheduleOptimizations.workDate, dateStr)));
           const active = existing.filter(e => e.status !== "completed");
+
+          // If there's a draft that hasn't been sent yet — send it now
+          const unsent = active.find(e => e.status === "draft");
+          if (unsent) {
+            const delay = await getOptimizeDelay();
+            const createdMs = new Date(unsent.createdAt).getTime();
+            const elapsed = (Date.now() - createdMs) / 60000;
+            if (elapsed >= delay) {
+              // Send proposals for this draft
+              const pendingMoves = await db.select().from(optimizationMoves)
+                .where(and(eq(optimizationMoves.optimizationId, unsent.id), eq(optimizationMoves.clientResponse, "pending")));
+
+              for (const move of pendingMoves) {
+                const apt = await db.select().from(appointments).where(eq(appointments.id, move.appointmentId)).limit(1);
+                if (!apt.length || !apt[0].clientTelegramId) continue;
+                const [svc] = await db.select().from(services).where(eq(services.id, apt[0].serviceId));
+                const dateObj = new Date(dateStr + "T00:00:00");
+                const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+
+                try {
+                  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: apt[0].clientTelegramId,
+                      text: `🔄 Предложение о переносе\n\n💇 ${svc?.name || "Услуга"}\n👩 ${master.fullName}\n\n❌ Текущее время: ${move.oldStartTime}–${move.oldEndTime}\n✅ Предлагаемое: ${move.newStartTime}–${move.newEndTime}\n\nЭто позволит оптимизировать расписание мастера.`,
+                      reply_markup: {
+                        inline_keyboard: [[
+                          { text: "✅ Согласиться", callback_data: `opt_accept_${move.id}` },
+                          { text: "❌ Оставить как есть", callback_data: `opt_decline_${move.id}` },
+                        ]],
+                      },
+                    }),
+                  });
+                  await db.update(optimizationMoves).set({ sentAt: new Date().toISOString() }).where(eq(optimizationMoves.id, move.id));
+                } catch {}
+              }
+
+              await db.update(scheduleOptimizations).set({ status: "sent", sentAt: new Date().toISOString() }).where(eq(scheduleOptimizations.id, unsent.id));
+              console.log(`[auto-optimize] Sent draft proposals for ${master.fullName} on ${dateStr}`);
+            }
+            continue;
+          }
+
+          // Skip if already sent/active
           if (active.length > 0) continue;
 
           // Need 2+ appointments
