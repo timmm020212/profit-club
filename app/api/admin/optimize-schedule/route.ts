@@ -200,11 +200,15 @@ export async function GET(request: Request) {
 
       result.push({
         ...opt,
-        moves: movesWithData.map(m => ({
-          ...m,
-          status: m.sentAt ? (m.clientResponse === "pending" ? "sent" : m.clientResponse) : "pending",
-          clientTelegramId: (m as any).clientTelegramId || null,
-        })),
+        moves: movesWithData
+          .filter(m => m.clientName !== null) // skip moves with deleted appointments
+          .map(m => ({
+            ...m,
+            clientName: m.clientName || "Клиент",
+            serviceName: (m as any).serviceName || "Услуга",
+            status: m.sentAt ? (m.clientResponse === "pending" ? "sent" : m.clientResponse) : "pending",
+            clientTelegramId: (m as any).clientTelegramId || null,
+          })),
       });
     }
 
