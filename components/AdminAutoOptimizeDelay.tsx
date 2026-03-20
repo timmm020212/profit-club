@@ -43,8 +43,11 @@ export default function AdminAutoOptimizeDelay() {
           if (remainingMs > 0) {
             setTimerTarget(`${opt.masterName || "Мастер"} · ${opt.workDate}`);
             setCountdown(Math.ceil(remainingMs / 1000));
+          } else if (opt.status === "draft") {
+            // Timer passed but still draft — show "sending soon"
+            setTimerTarget(`${opt.masterName || "Мастер"} · ${opt.workDate}`);
+            setCountdown(0);
           } else {
-            // Already past — sent or sending
             setCountdown(null);
             setTimerTarget(null);
           }
@@ -64,16 +67,12 @@ export default function AdminAutoOptimizeDelay() {
   useEffect(() => {
     if (countdown === null || countdown <= 0) {
       if (countdownRef.current) clearInterval(countdownRef.current);
-      if (countdown !== null && countdown <= 0) {
-        setCountdown(null);
-        setTimerTarget(null);
-      }
       return;
     }
 
     countdownRef.current = setInterval(() => {
       setCountdown(prev => {
-        if (prev === null || prev <= 1) return null;
+        if (prev === null || prev <= 1) return 0; // stay at 0, don't go null
         return prev - 1;
       });
     }, 1000);
@@ -113,15 +112,18 @@ export default function AdminAutoOptimizeDelay() {
         {countdown !== null && (
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-mono font-bold tabular-nums bg-violet-500/15 border border-violet-500/25 text-violet-300 animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-            {formatCountdown(countdown)}
+            {countdown > 0 ? formatCountdown(countdown) : "..."}
           </span>
         )}
       </div>
       <div className="px-4 py-3 space-y-2.5">
-        {countdown !== null && timerTarget && (
+        {countdown !== null && countdown >= 0 && timerTarget && (
           <div className="rounded-lg bg-violet-500/[0.06] border border-violet-500/15 px-3 py-2 space-y-1">
             <p className="text-[11px] text-violet-300 font-medium">
-              Предложения отправятся через {formatCountdown(countdown)}
+              {countdown > 0
+                ? `Предложения отправятся через ${formatCountdown(countdown)}`
+                : "⏳ Отправка предложений..."
+              }
             </p>
             <p className="text-[10px] text-violet-400/50">{timerTarget}</p>
           </div>
