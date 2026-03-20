@@ -66,6 +66,9 @@ export default function Header() {
             />
           </div>
 
+          {/* Spacer when search is hidden */}
+          {hideSearch && <div className="flex-1" />}
+
           {/* Search — pill, center (hidden on profile/login) */}
           <div className={`flex-1 relative min-w-0 ${hideSearch ? "hidden" : ""}`}>
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
