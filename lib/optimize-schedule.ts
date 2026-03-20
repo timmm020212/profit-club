@@ -76,7 +76,8 @@ export function computeOptimization(
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const isToday = appointmentDate === todayStr;
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const freezeUntil = isToday ? nowMin + 120 : -1; // only freeze today's appointments
+  // Only freeze appointments that already started or start within 30 min
+  const freezeUntil = isToday ? nowMin + 30 : -1;
 
   // Sort by original startTime (ascending) — do not mutate the caller's array.
   const sorted = [...appointments].sort(
@@ -105,8 +106,8 @@ export function computeOptimization(
       const newStart = Math.ceil(cursor / 30) * 30;
       const newEnd = newStart + appt.duration;
 
-      // --- Guard: new slot must fit inside the shift ---
-      if (newStart < shiftStartMin || newEnd > shiftEndMin) {
+      // --- Guard: new slot must fit inside the shift and not be in the past ---
+      if (newStart < shiftStartMin || newEnd > shiftEndMin || (isToday && newStart < nowMin)) {
         // Can't safely place it here; keep original position.
         cursor = Math.max(cursor, originalEnd);
         continue;
