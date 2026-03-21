@@ -137,8 +137,26 @@ async function checkAutoOptimization(): Promise<void> {
             continue;
           }
 
-          // Skip if any optimization exists (sent, draft, or completed)
-          if (existingAfter.length > 0) continue;
+          // Skip if active (draft/sent) optimization exists
+          if (existingAfter.some(e => e.status === "draft" || e.status === "sent")) continue;
+
+          // Skip if completed optimization exists with same appointments (no changes since last optimization)
+          const completedOpts = existingAfter.filter(e => e.status === "completed");
+          if (completedOpts.length > 0) {
+            const latestCompleted = completedOpts[completedOpts.length - 1];
+            const completedMoves = await db.select({ appointmentId: optimizationMoves.appointmentId })
+              .from(optimizationMoves).where(eq(optimizationMoves.optimizationId, latestCompleted.id));
+            const completedAptIds = new Set(completedMoves.map(m => m.appointmentId));
+
+            // Check if current appointments are the same
+            const currentAppts = await db.select({ id: appointments.id }).from(appointments)
+              .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, dateStr), eq(appointments.status, "confirmed")));
+            const currentIds = new Set(currentAppts.map(a => a.id));
+
+            // If all completed appointment IDs still exist in current → nothing changed → skip
+            const allStillExist = [...completedAptIds].every(id => currentIds.has(id));
+            if (allStillExist && completedAptIds.size > 0) continue;
+          }
 
           // Need confirmed workSlot + 2+ appointments
           const slots = await db.select().from(workSlots)
