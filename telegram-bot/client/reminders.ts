@@ -137,26 +137,17 @@ async function checkAutoOptimization(): Promise<void> {
             continue;
           }
 
-          // Skip if active (draft/sent) optimization exists
+          // Skip if any active (draft/sent) optimization exists
           if (existingAfter.some(e => e.status === "draft" || e.status === "sent")) continue;
 
-          // Skip if completed optimization exists with same appointments (no changes since last optimization)
-          const completedOpts = existingAfter.filter(e => e.status === "completed");
-          if (completedOpts.length > 0) {
-            const latestCompleted = completedOpts[completedOpts.length - 1];
-            const completedMoves = await db.select({ appointmentId: optimizationMoves.appointmentId })
-              .from(optimizationMoves).where(eq(optimizationMoves.optimizationId, latestCompleted.id));
-            const completedAptIds = new Set(completedMoves.map(m => m.appointmentId));
-
-            // Check if current appointments are the same
-            const currentAppts = await db.select({ id: appointments.id }).from(appointments)
-              .where(and(eq(appointments.masterId, master.id), eq(appointments.appointmentDate, dateStr), eq(appointments.status, "confirmed")));
-            const currentIds = new Set(currentAppts.map(a => a.id));
-
-            // If all completed appointment IDs still exist in current → nothing changed → skip
-            const allStillExist = [...completedAptIds].every(id => currentIds.has(id));
-            if (allStillExist && completedAptIds.size > 0) continue;
-          }
+          // Skip if recent completed exists (< 1 hour) — appointments haven't changed
+          // (When appointments change, completed gets deleted by the invalidation logic)
+          const recentCompleted = existingAfter.find(e => {
+            if (e.status !== "completed") return false;
+            const ageMs = Date.now() - new Date(e.createdAt).getTime();
+            return ageMs < 3600000; // less than 1 hour old
+          });
+          if (recentCompleted) continue;
 
           // Need confirmed workSlot + 2+ appointments
           const slots = await db.select().from(workSlots)
