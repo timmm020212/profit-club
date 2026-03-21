@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
-import { services, masters, workSlots, appointments, clients } from "../../db/schema";
+import { services, masters, workSlots, appointments, clients, scheduleOptimizations, optimizationMoves } from "../../db/schema";
 import { BookingState, bookingStates } from "./types";
 import {
   timeToMinutes,
@@ -499,6 +499,16 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
         status: "confirmed",
         createdAt,
       });
+
+      // Invalidate optimizations for this master+date
+      try {
+        const existingOpts = await db.select().from(scheduleOptimizations)
+          .where(and(eq(scheduleOptimizations.masterId, state.masterId!), eq(scheduleOptimizations.workDate, state.date!)));
+        for (const opt of existingOpts) {
+          await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+          await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
+        }
+      } catch {}
 
       // Fetch master info
       const masterRows = await db

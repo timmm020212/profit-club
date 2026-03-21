@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, workSlots, masters, services, clients } from "@/db/schema";
+import { appointments, workSlots, masters, services, clients, scheduleOptimizations, optimizationMoves } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 
 
@@ -667,6 +667,16 @@ export async function POST(request: Request) {
         console.error("Failed to send client booking notification:", e);
       }
     }
+
+    // Invalidate optimizations for this master+date so auto-optimize recalculates
+    try {
+      const existingOpts = await db.select().from(scheduleOptimizations)
+        .where(and(eq(scheduleOptimizations.masterId, masterIdNum), eq(scheduleOptimizations.workDate, appointmentDate)));
+      for (const opt of existingOpts) {
+        await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+        await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
+      }
+    } catch {}
 
     return NextResponse.json(newAppointment[0], { status: 201 });
   } catch (error) {
