@@ -1,3 +1,5 @@
+import { withPayload } from "@payloadcms/next/withPayload";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['better-sqlite3'],
@@ -27,4 +29,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default withPayload(nextConfig);
