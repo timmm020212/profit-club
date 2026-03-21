@@ -2,17 +2,26 @@
 
 import { useState, useEffect, useRef } from "react";
 
+interface OptEntry {
+  id: number;
+  masterId: number;
+  masterName: string;
+  workDate: string;
+  status: string;
+  createdAt: string;
+  movesCount: number;
+}
+
 export default function AdminAutoOptimizeDelay() {
   const [minutes, setMinutes] = useState("5");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  // Timer state
-  const [countdown, setCountdown] = useState<number | null>(null); // seconds left
-  const [timerTarget, setTimerTarget] = useState<string | null>(null); // master+date being optimized
+  const [entries, setEntries] = useState<OptEntry[]>([]);
+  const [countdowns, setCountdowns] = useState<Record<number, number>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Load settings
   useEffect(() => {
     fetch("/api/admin/settings")
       .then(r => r.json())
@@ -22,63 +31,65 @@ export default function AdminAutoOptimizeDelay() {
       .catch(() => {});
   }, []);
 
-  // Poll for pending optimizations (draft with sentAt = null)
+  // Poll for active optimizations
   useEffect(() => {
     const check = async () => {
       try {
-        // Check all recent optimizations
-        const res = await fetch("/api/admin/optimize-schedule?status=draft");
-        if (!res.ok) return;
-        const data = await res.json();
-        const drafts = Array.isArray(data) ? data.filter((o: any) => o.status === "draft" || o.status === "sent") : [];
+        const [draftRes, sentRes] = await Promise.all([
+          fetch("/api/admin/optimize-schedule?status=draft"),
+          fetch("/api/admin/optimize-schedule?status=sent"),
+        ]);
+        const drafts = draftRes.ok ? await draftRes.json() : [];
+        const sents = sentRes.ok ? await sentRes.json() : [];
+        const all = [...(Array.isArray(drafts) ? drafts : []), ...(Array.isArray(sents) ? sents : [])];
 
-        if (drafts.length > 0 && countdown === null) {
-          // New draft found — start countdown
-          const opt = drafts[0];
-          const createdAt = new Date(opt.createdAt).getTime();
-          const delayMs = parseInt(minutes) * 60 * 1000;
-          const targetMs = createdAt + delayMs;
-          const remainingMs = targetMs - Date.now();
+        const mapped: OptEntry[] = all
+          .filter((o: any) => o.moves && o.moves.length > 0)
+          .map((o: any) => ({
+            id: o.id,
+            masterId: o.masterId,
+            masterName: o.masterName || "Мастер",
+            workDate: o.workDate,
+            status: o.status,
+            createdAt: o.createdAt,
+            movesCount: o.moves?.length || 0,
+          }));
 
-          if (remainingMs > 0) {
-            setTimerTarget(`${opt.masterName || "Мастер"} · ${opt.workDate}`);
-            setCountdown(Math.ceil(remainingMs / 1000));
-          } else if (opt.status === "draft") {
-            // Timer passed but still draft — show "sending soon"
-            setTimerTarget(`${opt.masterName || "Мастер"} · ${opt.workDate}`);
-            setCountdown(0);
-          } else {
-            setCountdown(null);
-            setTimerTarget(null);
+        setEntries(mapped);
+
+        // Calculate countdowns for drafts
+        const delayMs = parseInt(minutes) * 60 * 1000;
+        const newCountdowns: Record<number, number> = {};
+        for (const e of mapped) {
+          if (e.status === "draft") {
+            const created = new Date(e.createdAt).getTime();
+            const remaining = Math.max(0, Math.ceil((created + delayMs - Date.now()) / 1000));
+            newCountdowns[e.id] = remaining;
           }
-        } else if (drafts.length === 0) {
-          setCountdown(null);
-          setTimerTarget(null);
         }
+        setCountdowns(prev => ({ ...prev, ...newCountdowns }));
       } catch {}
     };
 
     check();
     pollRef.current = setInterval(check, 10000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [minutes, countdown]);
+  }, [minutes]);
 
-  // Countdown tick
+  // Tick countdowns
   useEffect(() => {
-    if (countdown === null || countdown <= 0) {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      return;
-    }
-
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === null || prev <= 1) return 0; // stay at 0, don't go null
-        return prev - 1;
+    tickRef.current = setInterval(() => {
+      setCountdowns(prev => {
+        const next = { ...prev };
+        for (const k of Object.keys(next)) {
+          const id = Number(k);
+          if (next[id] > 0) next[id] -= 1;
+        }
+        return next;
       });
     }, 1000);
-
-    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
-  }, [countdown]);
+    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, []);
 
   const handleSave = async (val: string) => {
     setMinutes(val);
@@ -91,15 +102,19 @@ export default function AdminAutoOptimizeDelay() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch {} finally {
-      setSaving(false);
-    }
+    } catch {} finally { setSaving(false); }
   };
 
-  const formatCountdown = (secs: number) => {
+  const fmt = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const fmtDate = (d: string) => {
+    try {
+      return new Date(d + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" });
+    } catch { return d; }
   };
 
   return (
@@ -109,37 +124,75 @@ export default function AdminAutoOptimizeDelay() {
           <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
         </svg>
         <h3 className="text-xs font-semibold text-zinc-300">Авто-оптимизация</h3>
-        {countdown !== null && (
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-mono font-bold tabular-nums bg-violet-500/15 border border-violet-500/25 text-violet-300 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-            {countdown > 0 ? formatCountdown(countdown) : "..."}
+        {entries.length > 0 && (
+          <span className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded-full bg-violet-500/20 border border-violet-500/25 px-1 text-[9px] font-bold text-violet-300">
+            {entries.length}
           </span>
         )}
       </div>
-      <div className="px-4 py-3 space-y-2.5">
-        {countdown !== null && countdown >= 0 && timerTarget && (
-          <div className="rounded-lg bg-violet-500/[0.06] border border-violet-500/15 px-3 py-2 space-y-1">
-            <p className="text-[11px] text-violet-300 font-medium">
-              {countdown > 0
-                ? `Предложения отправятся через ${formatCountdown(countdown)}`
-                : "⏳ Отправка предложений..."
-              }
-            </p>
-            <p className="text-[10px] text-violet-400/50">{timerTarget}</p>
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Active optimizations per date */}
+        {entries.length > 0 && (
+          <div className="space-y-2">
+            {entries.map(e => {
+              const cd = countdowns[e.id];
+              const isDraft = e.status === "draft";
+              const isSent = e.status === "sent";
+
+              return (
+                <div
+                  key={e.id}
+                  className={`rounded-lg px-3 py-2 space-y-0.5 ${
+                    isDraft
+                      ? "bg-violet-500/[0.06] border border-violet-500/15"
+                      : "bg-amber-500/[0.04] border border-amber-500/10"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-medium truncate ${isDraft ? "text-violet-300" : "text-amber-300"}`}>
+                        {e.masterName}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        {fmtDate(e.workDate)} · {e.movesCount} {e.movesCount === 1 ? "перенос" : "переноса"}
+                      </p>
+                    </div>
+                    {isDraft && cd !== undefined && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-bold tabular-nums bg-violet-500/15 border border-violet-500/25 text-violet-300 animate-pulse flex-shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                        {cd > 0 ? fmt(cd) : "..."}
+                      </span>
+                    )}
+                    {isSent && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 border border-amber-500/15 text-amber-400 flex-shrink-0">
+                        🕐 Ожидает ответов
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-zinc-600">
+                    {isDraft && cd !== undefined && cd > 0 && `Отправка через ${fmt(cd)}`}
+                    {isDraft && cd !== undefined && cd <= 0 && "⏳ Отправка..."}
+                    {isSent && "Предложения отправлены клиентам"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
 
+        {/* Delay setting */}
         <p className="text-[11px] text-zinc-500">
-          Задержка перед отправкой предложений
+          Задержка перед отправкой
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {["3", "5", "10", "15", "30"].map(v => (
             <button
               key={v}
               type="button"
               onClick={() => handleSave(v)}
               disabled={saving}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
                 minutes === v
                   ? "bg-violet-600/20 border-violet-500/30 text-violet-300"
                   : "bg-white/[0.03] border-white/[0.06] text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06]"
