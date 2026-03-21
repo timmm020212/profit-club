@@ -10,6 +10,9 @@ interface OptEntry {
   status: string;
   createdAt: string;
   movesCount: number;
+  acceptedCount: number;
+  declinedCount: number;
+  pendingCount: number;
 }
 
 export default function AdminAutoOptimizeDelay() {
@@ -45,15 +48,21 @@ export default function AdminAutoOptimizeDelay() {
 
         const mapped: OptEntry[] = all
           .filter((o: any) => o.moves && o.moves.length > 0)
-          .map((o: any) => ({
-            id: o.id,
-            masterId: o.masterId,
-            masterName: o.masterName || "Мастер",
-            workDate: o.workDate,
-            status: o.status,
-            createdAt: o.createdAt,
-            movesCount: o.moves?.length || 0,
-          }));
+          .map((o: any) => {
+            const moves = o.moves || [];
+            return {
+              id: o.id,
+              masterId: o.masterId,
+              masterName: o.masterName || "Мастер",
+              workDate: o.workDate,
+              status: o.status,
+              createdAt: o.createdAt,
+              movesCount: moves.length,
+              acceptedCount: moves.filter((m: any) => m.clientResponse === "accepted" || m.status === "accepted").length,
+              declinedCount: moves.filter((m: any) => m.clientResponse === "declined" || m.status === "declined").length,
+              pendingCount: moves.filter((m: any) => m.clientResponse === "pending" || m.status === "sent" || m.status === "pending").length,
+            };
+          });
 
         setEntries(mapped);
 
@@ -139,19 +148,28 @@ export default function AdminAutoOptimizeDelay() {
               const cd = countdowns[e.id];
               const isDraft = e.status === "draft";
               const isSent = e.status === "sent";
+              const allResolved = e.pendingCount === 0 && e.movesCount > 0;
+              const hasAccepted = e.acceptedCount > 0;
+
+              // Auto-hide resolved entries after 5 seconds
+              if (allResolved && isSent) {
+                setTimeout(() => {
+                  setEntries(prev => prev.filter(x => x.id !== e.id));
+                }, 5000);
+              }
+
+              let borderClass = "bg-violet-500/[0.06] border border-violet-500/15";
+              if (isSent && !allResolved) borderClass = "bg-amber-500/[0.04] border border-amber-500/10";
+              if (isSent && allResolved && hasAccepted) borderClass = "bg-emerald-500/[0.04] border border-emerald-500/10";
 
               return (
-                <div
-                  key={e.id}
-                  className={`rounded-lg px-3 py-2 space-y-0.5 ${
-                    isDraft
-                      ? "bg-violet-500/[0.06] border border-violet-500/15"
-                      : "bg-amber-500/[0.04] border border-amber-500/10"
-                  }`}
-                >
+                <div key={e.id} className={`rounded-lg px-3 py-2 space-y-0.5 ${borderClass}`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className={`text-[11px] font-medium truncate ${isDraft ? "text-violet-300" : "text-amber-300"}`}>
+                      <p className={`text-[11px] font-medium truncate ${
+                        allResolved && hasAccepted ? "text-emerald-300" :
+                        isDraft ? "text-violet-300" : "text-amber-300"
+                      }`}>
                         {e.masterName}
                       </p>
                       <p className="text-[10px] text-zinc-500">
@@ -164,16 +182,22 @@ export default function AdminAutoOptimizeDelay() {
                         {cd > 0 ? fmt(cd) : "..."}
                       </span>
                     )}
-                    {isSent && (
+                    {isSent && !allResolved && (
                       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 border border-amber-500/15 text-amber-400 flex-shrink-0">
-                        🕐 Ожидает ответов
+                        🕐 Ожидает
+                      </span>
+                    )}
+                    {isSent && allResolved && hasAccepted && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 flex-shrink-0">
+                        ✅ Принято
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-zinc-600">
                     {isDraft && cd !== undefined && cd > 0 && `Отправка через ${fmt(cd)}`}
                     {isDraft && cd !== undefined && cd <= 0 && "⏳ Отправка..."}
-                    {isSent && "Предложения отправлены клиентам"}
+                    {isSent && !allResolved && `Ожидает: ${e.pendingCount} · Принято: ${e.acceptedCount}`}
+                    {isSent && allResolved && hasAccepted && "Нажмите ⚡ Оптимизировать → Применить"}
                   </p>
                 </div>
               );
@@ -186,7 +210,7 @@ export default function AdminAutoOptimizeDelay() {
           Задержка перед отправкой
         </p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {["3", "5", "10", "15", "30"].map(v => (
+          {["1", "3", "5", "10", "15", "30"].map(v => (
             <button
               key={v}
               type="button"
