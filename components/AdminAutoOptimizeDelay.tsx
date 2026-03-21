@@ -151,12 +151,6 @@ export default function AdminAutoOptimizeDelay() {
               const allResolved = e.pendingCount === 0 && e.movesCount > 0;
               const hasAccepted = e.acceptedCount > 0;
 
-              // Auto-hide resolved entries after 5 seconds
-              if (allResolved && isSent) {
-                setTimeout(() => {
-                  setEntries(prev => prev.filter(x => x.id !== e.id));
-                }, 5000);
-              }
 
               let borderClass = "bg-violet-500/[0.06] border border-violet-500/15";
               if (isSent && !allResolved) borderClass = "bg-amber-500/[0.04] border border-amber-500/10";
