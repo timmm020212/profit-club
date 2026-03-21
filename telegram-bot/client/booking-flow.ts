@@ -632,8 +632,10 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       await ctx.editMessageText(
         confirmText,
         Markup.inlineKeyboard([
-          [Markup.button.callback("📋 Мои записи", "my_appointments")],
-          [Markup.button.callback("📅 Записаться ещё", "book")],
+          [
+            Markup.button.callback("✏️ Изменить", "my_appointments"),
+            Markup.button.callback("❌ Отменить", "my_appointments"),
+          ],
           [Markup.button.callback("← Главное меню", "book_back_menu")],
         ]),
       );

@@ -653,8 +653,10 @@ export async function POST(request: Request) {
               text: confirmText,
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "📋 Мои записи", callback_data: "my_appointments" }],
-                  [{ text: "📅 Записаться ещё", callback_data: "book" }],
+                  [
+                    { text: "✏️ Изменить", callback_data: "my_appointments" },
+                    { text: "❌ Отменить", callback_data: "my_appointments" },
+                  ],
                   [{ text: "← Главное меню", callback_data: "book_back_menu" }],
                 ],
               },
