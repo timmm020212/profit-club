@@ -230,7 +230,7 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
             eq(scheduleOptimizations.workDate, apt.appointmentDate),
           ));
         for (const opt of activeOpts) {
-          if (opt.status === "completed") continue;
+          // Delete all optimizations (including completed) so auto-optimize recalculates
           await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
           await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
         }

@@ -152,43 +152,71 @@ export default function AdminAutoOptimizeDelay({ masterId, workDate, masterName 
 // Separate component for global delay setting
 export function AdminOptimizeDelaySettings() {
   const [minutes, setMinutes] = useState("5");
+  const [enabled, setEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/settings")
       .then(r => r.json())
-      .then(data => { if (data.autoOptimizeDelayMinutes) setMinutes(data.autoOptimizeDelayMinutes); })
+      .then(data => {
+        if (data.autoOptimizeDelayMinutes) setMinutes(data.autoOptimizeDelayMinutes);
+        if (data.autoOptimizeEnabled !== undefined) setEnabled(data.autoOptimizeEnabled === "true");
+      })
       .catch(() => {});
   }, []);
 
-  const handleSave = async (val: string) => {
-    setMinutes(val);
+  const saveSetting = async (key: string, value: string) => {
     setSaving(true);
     try {
       await fetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "autoOptimizeDelayMinutes", value: val }),
+        body: JSON.stringify({ key, value }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {} finally { setSaving(false); }
   };
 
+  const handleToggle = () => {
+    const newVal = !enabled;
+    setEnabled(newVal);
+    saveSetting("autoOptimizeEnabled", String(newVal));
+  };
+
+  const handleSave = (val: string) => {
+    setMinutes(val);
+    saveSetting("autoOptimizeDelayMinutes", val);
+  };
+
   return (
-    <div className="space-y-2">
-      <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Задержка отправки</p>
-      <div className="flex items-center gap-1 flex-wrap">
-        {["1", "3", "5", "10", "15", "30"].map(v => (
-          <button key={v} type="button" onClick={() => handleSave(v)} disabled={saving}
-            className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
-              minutes === v ? "bg-violet-600/20 border-violet-500/30 text-violet-300" : "bg-white/[0.03] border-white/[0.06] text-zinc-600 hover:text-zinc-400"
-            }`}>
-            {v}м
-          </button>
-        ))}
+    <div className="space-y-2.5">
+      {/* Toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-zinc-500">Авто-отправка</p>
+        <button type="button" onClick={handleToggle}
+          className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${enabled ? "bg-violet-600" : "bg-white/[0.08]"}`}>
+          <span className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${enabled ? "left-[19px]" : "left-[3px]"}`} />
+        </button>
       </div>
+
+      {/* Delay */}
+      {enabled && (
+        <>
+          <p className="text-[10px] text-zinc-600">Задержка</p>
+          <div className="flex items-center gap-1 flex-wrap">
+            {["1", "3", "5", "10", "15", "30"].map(v => (
+              <button key={v} type="button" onClick={() => handleSave(v)} disabled={saving}
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                  minutes === v ? "bg-violet-600/20 border-violet-500/30 text-violet-300" : "bg-white/[0.03] border-white/[0.06] text-zinc-600 hover:text-zinc-400"
+                }`}>
+                {v}м
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {saved && <p className="text-[9px] text-emerald-400">✓ Сохранено</p>}
     </div>
   );

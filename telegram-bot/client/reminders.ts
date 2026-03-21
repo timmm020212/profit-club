@@ -59,6 +59,10 @@ async function checkAndSendReminders(): Promise<void> {
 
 async function checkAutoOptimization(): Promise<void> {
   try {
+    // Check if auto-optimize is enabled
+    const enabledSetting = await db.select().from(adminSettings).where(eq(adminSettings.key, "autoOptimizeEnabled"));
+    if (enabledSetting.length > 0 && enabledSetting[0].value === "false") return;
+
     const { computeOptimization } = await import("../../lib/optimize-schedule");
     const allMasters = await db.select().from(masters).where(eq(masters.isActive, true));
     const botToken = getBotToken();
@@ -133,8 +137,8 @@ async function checkAutoOptimization(): Promise<void> {
             continue;
           }
 
-          // Skip if sent/active exists
-          if (existingAfter.some(e => e.status !== "completed")) continue;
+          // Skip if any optimization exists (sent, draft, or completed)
+          if (existingAfter.length > 0) continue;
 
           // Need confirmed workSlot + 2+ appointments
           const slots = await db.select().from(workSlots)
