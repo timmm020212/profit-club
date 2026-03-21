@@ -10,7 +10,7 @@ import AdminAppointmentManager from "@/components/AdminAppointmentManager";
 import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
 import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
-import AdminAutoOptimizeDelay from "@/components/AdminAutoOptimizeDelay";
+import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import { and, eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
@@ -440,7 +440,37 @@ export default async function AdminDashboardPage({
           <div className="space-y-4 lg:sticky lg:top-36">
             <AdminWorkSlotChangeRequests />
             <AdminWorkSlotsCreator masters={mastersData} currentDate={dateStr} />
-            <AdminAutoOptimizeDelay />
+            {/* Auto-optimization per master */}
+            <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D10] overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/[0.05] flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+                </svg>
+                <h3 className="text-xs font-semibold text-zinc-300">Авто-оптимизация</h3>
+              </div>
+              <div className="p-3 space-y-2">
+                {(() => {
+                  const mastersOnDate = confirmedWorkSlotsData
+                    .map((w: any) => w.masterId)
+                    .filter((id: number, i: number, arr: number[]) => arr.indexOf(id) === i);
+                  if (mastersOnDate.length === 0) return <p className="text-[10px] text-zinc-600 py-2">Нет мастеров на эту дату</p>;
+                  return mastersOnDate.map((mid: number) => {
+                    const master = mastersData.find((m: any) => m.id === mid);
+                    return (
+                      <AdminAutoOptimizeDelay
+                        key={`opt-${mid}-${dateStr}`}
+                        masterId={mid}
+                        workDate={dateStr}
+                        masterName={master?.fullName || "Мастер"}
+                      />
+                    );
+                  });
+                })()}
+                <div className="pt-2 border-t border-white/[0.04]">
+                  <AdminOptimizeDelaySettings />
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
