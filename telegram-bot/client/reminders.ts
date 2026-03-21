@@ -96,6 +96,44 @@ async function checkAutoOptimization(): Promise<void> {
           // Re-check after cleanup
           const existingAfter = await db.select().from(scheduleOptimizations)
             .where(and(eq(scheduleOptimizations.masterId, master.id), eq(scheduleOptimizations.workDate, dateStr)));
+
+          // If draft exists — check if delay passed, then send
+          const draft = existingAfter.find(e => e.status === "draft");
+          if (draft) {
+            const delay = await getOptimizeDelay();
+            const ageMin = (Date.now() - new Date(draft.createdAt).getTime()) / 60000;
+            if (ageMin >= delay) {
+              // Send all pending moves
+              const pendingMoves = await db.select().from(optimizationMoves)
+                .where(and(eq(optimizationMoves.optimizationId, draft.id), eq(optimizationMoves.clientResponse, "pending")));
+
+              for (const move of pendingMoves) {
+                const [apt] = await db.select().from(appointments).where(and(eq(appointments.id, move.appointmentId), eq(appointments.status, "confirmed")));
+                if (!apt?.clientTelegramId) continue;
+                const [svc] = await db.select().from(services).where(eq(services.id, apt.serviceId));
+                const fDate = new Date(dateStr + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+                try {
+                  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: apt.clientTelegramId,
+                      text: `🔄 Предложение о переносе\n\n💇 ${svc?.name || "Услуга"}\n👩 ${master.fullName}\n\n❌ Текущее время: ${move.oldStartTime}–${move.oldEndTime}\n✅ Предлагаемое: ${move.newStartTime}–${move.newEndTime}\n\nЭто позволит оптимизировать расписание мастера.`,
+                      reply_markup: { inline_keyboard: [[
+                        { text: "✅ Согласиться", callback_data: `opt_accept_${move.id}` },
+                        { text: "❌ Оставить как есть", callback_data: `opt_decline_${move.id}` },
+                      ]] },
+                    }),
+                  });
+                  await db.update(optimizationMoves).set({ sentAt: new Date().toISOString() }).where(eq(optimizationMoves.id, move.id));
+                } catch {}
+              }
+              await db.update(scheduleOptimizations).set({ status: "sent", sentAt: new Date().toISOString() }).where(eq(scheduleOptimizations.id, draft.id));
+              console.log(`[auto-optimize] Sent proposals for ${master.fullName} on ${dateStr}`);
+            }
+            continue;
+          }
+
+          // Skip if sent/active exists
           if (existingAfter.some(e => e.status !== "completed")) continue;
 
           // Need confirmed workSlot + 2+ appointments
@@ -122,40 +160,20 @@ async function checkAutoOptimization(): Promise<void> {
           );
           if (moves.length === 0) continue;
 
-          // Create + send immediately
-          const nowIso = new Date().toISOString();
+          // Create as DRAFT — will be sent on next iteration after delay
           const [opt] = await db.insert(scheduleOptimizations).values({
-            masterId: master.id, workDate: dateStr, status: "sent", createdAt: nowIso, sentAt: nowIso,
+            masterId: master.id, workDate: dateStr, status: "draft", createdAt: new Date().toISOString(),
           }).returning();
 
           for (const move of moves) {
-            const [saved] = await db.insert(optimizationMoves).values({
+            await db.insert(optimizationMoves).values({
               optimizationId: opt.id, appointmentId: move.appointmentId,
               oldStartTime: move.oldStartTime, oldEndTime: move.oldEndTime,
               newStartTime: move.newStartTime, newEndTime: move.newEndTime,
-              clientResponse: "pending", sentAt: nowIso,
-            }).returning();
-
-            const apt = appts.find(a => a.id === move.appointmentId);
-            if (apt?.clientTelegramId && botToken) {
-              const [svc] = await db.select().from(services).where(eq(services.id, apt.serviceId));
-              const fDate = new Date(dateStr + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
-              try {
-                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chat_id: apt.clientTelegramId,
-                    text: `🔄 Предложение о переносе\n\n💇 ${svc?.name || "Услуга"}\n👩 ${master.fullName}\n\n❌ Текущее время: ${move.oldStartTime}–${move.oldEndTime}\n✅ Предлагаемое: ${move.newStartTime}–${move.newEndTime}\n\nЭто позволит оптимизировать расписание мастера.`,
-                    reply_markup: { inline_keyboard: [[
-                      { text: "✅ Согласиться", callback_data: `opt_accept_${saved.id}` },
-                      { text: "❌ Оставить как есть", callback_data: `opt_decline_${saved.id}` },
-                    ]] },
-                  }),
-                });
-              } catch {}
-            }
+              clientResponse: "pending",
+            });
           }
-          console.log(`[auto-optimize] Sent ${moves.length} proposals for ${master.fullName} on ${dateStr}`);
+          console.log(`[auto-optimize] Created draft for ${master.fullName} on ${dateStr} (${moves.length} moves, sending in ${await getOptimizeDelay()} min)`);
         } catch (err) { console.error(`[auto-optimize] Error master ${master.id} date ${dateStr}:`, err); }
       }
     }
@@ -177,14 +195,10 @@ export function startReminderLoop(): void {
   checkAndSendReminders();
   setInterval(checkAndSendReminders, 5 * 60 * 1000);
 
-  // Auto-optimize: configurable delay
-  async function optimizeLoop() {
-    const delay = await getOptimizeDelay();
-    console.log(`[auto-optimize] Next check in ${delay} min`);
-    setTimeout(async () => {
-      try { await checkAutoOptimization(); } catch (e) { console.error("[auto-optimize] Loop error:", e); }
-      optimizeLoop();
-    }, delay * 60 * 1000);
-  }
-  optimizeLoop();
+  // Auto-optimize: check every 1 min (draft creation + delayed sending)
+  checkAutoOptimization();
+  setInterval(async () => {
+    try { await checkAutoOptimization(); } catch (e) { console.error("[auto-optimize] error:", e); }
+  }, 60 * 1000);
+  console.log("[auto-optimize] Checking every 1 min");
 }
