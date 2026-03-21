@@ -140,7 +140,7 @@ export default buildConfig({
       connectionString: process.env.DATABASE_URL || "",
       ssl: { rejectUnauthorized: false },
     },
-    push: false,
+    push: true,
   }),
 
   secret: process.env.PAYLOAD_SECRET || "super-secret-payload-key-change-in-production",
