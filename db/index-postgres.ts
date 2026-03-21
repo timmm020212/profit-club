@@ -1,10 +1,11 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './schema';
+import * as schema from './schema-postgres';
 
 // Создаем пул соединений PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres123@localhost:5433/profit_club",
+  connectionString: process.env.DATABASE_URL || "",
+  ssl: process.env.DATABASE_URL?.includes("supabase") ? { rejectUnauthorized: false } : undefined,
 });
 
 export const db = drizzle(pool, { schema });
