@@ -138,8 +138,9 @@ export default buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URL || "",
-      ssl: process.env.DATABASE_URL?.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+      ssl: { rejectUnauthorized: false },
     },
+    push: false,
   }),
 
   secret: process.env.PAYLOAD_SECRET || "super-secret-payload-key-change-in-production",
