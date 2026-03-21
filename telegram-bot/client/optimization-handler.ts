@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { db } from "../../db";
 import { optimizationMoves, appointments, services, masters } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -13,7 +13,7 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
       // Load move
       const moveRows = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId)).limit(1);
       if (!moveRows.length || moveRows[0].clientResponse !== "pending") {
-        await ctx.editMessageText("Это предложение уже обработано.");
+        await ctx.editMessageText("Это предложение уже обработано.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         return;
       }
 
@@ -31,7 +31,8 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
         `✅ Вы согласились на перенос\n\n` +
         `💇 ${serviceName}\n` +
         `🕐 ${move.oldStartTime}–${move.oldEndTime} → ${move.newStartTime}–${move.newEndTime}\n\n` +
-        `Спасибо! Мы обновим вашу запись.`
+        `Спасибо! Мы обновим вашу запись.`,
+        Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]])
       );
     } catch (e) {
       console.error("[optimization] accept error:", e);
@@ -47,7 +48,7 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
 
       const moveRows = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId)).limit(1);
       if (!moveRows.length || moveRows[0].clientResponse !== "pending") {
-        await ctx.editMessageText("Это предложение уже обработано.");
+        await ctx.editMessageText("Это предложение уже обработано.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         return;
       }
 
@@ -55,7 +56,8 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
 
       await ctx.editMessageText(
         `Хорошо, запись остаётся на прежнем времени.\n\n` +
-        `🕐 ${moveRows[0].oldStartTime}–${moveRows[0].oldEndTime}`
+        `🕐 ${moveRows[0].oldStartTime}–${moveRows[0].oldEndTime}`,
+        Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]])
       );
     } catch (e) {
       console.error("[optimization] decline error:", e);

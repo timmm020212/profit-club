@@ -44,7 +44,7 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       const categories = Array.from(categorySet).sort();
 
       if (categories.length === 0) {
-        await ctx.editMessageText("Нет доступных категорий услуг.");
+        await ctx.editMessageText("Нет доступных категорий услуг.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         return;
       }
 
@@ -656,7 +656,7 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
     } catch (e) {
       console.error("[booking-flow] book_confirm error:", e);
       try {
-        await ctx.editMessageText("❌ Произошла ошибка при создании записи. Попробуйте позже.");
+        await ctx.editMessageText("❌ Произошла ошибка при создании записи. Попробуйте позже.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
       } catch {}
       try { await ctx.answerCbQuery("Ошибка"); } catch {}
     }
@@ -697,7 +697,7 @@ export function registerBookingHandlers(bot: Telegraf<any>) {
       const categories = Array.from(categorySet).sort();
 
       if (categories.length === 0) {
-        await ctx.editMessageText("Нет доступных категорий услуг.");
+        await ctx.editMessageText("Нет доступных категорий услуг.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         await ctx.answerCbQuery();
         return;
       }

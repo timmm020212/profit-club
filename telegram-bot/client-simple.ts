@@ -63,11 +63,11 @@ bot.start(async (ctx) => {
 
         await ctx.reply('✅ Вход на сайт подтверждён!\n\nВернитесь на сайт — вы авторизованы.', mainMenuKeyboard);
       } else {
-        await ctx.reply('❌ Код устарел или уже использован. Попробуйте снова на сайте.');
+        await ctx.reply('❌ Код устарел или уже использован. Попробуйте снова на сайте.', Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
       }
     } catch (e) {
       console.error('Error handling LOGIN_ code:', e);
-      await ctx.reply('Произошла ошибка. Попробуйте позже.');
+      await ctx.reply('Произошла ошибка. Попробуйте позже.', Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
     }
     return;
   }
@@ -174,7 +174,7 @@ bot.start(async (ctx) => {
     );
   } catch (e) {
     console.error('Error generating registration code:', e);
-    await ctx.reply(`Привет, ${firstName}! 👋\n\nПерейдите на наш сайт для регистрации: ${SITE_URL}`);
+    await ctx.reply(`Привет, ${firstName}! 👋\n\nПерейдите на наш сайт для регистрации: ${SITE_URL}`, Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
   }
 });
 
