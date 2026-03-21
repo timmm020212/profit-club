@@ -76,7 +76,27 @@ async function checkAutoOptimization(): Promise<void> {
           // Skip if non-completed optimization already exists
           const existing = await db.select().from(scheduleOptimizations)
             .where(and(eq(scheduleOptimizations.masterId, master.id), eq(scheduleOptimizations.workDate, dateStr)));
-          if (existing.some(e => e.status !== "completed")) continue;
+
+          // Clean up stale optimizations with invalid moves
+          for (const opt of existing.filter(e => e.status !== "completed")) {
+            const mvs = await db.select().from(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+            let hasInvalid = false;
+            for (const mv of mvs) {
+              const [apt] = await db.select({ id: appointments.id }).from(appointments)
+                .where(and(eq(appointments.id, mv.appointmentId), eq(appointments.status, "confirmed")));
+              if (!apt) { hasInvalid = true; break; }
+            }
+            if (hasInvalid || mvs.length === 0) {
+              await db.delete(optimizationMoves).where(eq(optimizationMoves.optimizationId, opt.id));
+              await db.delete(scheduleOptimizations).where(eq(scheduleOptimizations.id, opt.id));
+              console.log(`[auto-optimize] Cleaned stale optimization ${opt.id} for ${dateStr}`);
+            }
+          }
+
+          // Re-check after cleanup
+          const existingAfter = await db.select().from(scheduleOptimizations)
+            .where(and(eq(scheduleOptimizations.masterId, master.id), eq(scheduleOptimizations.workDate, dateStr)));
+          if (existingAfter.some(e => e.status !== "completed")) continue;
 
           // Need confirmed workSlot + 2+ appointments
           const slots = await db.select().from(workSlots)
