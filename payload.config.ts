@@ -19,7 +19,7 @@ export default buildConfig({
   },
   routes: {
     admin: "/super-admin",
-    api: "/api/payload",
+    api: "/payload-api",
   },
 
   collections: [
