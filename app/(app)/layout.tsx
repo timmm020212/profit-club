@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter, Montserrat } from "next/font/google";
+import "../globals.css";
 import RegistrationProvider from "../../components/RegistrationProvider";
 import AuthSessionProvider from "../../components/AuthSessionProvider";
 
