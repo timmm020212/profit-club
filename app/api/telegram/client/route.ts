@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Telegraf, Markup } from "telegraf";
 import { db } from "@/db";
-import { clients, telegramVerificationCodes, appointments, services, masters, optimizationMoves } from "@/db/schema";
+import { clients, telegramVerificationCodes, appointments, services, masters, optimizationMoves, botUserStates } from "@/db/schema";
 import { eq, and, gt, gte } from "drizzle-orm";
 
 // We cannot import from telegram-bot/ because those files use dotenv and relative imports.
@@ -29,12 +29,24 @@ function createClientBot() {
 
   // ── Registration prompt
   async function showRegistrationPrompt(ctx: any, firstName: string) {
-    await ctx.reply(
+    const msg = await ctx.reply(
       `Привет, ${firstName}! \u{1F44B}\n\nДля доступа к записи необходимо зарегистрироваться:`,
       Markup.inlineKeyboard([
         [Markup.button.webApp("\u{1F4DD} Регистрация", `${SITE_URL}/miniapp/register`)],
       ])
     );
+    // Save message_id so we can edit it after registration
+    const telegramId = String(ctx.from?.id || "");
+    if (telegramId && msg?.message_id) {
+      try {
+        await db.insert(botUserStates)
+          .values({ telegramId, botType: "client", vars: JSON.stringify({ regMsgId: msg.message_id }), updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: botUserStates.telegramId,
+            set: { vars: JSON.stringify({ regMsgId: msg.message_id }), updatedAt: new Date() },
+          });
+      } catch {}
+    }
   }
 
   // ── Set menu button

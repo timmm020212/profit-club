@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/db";
-import { clients } from "@/db/schema";
+import { clients, botUserStates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 function validateInitData(initData: string, botToken: string): { valid: boolean; user?: any } {
@@ -81,32 +81,47 @@ export async function POST(request: Request) {
     }
 
     // Return success immediately — client is registered
-    // Send welcome message and set menu button in background (non-blocking)
+    // Edit the registration prompt message or send new welcome message
     const SITE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const welcomeText = `Добро пожаловать, ${name.trim()}! 👋\n\nВыберите действие:`;
+    const welcomeKeyboard = {
+      inline_keyboard: [
+        [{ text: "📅 Записаться", web_app: { url: `${SITE_URL}/miniapp` } }],
+        [{ text: "👤 Мои записи", callback_data: "my_appointments" }],
+        [{ text: "ℹ️ О нас", callback_data: "about" }],
+      ],
+    };
 
-    // Fire and forget — send welcome + set menu button
     const tgApi = (method: string, body: any) =>
       fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         cache: "no-store",
-      }).then(r => r.json()).then(r => {
-        if (!r.ok) console.error(`Telegram ${method} error:`, r.description);
-      }).catch(e => console.error(`Telegram ${method} failed:`, e.message));
+      }).then(r => r.json()).catch(e => { console.error(`Telegram ${method} failed:`, e.message); return { ok: false }; });
 
-    tgApi("sendMessage", {
-      chat_id: telegramId,
-      text: welcomeText,
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "📅 Записаться", web_app: { url: `${SITE_URL}/miniapp` } }],
-          [{ text: "👤 Мои записи", callback_data: "my_appointments" }],
-          [{ text: "ℹ️ О нас", callback_data: "about" }],
-        ],
-      },
-    });
+    // Try to edit the registration prompt message
+    let edited = false;
+    try {
+      const stateRows = await db.select({ vars: botUserStates.vars })
+        .from(botUserStates)
+        .where(eq(botUserStates.telegramId, telegramId))
+        .limit(1);
+      const regMsgId = stateRows[0]?.vars ? JSON.parse(stateRows[0].vars).regMsgId : null;
+      if (regMsgId) {
+        const res = await tgApi("editMessageText", {
+          chat_id: telegramId,
+          message_id: regMsgId,
+          text: welcomeText,
+          reply_markup: welcomeKeyboard,
+        });
+        edited = !!res?.ok;
+      }
+    } catch {}
+
+    if (!edited) {
+      tgApi("sendMessage", { chat_id: telegramId, text: welcomeText, reply_markup: welcomeKeyboard });
+    }
 
     if (SITE_URL.startsWith("https://")) {
       tgApi("setChatMenuButton", {
