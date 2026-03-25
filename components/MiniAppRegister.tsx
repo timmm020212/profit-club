@@ -13,6 +13,7 @@ export default function MiniAppRegister() {
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
   const [initData, setInitData] = useState("");
+  const [mid, setMid] = useState<string | null>(null);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -26,6 +27,8 @@ export default function MiniAppRegister() {
         setName(tg.initDataUnsafe.user.first_name);
       }
     }
+    const params = new URLSearchParams(window.location.search);
+    setMid(params.get("mid"));
   }, []);
 
   function validateName(v: string) {
@@ -54,15 +57,13 @@ export default function MiniAppRegister() {
       const res = await fetch("/api/miniapp/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, name: name.trim(), phone: phone.trim() }),
+        body: JSON.stringify({ initData, name: name.trim(), phone: phone.trim(), mid }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка регистрации");
       setSuccess(true);
-      setTimeout(() => {
-        const tg = (window as any).Telegram?.WebApp;
-        if (tg) tg.close();
-      }, 2000);
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) tg.close();
     } catch (e: any) {
       setSubmitError(e.message || "Ошибка. Попробуйте снова.");
     } finally {

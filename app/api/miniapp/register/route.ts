@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/db";
-import { clients, botUserStates } from "@/db/schema";
+import { clients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 function validateInitData(initData: string, botToken: string): { valid: boolean; user?: any } {
@@ -33,7 +33,7 @@ function validateInitData(initData: string, botToken: string): { valid: boolean;
 
 export async function POST(request: Request) {
   try {
-    const { initData, name, phone } = await request.json();
+    const { initData, name, phone, mid } = await request.json();
 
     if (!initData || !name?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -100,24 +100,17 @@ export async function POST(request: Request) {
         cache: "no-store",
       }).then(r => r.json()).catch(e => { console.error(`Telegram ${method} failed:`, e.message); return { ok: false }; });
 
-    // Try to edit the registration prompt message
+    // Edit the registration prompt message if mid is provided, otherwise send new
     let edited = false;
-    try {
-      const stateRows = await db.select({ vars: botUserStates.vars })
-        .from(botUserStates)
-        .where(eq(botUserStates.telegramId, telegramId))
-        .limit(1);
-      const regMsgId = stateRows[0]?.vars ? JSON.parse(stateRows[0].vars).regMsgId : null;
-      if (regMsgId) {
-        const res = await tgApi("editMessageText", {
-          chat_id: telegramId,
-          message_id: regMsgId,
-          text: welcomeText,
-          reply_markup: welcomeKeyboard,
-        });
-        edited = !!res?.ok;
-      }
-    } catch {}
+    if (mid) {
+      const res = await tgApi("editMessageText", {
+        chat_id: telegramId,
+        message_id: Number(mid),
+        text: welcomeText,
+        reply_markup: welcomeKeyboard,
+      });
+      edited = !!res?.ok;
+    }
 
     if (!edited) {
       tgApi("sendMessage", { chat_id: telegramId, text: welcomeText, reply_markup: welcomeKeyboard });
