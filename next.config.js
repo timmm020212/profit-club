@@ -1,8 +1,5 @@
-import { withPayload } from "@payloadcms/next/withPayload";
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['better-sqlite3'],
   reactStrictMode: false,
   devIndicators: false,
   eslint: {
@@ -29,4 +26,4 @@ const nextConfig = {
   },
 };
 
-export default withPayload(nextConfig);
+export default nextConfig;
