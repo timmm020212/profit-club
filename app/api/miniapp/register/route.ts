@@ -22,9 +22,6 @@ function validateInitData(initData: string, botToken: string): { valid: boolean;
 
   if (computedHash !== hash) return { valid: false };
 
-  const authDate = parseInt(params.get("auth_date") || "0");
-  if (Math.floor(Date.now() / 1000) - authDate > 300) return { valid: false };
-
   const userJson = params.get("user");
   if (!userJson) return { valid: false };
 
@@ -64,12 +61,10 @@ export async function POST(request: Request) {
       .where(eq(clients.phone, phone.trim())).limit(1);
 
     if (phoneExists.length > 0) {
-      // Link telegramId to existing account
       await db.update(clients)
         .set({ telegramId, isVerified: true, verifiedAt: new Date().toISOString() })
         .where(eq(clients.id, phoneExists[0].id));
     } else {
-      // Create new client
       await db.insert(clients).values({
         name: name.trim(),
         phone: phone.trim(),
@@ -80,8 +75,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Return success immediately — client is registered
-    // Edit the registration prompt message or send new welcome message
+    // Return success immediately — Telegram calls run in background after response
     const SITE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const welcomeText = `Добро пожаловать, ${name.trim()}! 👋\n\nВыберите действие:`;
     const welcomeKeyboard = {
@@ -97,35 +91,30 @@ export async function POST(request: Request) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        cache: "no-store",
-      }).then(r => r.json()).catch(e => { console.error(`Telegram ${method} failed:`, e.message); return { ok: false }; });
+      }).then(r => r.json()).catch(() => ({ ok: false }));
 
-    // Edit the registration prompt message if mid is provided, otherwise send new
-    let edited = false;
-    if (mid) {
-      const res = await tgApi("editMessageText", {
-        chat_id: telegramId,
-        message_id: Number(mid),
-        text: welcomeText,
-        reply_markup: welcomeKeyboard,
-      });
-      edited = !!res?.ok;
-    }
-
-    if (!edited) {
-      tgApi("sendMessage", { chat_id: telegramId, text: welcomeText, reply_markup: welcomeKeyboard });
-    }
-
-    if (SITE_URL.startsWith("https://")) {
-      tgApi("setChatMenuButton", {
-        chat_id: telegramId,
-        menu_button: {
-          type: "web_app",
-          text: "📅 Записаться",
-          web_app: { url: `${SITE_URL}/miniapp` },
-        },
-      });
-    }
+    // Fire Telegram calls without awaiting — return success immediately
+    (async () => {
+      let edited = false;
+      if (mid) {
+        const res = await tgApi("editMessageText", {
+          chat_id: telegramId,
+          message_id: Number(mid),
+          text: welcomeText,
+          reply_markup: welcomeKeyboard,
+        });
+        edited = !!res?.ok;
+      }
+      if (!edited) {
+        await tgApi("sendMessage", { chat_id: telegramId, text: welcomeText, reply_markup: welcomeKeyboard });
+      }
+      if (SITE_URL.startsWith("https://")) {
+        tgApi("setChatMenuButton", {
+          chat_id: telegramId,
+          menu_button: { type: "web_app", text: "📅 Записаться", web_app: { url: `${SITE_URL}/miniapp` } },
+        });
+      }
+    })();
 
     return NextResponse.json({ success: true });
   } catch (error) {
