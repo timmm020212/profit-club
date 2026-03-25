@@ -28,9 +28,29 @@ function validateInitData(initData: string, botToken: string): { valid: boolean;
   return { valid: true, user: JSON.parse(userJson) };
 }
 
+async function tgFetch(botToken: string, method: string, body: any): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return await res.json();
+  } catch {
+    clearTimeout(timer);
+    return { ok: false };
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { initData, name, phone, mid } = await request.json();
+
+    console.log("[register] mid received:", mid);
 
     if (!initData || !name?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -75,7 +95,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // Return success immediately — Telegram calls run in background after response
     const SITE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const welcomeText = `Добро пожаловать, ${name.trim()}! 👋\n\nВыберите действие:`;
     const welcomeKeyboard = {
@@ -86,35 +105,34 @@ export async function POST(request: Request) {
       ],
     };
 
-    const tgApi = (method: string, body: any) =>
-      fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then(r => r.json()).catch(() => ({ ok: false }));
+    // Try to edit original message, fallback to new message
+    let edited = false;
+    if (mid) {
+      const res = await tgFetch(botToken, "editMessageText", {
+        chat_id: telegramId,
+        message_id: Number(mid),
+        text: welcomeText,
+        reply_markup: welcomeKeyboard,
+      });
+      console.log("[register] editMessageText result:", JSON.stringify(res));
+      edited = !!res?.ok;
+    }
 
-    // Fire Telegram calls without awaiting — return success immediately
-    (async () => {
-      let edited = false;
-      if (mid) {
-        const res = await tgApi("editMessageText", {
-          chat_id: telegramId,
-          message_id: Number(mid),
-          text: welcomeText,
-          reply_markup: welcomeKeyboard,
-        });
-        edited = !!res?.ok;
-      }
-      if (!edited) {
-        await tgApi("sendMessage", { chat_id: telegramId, text: welcomeText, reply_markup: welcomeKeyboard });
-      }
-      if (SITE_URL.startsWith("https://")) {
-        tgApi("setChatMenuButton", {
-          chat_id: telegramId,
-          menu_button: { type: "web_app", text: "📅 Записаться", web_app: { url: `${SITE_URL}/miniapp` } },
-        });
-      }
-    })();
+    if (!edited) {
+      await tgFetch(botToken, "sendMessage", {
+        chat_id: telegramId,
+        text: welcomeText,
+        reply_markup: welcomeKeyboard,
+      });
+    }
+
+    // Set menu button (non-blocking, don't await)
+    if (SITE_URL.startsWith("https://")) {
+      tgFetch(botToken, "setChatMenuButton", {
+        chat_id: telegramId,
+        menu_button: { type: "web_app", text: "📅 Записаться", web_app: { url: `${SITE_URL}/miniapp` } },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
