@@ -1,5 +1,6 @@
-import { config } from 'dotenv';
-config({ path: '.env.local' });
+if (process.env.NODE_ENV !== 'production') {
+  try { require('dotenv').config({ path: '.env.local' }); } catch {}
+}
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
