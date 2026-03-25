@@ -30,4 +30,3 @@ const nextConfig = {
 };
 
 export default withPayload(nextConfig);
-// trigger rebuild
