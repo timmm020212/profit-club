@@ -29,6 +29,7 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeService, setActiveService] = useState<Service | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const gridRef = useRef<HTMLDivElement>(null);
@@ -215,7 +216,18 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
                   category={service.category}
                   badgeText={service.badgeText}
                   badgeType={service.badgeType}
-                  onBook={() => setActiveService(service)}
+                  onBook={() => {
+                    // In Mini App (telegramUser provided) — always allow
+                    // On site — check if logged in
+                    if (!telegramUser && typeof window !== "undefined") {
+                      const isRegistered = localStorage.getItem("profit_club_user_registered") === "verified";
+                      if (!isRegistered) {
+                        setShowLoginPrompt(true);
+                        return;
+                      }
+                    }
+                    setActiveService(service);
+                  }}
                 />
               </div>
             ))}
@@ -236,6 +248,50 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
 
       {activeService && (
         <BookingModal service={activeService} onClose={() => setActiveService(null)} telegramUser={telegramUser} />
+      )}
+
+      {/* Login prompt for unauthenticated site users */}
+      {showLoginPrompt && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ backdropFilter: "blur(12px)", backgroundColor: "rgba(0,0,0,0.55)" }}
+          onClick={() => setShowLoginPrompt(false)}
+        >
+          <div
+            className="relative w-full max-w-sm bg-[#0e0e14] border border-white/10 rounded-3xl shadow-2xl p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B2223C] to-[#e8556e] flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2" style={{ fontFamily: "var(--font-montserrat)" }}>
+              Войдите для записи
+            </h3>
+            <p className="text-sm text-white/40 mb-5" style={{ fontFamily: "var(--font-montserrat)" }}>
+              Для записи на услуги необходимо войти в аккаунт
+            </p>
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center w-full py-3 rounded-2xl text-sm font-semibold text-white transition-all"
+              style={{
+                fontFamily: "var(--font-montserrat)",
+                background: "linear-gradient(135deg, #B2223C, #d4395a)",
+                boxShadow: "0 2px 12px rgba(178,34,60,0.25)",
+              }}
+            >
+              Войти
+            </a>
+            <button
+              onClick={() => setShowLoginPrompt(false)}
+              className="mt-3 text-sm text-white/30 hover:text-white/50 transition-colors"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
       )}
     </>
   );
