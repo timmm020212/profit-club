@@ -643,47 +643,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Notify client about new appointment (only for site bookings, bot handles its own)
-    const isFromBot = body.source === "bot";
-    if (!isFromBot) {
-      try {
-        const CLIENT_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-        const clientTgId = newAppointment[0].clientTelegramId;
-        if (CLIENT_BOT_TOKEN && clientTgId) {
-          const dateObj = new Date(appointmentDate + "T00:00:00");
-          const fDate = dateObj.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
-          const mName = masterInfo[0]?.fullName || "Мастер";
-          const confirmText =
-            `✅ Ваша запись оформлена!\n\n` +
-            `💆 Услуга: ${service[0].name}\n` +
-            `👨‍💼 Мастер: ${mName}\n` +
-            `📅 Дата: ${fDate}\n` +
-            `🕒 Время: ${startTime}–${endTime}\n\n` +
-            `✏️ Вы можете изменить время и мастера не позднее чем за 2 часа до записи.\n\n` +
-            `Ждём вас в салоне Profit Club!`;
-          await fetch(`https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: clientTgId,
-              text: confirmText,
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: "✏️ Изменить", callback_data: "my_appointments" },
-                    { text: "❌ Отменить", callback_data: "my_appointments" },
-                  ],
-                  [{ text: "← Главное меню", callback_data: "book_back_menu" }],
-                ],
-              },
-            }),
-          });
-        }
-      } catch (e) {
-        console.error("Failed to send client booking notification:", e);
-      }
-    }
-
     // Invalidate optimizations for this master+date so auto-optimize recalculates
     try {
       const existingOpts = await db.select().from(scheduleOptimizations)
@@ -782,8 +741,6 @@ async function sendTelegramNotification({
 }): Promise<boolean> {
   // Используем токен из переменных окружения или fallback (как в других местах)
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const webAppBaseUrl = process.env.TELEGRAM_WEBAPP_URL || "http://localhost:3000/telegram-webapp";
-  
   if (!botToken) {
     console.error("TELEGRAM_BOT_TOKEN is not set - notification skipped");
     return false;
@@ -798,7 +755,6 @@ async function sendTelegramNotification({
   });
 
   // Вычисляем, можно ли ещё редактировать запись (не менее чем за 2 часа до начала)
-  const [startHours, startMinutes] = startTime.split(":").map(Number);
   const appointmentDateTime = new Date(appointmentDate + "T" + startTime + ":00");
   const now = new Date();
   const diffMs = appointmentDateTime.getTime() - now.getTime();
