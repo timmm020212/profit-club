@@ -223,6 +223,112 @@ function createClientBot() {
     }
   });
 
+  // ── Back to main menu (from appointment notification)
+  bot.action("back_to_main_menu", handleBackToMenu);
+
+  // ── Cancel appointment
+  bot.action(/^ap_cancel:(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery();
+    const appointmentId = parseInt(ctx.match[1]);
+    try {
+      await ctx.editMessageText(
+        "❌ Вы уверены, что хотите отменить запись?",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback("✅ Да, отменить", `ap_cancel_confirm:${appointmentId}`),
+            Markup.button.callback("← Назад", `ap_cancel_abort:${appointmentId}`),
+          ],
+        ])
+      );
+    } catch {
+      await ctx.reply(
+        "❌ Вы уверены, что хотите отменить запись?",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback("✅ Да, отменить", `ap_cancel_confirm:${appointmentId}`),
+            Markup.button.callback("← Назад", `ap_cancel_abort:${appointmentId}`),
+          ],
+        ])
+      );
+    }
+  });
+
+  bot.action(/^ap_cancel_confirm:(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery();
+    const appointmentId = parseInt(ctx.match[1]);
+    try {
+      const apt = await db.select().from(appointments).where(eq(appointments.id, appointmentId)).limit(1);
+      if (!apt.length || apt[0].status === "cancelled") {
+        await ctx.editMessageText("Запись уже отменена.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]]));
+        return;
+      }
+      // Check 2-hour rule
+      const aptDateTime = new Date(apt[0].appointmentDate + "T" + apt[0].startTime + ":00");
+      if (aptDateTime.getTime() - Date.now() < 2 * 60 * 60 * 1000) {
+        await ctx.editMessageText(
+          "⚠️ Отмена невозможна — до записи менее 2 часов.",
+          Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]])
+        );
+        return;
+      }
+      await db.update(appointments).set({ status: "cancelled" }).where(eq(appointments.id, appointmentId));
+      await ctx.editMessageText(
+        "✅ Запись отменена.",
+        Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]])
+      );
+    } catch (e) {
+      console.error("[ap_cancel_confirm] error:", e);
+      await ctx.editMessageText("Ошибка при отмене.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]]));
+    }
+  });
+
+  bot.action(/^ap_cancel_abort:(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery();
+    const appointmentId = parseInt(ctx.match[1]);
+    try {
+      const apt = await db.select().from(appointments).where(eq(appointments.id, appointmentId)).limit(1);
+      if (!apt.length) { await ctx.editMessageText("Запись не найдена."); return; }
+      const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt[0].serviceId));
+      const [mst] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, apt[0].masterId));
+      const d = new Date(apt[0].appointmentDate + "T00:00:00");
+      const fDate = d.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+      const canEdit = new Date(apt[0].appointmentDate + "T" + apt[0].startTime + ":00").getTime() - Date.now() >= 2 * 60 * 60 * 1000;
+      await ctx.editMessageText(
+        `✅ Ваша запись оформлена!\n\n💆 Услуга: ${svc?.name || "Услуга"}\n👨‍💼 Мастер: ${mst?.fullName || "Мастер"}\n📅 Дата: ${fDate}\n🕒 Время: ${apt[0].startTime}–${apt[0].endTime}${canEdit ? "\n\n✏️ Вы можете изменить время и мастера не позднее чем за 2 часа до записи." : ""}\n\nЖдём вас в салоне Profit Club!`,
+        Markup.inlineKeyboard([
+          [Markup.button.callback("❌ Отменить запись", `ap_cancel:${appointmentId}`), Markup.button.webApp("✏️ Изменить запись", `${SITE_URL}/miniapp`)],
+          [Markup.button.callback("⬅️ В главное меню", "back_to_main_menu")],
+        ])
+      );
+    } catch { await ctx.editMessageText("Ошибка.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]])); }
+  });
+
+  // ── Edit appointment (open Mini App)
+  bot.action(/^ap_edit:(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery();
+    const appointmentId = parseInt(ctx.match[1]);
+    try {
+      const apt = await db.select().from(appointments).where(eq(appointments.id, appointmentId)).limit(1);
+      if (!apt.length) { await ctx.reply("Запись не найдена."); return; }
+      if (new Date(apt[0].appointmentDate + "T" + apt[0].startTime + ":00").getTime() - Date.now() < 2 * 60 * 60 * 1000) {
+        try {
+          await ctx.editMessageText("⚠️ Изменение невозможно — до записи менее 2 часов.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]]));
+        } catch { await ctx.reply("⚠️ Изменение невозможно — до записи менее 2 часов."); }
+        return;
+      }
+      try {
+        await ctx.deleteMessage();
+      } catch {}
+      await ctx.reply(
+        "✏️ Для изменения записи откройте приложение:",
+        Markup.inlineKeyboard([
+          [Markup.button.webApp("📅 Перезаписаться", `${SITE_URL}/miniapp`)],
+          [Markup.button.callback("← Главное меню", "menu")],
+        ])
+      );
+    } catch (e) { console.error("[ap_edit] error:", e); }
+  });
+
   // ── Optimization handlers
   bot.action(/^opt_accept_(\d+)$/, async (ctx) => {
     try {
