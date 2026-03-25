@@ -5,8 +5,6 @@ import { Telegraf, Markup } from 'telegraf';
 import { db } from '../db/index-postgres';
 import { masters, workSlots, appointments, services, workSlotChangeRequests, botFlows, botSteps } from '../db/schema-postgres';
 import { eq, and, gte, asc } from 'drizzle-orm';
-import { stepText, stepButtons } from './bot-texts';
-import { registerEngine } from './engine';
 
 function getMastersToken(): string {
   return process.env.MASTERS_BOT_TOKEN || '';
@@ -89,7 +87,7 @@ async function buildMasterMenu(): Promise<{ markup: any; isInline: boolean }> {
     isReply = false;
   }
 
-  const rows = await stepButtons('master_menu');
+  const rows: any[][] = [];
   if (rows.length > 0) {
     if (!isReply) {
       return {
@@ -161,7 +159,7 @@ async function showSchedule(
         .limit(1);
 
       if (!nearest.length) {
-        const msg = await stepText('master_no_workdays', {}, 'У вас нет рабочих дней');
+        const msg = 'У вас нет рабочих дней';
         if (useReply) return ctx.reply(msg);
         return ctx.editMessageText(msg);
       }
@@ -180,7 +178,7 @@ async function showSchedule(
       )
       .limit(1);
 
-    let msg = await stepText('master_schedule_header', { workDate: formatDateDisplay(targetDate) }, `📅 Расписание — ${formatDateDisplay(targetDate)}\n`);
+    let msg = `📅 Расписание — ${formatDateDisplay(targetDate)}\n`;
 
     if (!slotRows.length) {
       msg += '\n😴 Выходной';
@@ -300,10 +298,10 @@ bot.start(async (ctx) => {
   const master = await isMaster(telegramId);
 
   if (master) {
-    const welcomeText = await stepText('master_welcome', { masterName: master.fullName, fullName: master.fullName }, `Добро пожаловать, ${master.fullName}!`);
+    const welcomeText = `Добро пожаловать, ${master.fullName}!`;
     await showMasterMenu(ctx, welcomeText);
   } else {
-    const noAccessText = await stepText('master_no_access', {}, 'У вас нет доступа к этому боту. Вы не зарегистрированы как мастер.');
+    const noAccessText = 'У вас нет доступа к этому боту. Вы не зарегистрированы как мастер.';
     ctx.reply(noAccessText);
   }
 });
@@ -355,7 +353,7 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
       .orderBy(asc(workSlots.workDate), asc(workSlots.startTime));
 
     if (workSlotsList.length === 0) {
-      const noSlotsText = await stepText('master_no_slots_change', {}, 'У вас нет запланированных рабочих дней для изменения');
+      const noSlotsText = 'У вас нет запланированных рабочих дней для изменения';
       return ctx.reply(noSlotsText);
     }
 
@@ -367,7 +365,7 @@ bot.hears('🔄 Изменить рабочий день', async (ctx) => {
     ]);
     buttons.push([Markup.button.callback('← Назад', 'chday_back')]);
 
-    const changeDayText = await stepText('master_change_day', {}, '📅 Выберите рабочий день:');
+    const changeDayText = '📅 Выберите рабочий день:';
     await ctx.reply(changeDayText, Markup.inlineKeyboard(buttons));
   } catch (error) {
     console.error('Error fetching work slots for change:', error);
@@ -389,11 +387,7 @@ bot.action(/^chday_select_(\d+)$/, async (ctx) => {
   userStates.set(telegramId, { selectedSlotId: slot.id, selectedSlot: slot });
 
   try {
-    const slotActionText = await stepText(
-      'master_slot_action',
-      { workDate: formatDateDisplay(slot.workDate), startTime: slot.startTime, endTime: slot.endTime },
-      `📅 ${formatDateDisplay(slot.workDate)}\n⏰ ${slot.startTime}–${slot.endTime}\n\nЧто вы хотите сделать?`
-    );
+    const slotActionText = `📅 ${formatDateDisplay(slot.workDate)}\n⏰ ${slot.startTime}–${slot.endTime}\n\nЧто вы хотите сделать?`;
     await ctx.editMessageText(
       slotActionText,
       Markup.inlineKeyboard([
@@ -423,11 +417,7 @@ bot.action(/^chday_cancel_(\d+)$/, async (ctx) => {
 
   if (dayAppts.length > 0) {
     const list = dayAppts.map((a: any) => `  ${a.startTime}–${a.endTime}`).join('\n');
-    const cancelBlockedText = await stepText(
-      'master_cancel_blocked',
-      { workDate: formatDateDisplay(slot.workDate), appointmentList: list },
-      `❌ Невозможно отменить!\n\nНа ${formatDateDisplay(slot.workDate)} есть записи:\n${list}\n\nСначала отмените записи.`
-    );
+    const cancelBlockedText = `❌ Невозможно отменить!\n\nНа ${formatDateDisplay(slot.workDate)} есть записи:\n${list}\n\nСначала отмените записи.`;
     try {
       await ctx.editMessageText(
         cancelBlockedText,
@@ -436,11 +426,7 @@ bot.action(/^chday_cancel_(\d+)$/, async (ctx) => {
     } catch {}
   } else {
     await handleWorkSlotChange(telegramId, slot, 'cancel');
-    const cancelSentText = await stepText(
-      'master_cancel_sent',
-      { workDate: formatDateDisplay(slot.workDate) },
-      `✅ Запрос на отмену ${formatDateDisplay(slot.workDate)} отправлен администратору`
-    );
+    const cancelSentText = `✅ Запрос на отмену ${formatDateDisplay(slot.workDate)} отправлен администратору`;
     try { await ctx.editMessageText(cancelSentText); } catch {}
   }
   try { await ctx.answerCbQuery(); } catch {}
@@ -477,11 +463,7 @@ bot.action(/^chday_time_(\d+)$/, async (ctx) => {
   rows.push([Markup.button.callback('← Назад', 'chday_back')]);
 
   try {
-    const pickStartText = await stepText(
-      'master_pick_start',
-      { workDate: formatDateDisplay(slot.workDate), startTime: slot.startTime, endTime: slot.endTime },
-      `🕐 Новое время начала смены\n📅 ${formatDateDisplay(slot.workDate)}\nСейчас: ${slot.startTime}–${slot.endTime}`
-    );
+    const pickStartText = `🕐 Новое время начала смены\n📅 ${formatDateDisplay(slot.workDate)}\nСейчас: ${slot.startTime}–${slot.endTime}`;
     await ctx.editMessageText(pickStartText, Markup.inlineKeyboard(rows));
   } catch {}
   try { await ctx.answerCbQuery(); } catch {}
@@ -614,11 +596,7 @@ bot.action(/^pick_start_(\d{2}:\d{2})$/, async (ctx) => {
   rows.push([Markup.button.callback('← Назад', 'chday_back')]);
 
   try {
-    const pickEndText = await stepText(
-      'master_pick_end',
-      { workDate: formatDateDisplay(slot.workDate), newStartTime: newStart },
-      `🕐 Выберите время окончания смены\n📅 ${formatDateDisplay(slot.workDate)}\nНачало: ${newStart}`
-    );
+    const pickEndText = `🕐 Выберите время окончания смены\n📅 ${formatDateDisplay(slot.workDate)}\nНачало: ${newStart}`;
     await ctx.editMessageText(pickEndText, Markup.inlineKeyboard(rows));
   } catch {}
   try { await ctx.answerCbQuery(); } catch {}
@@ -645,11 +623,7 @@ bot.action(/^pick_end_(\d{2}:\d{2})$/, async (ctx) => {
 
   if (conflicting.length > 0) {
     const list = conflicting.map((a: any) => `  ${a.startTime}–${a.endTime}`).join('\n');
-    const changeBlockedText = await stepText(
-      'master_time_change_blocked',
-      { newStartTime: newStart, newEndTime: newEnd, appointmentList: list },
-      `❌ Невозможно изменить время!\n\nЗаписи выходят за рамки ${newStart}–${newEnd}:\n${list}\n\nСначала перенесите или отмените эти записи.`
-    );
+    const changeBlockedText = `❌ Невозможно изменить время!\n\nЗаписи выходят за рамки ${newStart}–${newEnd}:\n${list}\n\nСначала перенесите или отмените эти записи.`;
     try {
       await ctx.editMessageText(
         changeBlockedText,
@@ -667,11 +641,7 @@ bot.action(/^pick_end_(\d{2}:\d{2})$/, async (ctx) => {
   });
 
   try {
-    const changeSentText = await stepText(
-      'master_time_change_sent',
-      { workDate: formatDateDisplay(slot.workDate), startTime: slot.startTime, endTime: slot.endTime, newStartTime: newStart, newEndTime: newEnd },
-      `✅ Запрос отправлен администратору\n\n📅 ${formatDateDisplay(slot.workDate)}\n🕐 ${slot.startTime}–${slot.endTime} → ${newStart}–${newEnd}`
-    );
+    const changeSentText = `✅ Запрос отправлен администратору\n\n📅 ${formatDateDisplay(slot.workDate)}\n🕐 ${slot.startTime}–${slot.endTime} → ${newStart}–${newEnd}`;
     await ctx.editMessageText(changeSentText);
   } catch {}
   userStates.delete(telegramId);
@@ -730,7 +700,7 @@ bot.action('master_change_day', async (ctx) => {
       ))
       .orderBy(asc(workSlots.workDate), asc(workSlots.startTime));
     if (workSlotsList.length === 0) {
-      const noSlotsText = await stepText('master_no_slots_change', {}, 'У вас нет запланированных рабочих дней для изменения');
+      const noSlotsText = 'У вас нет запланированных рабочих дней для изменения';
       return ctx.reply(noSlotsText);
     }
     const buttons = workSlotsList.map(slot => [
@@ -740,7 +710,7 @@ bot.action('master_change_day', async (ctx) => {
       ),
     ]);
     buttons.push([Markup.button.callback('← Назад', 'chday_back')]);
-    const changeDayText = await stepText('master_change_day', {}, '📅 Выберите рабочий день:');
+    const changeDayText = '📅 Выберите рабочий день:';
     await ctx.reply(changeDayText, Markup.inlineKeyboard(buttons));
   } catch (error) {
     console.error('Error fetching work slots for change:', error);
@@ -787,15 +757,11 @@ bot.on('callback_query', async (ctx) => {
           adminUpdateStatus: 'accepted',
         }).where(eq(workSlots.id, req.workSlotId));
         await db.update(workSlotChangeRequests).set({ status: 'accepted' }).where(eq(workSlotChangeRequests.id, changeRequestId));
-        const acceptedText = await stepText(
-          'master_change_accepted',
-          { workDate: req.suggestedWorkDate, startTime: req.suggestedStartTime, endTime: req.suggestedEndTime },
-          `✅ Изменение подтверждено!\n\n📅 ${req.suggestedWorkDate}\n⏰ ${req.suggestedStartTime} — ${req.suggestedEndTime}`
-        );
+        const acceptedText = `✅ Изменение подтверждено!\n\n📅 ${req.suggestedWorkDate}\n⏰ ${req.suggestedStartTime} — ${req.suggestedEndTime}`;
         try { await ctx.editMessageText(acceptedText); } catch {}
       } else {
         await db.update(workSlotChangeRequests).set({ status: 'rejected' }).where(eq(workSlotChangeRequests.id, changeRequestId));
-        const rejectedText = await stepText('master_change_rejected', {}, '❌ Изменение отклонено.');
+        const rejectedText = '❌ Изменение отклонено.';
         try { await ctx.editMessageText(rejectedText); } catch {}
       }
       try { await ctx.answerCbQuery(); } catch {}
@@ -831,11 +797,7 @@ bot.on('callback_query', async (ctx) => {
           }
         }
 
-        const slotStatusText = await stepText(
-          isConfirmed ? 'master_slot_confirmed' : 'master_slot_rejected',
-          {},
-          `Рабочий день ${isConfirmed ? '✅ подтвержден' : '❌ отклонен'}!`
-        );
+        const slotStatusText = `Рабочий день ${isConfirmed ? '✅ подтвержден' : '❌ отклонен'}!`;
         try { await ctx.editMessageText(slotStatusText); } catch {}
         try { await ctx.answerCbQuery(); } catch {}
       }
@@ -845,9 +807,6 @@ bot.on('callback_query', async (ctx) => {
     try { await ctx.answerCbQuery('Произошла ошибка'); } catch {}
   }
 });
-
-// Register engine flows (handles s:<stepId> navigation + useReplyKeyboard from admin UI)
-registerEngine(bot, 'masters').catch((e) => console.error('[masters-bot] engine init error:', e));
 
 // ── Launch ────────────────────────────────────────────────────
 
