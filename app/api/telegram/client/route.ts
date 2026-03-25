@@ -102,23 +102,37 @@ function createClientBot() {
     await showRegistrationPrompt(ctx, firstName);
   });
 
-  // ── About
+  // ── About (edit current message)
   bot.action("about", async (ctx) => {
     await ctx.answerCbQuery();
-    await ctx.reply(
-      "\u{1F488} *Profit Club* \u2014 салон красоты\n\nМы предлагаем:\n\u2022 Профессиональные услуги\n\u2022 Опытных мастеров\n\u2022 Удобную запись онлайн",
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]),
-      }
-    );
+    try {
+      await ctx.editMessageText(
+        "\u{1F488} *Profit Club* \u2014 салон красоты\n\nМы предлагаем:\n\u2022 Профессиональные услуги\n\u2022 Опытных мастеров\n\u2022 Удобную запись онлайн",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]),
+        }
+      );
+    } catch {
+      await ctx.reply(
+        "\u{1F488} *Profit Club* \u2014 салон красоты\n\nМы предлагаем:\n\u2022 Профессиональные услуги\n\u2022 Опытных мастеров\n\u2022 Удобную запись онлайн",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]),
+        }
+      );
+    }
   });
 
-  // ── Back to menu
+  // ── Back to menu (delete old message + send new with webApp button)
   async function handleBackToMenu(ctx: any) {
     await ctx.answerCbQuery();
     const telegramId = ctx.from?.id.toString();
     if (!telegramId) return;
+
+    // Delete the old message (webApp buttons can't be in editMessageText)
+    try { await ctx.deleteMessage(); } catch {}
+
     const existing = await db.select().from(clients)
       .where(eq(clients.telegramId, telegramId)).limit(1);
     if (existing.length > 0) {
@@ -131,7 +145,7 @@ function createClientBot() {
   bot.action("menu", handleBackToMenu);
   bot.action("book_back_menu", handleBackToMenu);
 
-  // ── My appointments
+  // ── My appointments (edit current message)
   bot.action("my_appointments", async (ctx) => {
     await ctx.answerCbQuery();
     const telegramId = ctx.from?.id.toString();
@@ -157,8 +171,13 @@ function createClientBot() {
         ));
 
       if (myAppts.length === 0) {
-        await ctx.reply("\u{1F4CB} У вас нет предстоящих записей.",
-          Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+        try {
+          await ctx.editMessageText("\u{1F4CB} У вас нет предстоящих записей.",
+            Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+        } catch {
+          await ctx.reply("\u{1F4CB} У вас нет предстоящих записей.",
+            Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+        }
         return;
       }
 
@@ -171,12 +190,22 @@ function createClientBot() {
         text += `\u{1F487} ${svc?.name || "Услуга"}\n\u{1F469} ${mst?.fullName || "Мастер"}\n\u{1F4C5} ${dateStr}, ${apt.startTime}\u2013${apt.endTime}\n\n`;
       }
 
-      await ctx.reply(text.trim(),
-        Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      try {
+        await ctx.editMessageText(text.trim(),
+          Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      } catch {
+        await ctx.reply(text.trim(),
+          Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      }
     } catch (e) {
       console.error("Error fetching appointments:", e);
-      await ctx.reply("Ошибка загрузки записей.",
-        Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      try {
+        await ctx.editMessageText("Ошибка загрузки записей.",
+          Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      } catch {
+        await ctx.reply("Ошибка загрузки записей.",
+          Markup.inlineKeyboard([[Markup.button.callback("\u2190 Главное меню", "menu")]]));
+      }
     }
   });
 
