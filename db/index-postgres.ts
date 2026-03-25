@@ -1,3 +1,4 @@
+// Load .env.local only in local development (Vercel provides env vars natively)
 if (process.env.NODE_ENV !== 'production') {
   try { require('dotenv').config({ path: '.env.local' }); } catch {}
 }
@@ -7,8 +8,6 @@ import { Pool } from 'pg';
 import * as schema from './schema-postgres';
 
 // Создаем пул соединений PostgreSQL
-// Supabase transaction pooler (port 6543) aggressively kills idle connections.
-// We keep pool small and recreate connections frequently.
 const dbUrl = process.env.DATABASE_URL || "";
 const pool = new Pool({
   connectionString: dbUrl,
