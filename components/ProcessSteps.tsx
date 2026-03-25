@@ -45,7 +45,7 @@ const STEPS = [
   },
 ];
 
-export default function ProcessSteps() {
+export default function ProcessSteps({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,10 +109,10 @@ export default function ProcessSteps() {
               letterSpacing: "-0.02em",
             }}
           >
-            Четыре простых{" "}
+            {cms?.title || <>Четыре простых{" "}
             <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
               шага
-            </span>
+            </span></>}
           </h2>
         </div>
 

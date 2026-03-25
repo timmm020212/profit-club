@@ -126,6 +126,7 @@ export async function POST(request: Request) {
         email: email || null,
         password: password,
         verificationCode,
+        createdAt: new Date().toISOString(),
       });
     }
 

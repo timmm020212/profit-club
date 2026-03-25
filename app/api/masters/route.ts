@@ -150,6 +150,7 @@ export async function POST(request: Request) {
         photoUrl: photoUrl ? String(photoUrl).trim() : null,
         isActive: true,
         showOnSite: showOnSite !== false,
+        createdAt: new Date().toISOString(),
       })
       .returning();
 

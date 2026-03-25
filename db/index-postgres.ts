@@ -1,11 +1,26 @@
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema-postgres';
 
 // Создаем пул соединений PostgreSQL
+// Supabase transaction pooler (port 6543) aggressively kills idle connections.
+// We keep pool small and recreate connections frequently.
+const dbUrl = process.env.DATABASE_URL || "";
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "",
-  ssl: process.env.DATABASE_URL?.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+  connectionString: dbUrl,
+  ssl: dbUrl.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+  max: 3,
+  idleTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
+  allowExitOnIdle: true,
+});
+
+// Handle pool errors to prevent crash on idle disconnect
+pool.on('error', (err) => {
+  console.error('[pg-pool] Unexpected error on idle client:', err.message);
 });
 
 export const db = drizzle(pool, { schema });
@@ -20,8 +35,3 @@ export async function testConnection() {
     return false;
   }
 }
-
-// Закрытие соединений при завершении
-process.on('beforeExit', async () => {
-  await pool.end();
-});

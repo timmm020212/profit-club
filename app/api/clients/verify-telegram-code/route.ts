@@ -93,7 +93,8 @@ export async function POST(request: Request) {
           verificationCode: pendingRow.verificationCode,
           isVerified: true,
           telegramId,
-          verifiedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          verifiedAt: new Date().toISOString(),
         })
         .returning();
 
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
       .set({
         isVerified: true,
         telegramId: telegramId,
-        verifiedAt: new Date(),
+        verifiedAt: new Date().toISOString(),
       })
       .where(eq(clients.id, userClient.id));
 

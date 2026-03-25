@@ -36,9 +36,11 @@ export default buildConfig({
       ],
     },
 
-    // Services management
+    // Services management — connected to existing "services" table
     {
       slug: "managed-services",
+      dbName: "services",
+      timestamps: false,
       admin: {
         useAsTitle: "name",
         group: "Букинг",
@@ -56,7 +58,7 @@ export default buildConfig({
           "парикмахер", "мастер ногтевого сервиса", "массажист", "косметолог",
           "тренер", "мастер бровей", "мастер эпиляции", "специалист", "мастер татуажа",
         ]},
-        { name: "image", type: "upload", relationTo: "media", label: "Фото" },
+        { name: "imageUrl", type: "text", label: "URL фото" },
         { name: "badgeText", type: "text", label: "Badge текст" },
         { name: "badgeType", type: "select", label: "Badge тип", options: [
           { label: "Акцент", value: "accent" },
@@ -69,21 +71,75 @@ export default buildConfig({
       ],
     },
 
-    // Masters management
+    // Masters management — connected to existing "masters" table
     {
       slug: "managed-masters",
+      dbName: "masters",
+      timestamps: false,
       admin: {
         useAsTitle: "fullName",
         group: "Букинг",
       },
+      hooks: {
+        beforeChange: [
+          ({ data }) => {
+            if (!data) return data;
+            const settings: Record<string, boolean> = {};
+            for (const key of ["newAppointments", "cancellations", "breaks", "morningReminder"]) {
+              if (key in data) {
+                settings[key] = !!data[key];
+                delete data[key];
+              }
+            }
+            if (Object.keys(settings).length > 0) {
+              let existing: Record<string, boolean> = {};
+              try { if (data.notificationSettings) existing = JSON.parse(data.notificationSettings); } catch {}
+              data.notificationSettings = JSON.stringify({ ...existing, ...settings });
+            }
+            return data;
+          },
+        ],
+        afterRead: [
+          ({ doc }) => {
+            if (!doc) return doc;
+            const defaults = { newAppointments: true, cancellations: true, breaks: true, morningReminder: false };
+            let settings = defaults;
+            try { if (doc.notificationSettings) settings = { ...defaults, ...JSON.parse(doc.notificationSettings) }; } catch {}
+            doc.newAppointments = settings.newAppointments;
+            doc.cancellations = settings.cancellations;
+            doc.breaks = settings.breaks;
+            doc.morningReminder = settings.morningReminder;
+            return doc;
+          },
+        ],
+      },
       fields: [
         { name: "fullName", type: "text", required: true, label: "ФИО" },
-        { name: "specialization", type: "text", required: true, label: "Специализация" },
+        { name: "specialization", type: "select", required: true, label: "Специализация", options: [
+          "парикмахер", "мастер ногтевого сервиса", "массажист", "косметолог",
+          "тренер", "мастер бровей", "мастер эпиляции", "специалист", "мастер татуажа",
+        ]},
         { name: "phone", type: "text", label: "Телефон" },
         { name: "telegramId", type: "text", label: "Telegram ID" },
-        { name: "photo", type: "upload", relationTo: "media", label: "Фото" },
+        { name: "photoUrl", type: "text", label: "URL фото" },
         { name: "showOnSite", type: "checkbox", defaultValue: true, label: "Показывать на сайте" },
         { name: "isActive", type: "checkbox", defaultValue: true, label: "Активен" },
+        { name: "newAppointments", type: "checkbox", defaultValue: true, label: "🔔 Новые записи",
+          admin: { position: "sidebar", description: "Уведомления о новых записях клиентов" },
+          virtual: true,
+        },
+        { name: "cancellations", type: "checkbox", defaultValue: true, label: "❌ Отмены записей",
+          admin: { position: "sidebar", description: "Уведомления об отмене записей" },
+          virtual: true,
+        },
+        { name: "breaks", type: "checkbox", defaultValue: true, label: "⏸️ Перерывы",
+          admin: { position: "sidebar", description: "Уведомления о перерывах в расписании" },
+          virtual: true,
+        },
+        { name: "morningReminder", type: "checkbox", defaultValue: false, label: "🌅 Утреннее напоминание",
+          admin: { position: "sidebar", description: "Утренняя сводка расписания на день" },
+          virtual: true,
+        },
       ],
     },
 
@@ -96,19 +152,6 @@ export default buildConfig({
       },
       fields: [
         { name: "alt", type: "text", label: "Alt текст" },
-      ],
-    },
-
-    // Bot settings
-    {
-      slug: "bot-settings",
-      admin: {
-        group: "Настройки",
-      },
-      fields: [
-        { name: "key", type: "text", required: true, unique: true, label: "Ключ" },
-        { name: "value", type: "textarea", label: "Значение" },
-        { name: "description", type: "text", label: "Описание" },
       ],
     },
 
@@ -132,6 +175,9 @@ export default buildConfig({
       ],
     },
   ],
+
+  // Bot settings moved to /admin/bots (engine-based)
+  globals: [],
 
   editor: lexicalEditor(),
 

@@ -22,7 +22,7 @@ function getInitials(name: string) {
     .join("");
 }
 
-export default function MastersSection() {
+export default function MastersSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const [masters, setMasters] = useState<Master[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,10 +128,10 @@ export default function MastersSection() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Наши{" "}
+              {cms?.title || <>Наши{" "}
               <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
                 мастера
-              </span>
+              </span></>}
             </h2>
             <p
               style={{
@@ -143,8 +143,7 @@ export default function MastersSection() {
                 maxWidth: 380,
               }}
             >
-              Каждый специалист — профессионал с подтверждённой
-              квалификацией и собственным подходом к работе.
+              {cms?.subtitle || "Каждый специалист — профессионал с подтверждённой квалификацией и собственным подходом к работе."}
             </p>
           </div>
         </div>

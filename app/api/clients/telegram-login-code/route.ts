@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { telegramVerificationCodes } from "@/db/schema";
+import { clients, telegramVerificationCodes } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-// Reuse the same bot-username resolution used by the register route
 async function getBotUsername(): Promise<string> {
   if (process.env.TELEGRAM_BOT_USERNAME) {
     return process.env.TELEGRAM_BOT_USERNAME;
@@ -29,17 +29,34 @@ async function getBotUsername(): Promise<string> {
   return "ProfitClub_bot";
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    // "LOGIN_" (6 chars) + 4 hex chars = 10 chars — fits the code column (length: 10)
     const code = "LOGIN_" + crypto.randomBytes(2).toString("hex").toUpperCase();
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    // Try to get phone from request body (optional)
+    let phone: string | undefined;
+    try {
+      const body = await request.json();
+      if (body?.phone) phone = String(body.phone).trim();
+    } catch {}
+
+    // If phone provided, verify the client exists
+    if (phone) {
+      const existing = await db.select({ id: clients.id })
+        .from(clients)
+        .where(eq(clients.phone, phone))
+        .limit(1);
+      if (!existing.length) phone = undefined; // client not found, ignore phone
+    }
 
     await db.insert(telegramVerificationCodes).values({
       code,
-      telegramId: "pending", // Will be filled by the bot when the user opens the deep link
+      telegramId: "pending",
+      phone: phone || null,
       expiresAt,
       isUsed: false,
+      createdAt: new Date().toISOString(),
     });
 
     const botUsername = await getBotUsername();

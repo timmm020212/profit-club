@@ -1,6 +1,6 @@
 import { Telegraf, Markup } from 'telegraf';
-import { db } from "../../db";
-import { optimizationMoves, appointments, services, masters } from "../../db/schema";
+import { db } from "../../db/index-postgres";
+import { optimizationMoves, appointments, services, masters } from "../../db/schema-postgres";
 import { eq } from "drizzle-orm";
 
 export function registerOptimizationHandlers(bot: Telegraf<any>) {

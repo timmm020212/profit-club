@@ -10,7 +10,7 @@ const STATS = [
   { num: "30+",  label: "видов услуг" },
 ];
 
-export default function HeroParallax() {
+export default function HeroParallax({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const [scrollY, setScrollY] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -213,8 +213,7 @@ export default function HeroParallax() {
             animationDelay: "0.55s",
           }}
         >
-          Современная косметология, мастера высшей категории
-          и оснащённый фитнес-зал в одном пространстве
+          {cms?.subtitle || "Современная косметология, мастера высшей категории и оснащённый фитнес-зал в одном пространстве"}
         </p>
 
         {/* CTAs */}

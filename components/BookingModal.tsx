@@ -59,9 +59,14 @@ const STEPS = ["Мастер", "Дата", "Время", "Данные"];
 interface Props {
   service: Service;
   onClose: () => void;
+  telegramUser?: {
+    telegramId: string;
+    name: string;
+    phone: string;
+  } | null;
 }
 
-export default function BookingModal({ service, onClose }: Props) {
+export default function BookingModal({ service, onClose, telegramUser }: Props) {
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>(1);
 
@@ -75,8 +80,8 @@ export default function BookingModal({ service, onClose }: Props) {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
-  const [clientName, setClientName] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
+  const [clientName, setClientName] = useState(telegramUser?.name || "");
+  const [clientPhone, setClientPhone] = useState(telegramUser?.phone || "");
   const [nameError, setNameError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -158,7 +163,7 @@ export default function BookingModal({ service, onClose }: Props) {
           startTime: selectedSlot.startTime,
           clientName: clientName.trim(),
           clientPhone: clientPhone.trim(),
-          clientTelegramId: typeof window !== "undefined" ? localStorage.getItem("profit_club_telegram_id") || undefined : undefined,
+          clientTelegramId: telegramUser?.telegramId || (typeof window !== "undefined" ? localStorage.getItem("profit_club_telegram_id") || undefined : undefined),
         }),
       });
       const data = await res.json();
@@ -525,11 +530,18 @@ export default function BookingModal({ service, onClose }: Props) {
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={() => {
+                  const tg = (window as any).Telegram?.WebApp;
+                  if (tg && telegramUser) {
+                    tg.close();
+                  } else {
+                    onClose();
+                  }
+                }}
                 className={`mt-5 w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-all shadow-lg shadow-[#B2223C]/20 hover:shadow-[#B2223C]/35 hover:scale-[1.01] active:scale-[0.99] bg-gradient-to-r ${GRAD}`}
                 style={{ fontFamily: FONT }}
               >
-                В главное меню
+                {telegramUser ? "Закрыть" : "В главное меню"}
               </button>
             </div>
           )}

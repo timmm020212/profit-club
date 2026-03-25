@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import type { WorkSlot } from "@/db/schema";
 
 export default function AdminWorkSlotsList({ masters, currentDate }: { masters: any[]; currentDate?: string }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
@@ -102,6 +104,7 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Не удалось подтвердить");
       setItems((prev) => prev.map((it) => it.id === slot.id ? { ...it, isConfirmed: true, adminUpdateStatus: "accepted" } : it));
+      router.refresh();
     } catch (e: any) {
       setError(e?.message || "Ошибка");
     } finally {
@@ -117,6 +120,7 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Не удалось удалить");
       setItems((prev) => prev.filter((it) => it.id !== slot.id));
+      router.refresh();
     } catch (e: any) {
       setError(e?.message || "Ошибка");
     } finally {

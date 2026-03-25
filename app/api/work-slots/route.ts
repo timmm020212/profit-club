@@ -370,8 +370,9 @@ export async function POST(request: Request) {
         startTime,
         endTime,
         createdBy: adminName,
-        isConfirmed: false, // По умолчанию не подтвержден
-        adminUpdateStatus: 'pending', // Ожидает подтверждения
+        isConfirmed: false,
+        adminUpdateStatus: 'pending',
+        createdAt: new Date().toISOString(),
       })
       .returning();
 

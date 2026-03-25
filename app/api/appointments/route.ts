@@ -456,17 +456,32 @@ export async function POST(request: Request) {
 
     if (finalTelegramId) {
       console.log(`Using Telegram ID from request: ${finalTelegramId}`);
-      // Пытаемся подтянуть данные клиента из регистрации
       try {
-        const client = await db
+        const existingClient = await db
           .select()
           .from(clients)
           .where(eq(clients.telegramId, finalTelegramId));
 
-        if (client.length > 0) {
-          finalClientName = client[0].name || finalClientName;
-          if (!finalClientPhone && client[0].phone) {
-            finalClientPhone = client[0].phone;
+        if (existingClient.length > 0) {
+          finalClientName = existingClient[0].name || finalClientName;
+          if (!finalClientPhone && existingClient[0].phone) {
+            finalClientPhone = existingClient[0].phone;
+          }
+        } else if (finalClientName && finalClientPhone) {
+          // Auto-register client from Mini App booking
+          try {
+            await db.insert(clients).values({
+              name: finalClientName,
+              phone: finalClientPhone,
+              telegramId: finalTelegramId,
+              isVerified: true,
+              createdAt: new Date().toISOString(),
+              verifiedAt: new Date().toISOString(),
+            });
+            console.log(`Auto-registered client: ${finalClientName}, tgId=${finalTelegramId}`);
+          } catch (regErr) {
+            // Ignore duplicate — client may have been registered between check and insert
+            console.error("Auto-registration error (may be duplicate):", regErr);
           }
         }
       } catch (e) {
@@ -489,6 +504,7 @@ export async function POST(request: Request) {
         clientPhone: finalClientPhone,
         clientTelegramId: finalTelegramId || null,
         status: "confirmed",
+        createdAt: new Date().toISOString(),
       })
       .returning();
 

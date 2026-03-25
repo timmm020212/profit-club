@@ -102,6 +102,7 @@ export async function POST(request: Request) {
         suggestedEndTime,
         type: resolvedType,
         status: "pending",
+        createdAt: new Date().toISOString(),
       })
       .returning();
 

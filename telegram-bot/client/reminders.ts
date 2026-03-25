@@ -1,10 +1,27 @@
-import { db } from "../../db";
-import { appointments, services, masters, reminderSent, workSlots, scheduleOptimizations, optimizationMoves, adminSettings } from "../../db/schema";
+import { db } from "../../db/index-postgres";
+import { appointments, services, masters, reminderSent, workSlots, scheduleOptimizations, optimizationMoves, adminSettings, botNotificationTemplates } from "../../db/schema-postgres";
 import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 
 function getBotToken(): string {
   return process.env.TELEGRAM_BOT_TOKEN || "8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30";
+}
+
+async function getTemplate(slug: string): Promise<{ template: string; enabled: boolean } | null> {
+  try {
+    const rows = await db.select({
+      messageTemplate: botNotificationTemplates.messageTemplate,
+      isEnabled: botNotificationTemplates.isEnabled,
+    }).from(botNotificationTemplates)
+      .where(eq(botNotificationTemplates.slug, slug))
+      .limit(1);
+    if (rows.length > 0) return { template: rows[0].messageTemplate, enabled: rows[0].isEnabled };
+  } catch {}
+  return null;
+}
+
+function renderTpl(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || "");
 }
 
 async function sendTelegramMessage(chatId: string, text: string, appointmentId: number): Promise<void> {
@@ -43,9 +60,21 @@ async function checkAndSendReminders(): Promise<void> {
         const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId));
         const [mst] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, apt.masterId));
 
-        const msg = type === "24hour"
-          ? `⏰ Напоминание о записи\n\n📅 Завтра, ${formatDateRu(apt.appointmentDate)}, ${apt.startTime}\n💇 ${svc?.name || "Услуга"}\n👩 ${mst?.fullName || "Мастер"}\n📍 Profit Club`
-          : `⏰ Скоро запись!\n\n📅 Сегодня, ${apt.startTime}\n💇 ${svc?.name || "Услуга"}\n👩 ${mst?.fullName || "Мастер"}\n📍 Profit Club`;
+        const slug = type === "24hour" ? "reminder_24h" : "reminder_2h";
+        const tpl = await getTemplate(slug);
+        if (tpl && !tpl.enabled) continue;
+
+        const vars = {
+          date: formatDateRu(apt.appointmentDate),
+          startTime: apt.startTime,
+          serviceName: svc?.name || "Услуга",
+          masterName: mst?.fullName || "Мастер",
+        };
+        const msg = tpl
+          ? renderTpl(tpl.template, vars)
+          : type === "24hour"
+            ? `⏰ Напоминание о записи\n\n📅 Завтра, ${vars.date}, ${vars.startTime}\n💇 ${vars.serviceName}\n👩 ${vars.masterName}\n📍 Profit Club`
+            : `⏰ Скоро запись!\n\n📅 Сегодня, ${vars.startTime}\n💇 ${vars.serviceName}\n👩 ${vars.masterName}\n📍 Profit Club`;
 
         await sendTelegramMessage(apt.clientTelegramId, msg, apt.id);
         await db.insert(reminderSent).values({ appointmentId: apt.id, sentAt: new Date().toISOString(), reminderType: type });
@@ -116,12 +145,23 @@ async function checkAutoOptimization(): Promise<void> {
                 if (!apt?.clientTelegramId) continue;
                 const [svc] = await db.select().from(services).where(eq(services.id, apt.serviceId));
                 const fDate = new Date(dateStr + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
+                const optTpl = await getTemplate("optimization_proposal");
+                if (optTpl && !optTpl.enabled) continue;
+                const optVars = {
+                  serviceName: svc?.name || "Услуга",
+                  masterName: master.fullName,
+                  oldTime: `${move.oldStartTime}–${move.oldEndTime}`,
+                  newTime: `${move.newStartTime}–${move.newEndTime}`,
+                };
+                const proposalText = optTpl
+                  ? renderTpl(optTpl.template, optVars)
+                  : `🔄 Предложение о переносе\n\n💇 ${optVars.serviceName}\n👩 ${optVars.masterName}\n\n❌ Текущее время: ${optVars.oldTime}\n✅ Предлагаемое: ${optVars.newTime}\n\nЭто позволит оптимизировать расписание мастера.`;
                 try {
                   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       chat_id: apt.clientTelegramId,
-                      text: `🔄 Предложение о переносе\n\n💇 ${svc?.name || "Услуга"}\n👩 ${master.fullName}\n\n❌ Текущее время: ${move.oldStartTime}–${move.oldEndTime}\n✅ Предлагаемое: ${move.newStartTime}–${move.newEndTime}\n\nЭто позволит оптимизировать расписание мастера.`,
+                      text: proposalText,
                       reply_markup: { inline_keyboard: [[
                         { text: "✅ Согласиться", callback_data: `opt_accept_${move.id}` },
                         { text: "❌ Оставить как есть", callback_data: `opt_decline_${move.id}` },

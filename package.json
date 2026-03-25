@@ -21,7 +21,8 @@
     "add-admin-telegram-ids": "tsx scripts/add-admin-telegram-ids.ts",
     "add-master-telegram-ids": "tsx scripts/add-master-telegram-ids.ts",
     "reminders:send": "tsx scripts/send-reminders.ts",
-    "test:appointment": "tsx scripts/add-test-appointment.ts"
+    "test:appointment": "tsx scripts/add-test-appointment.ts",
+    "admin": "tsx adminjs/server.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.80.0",
@@ -38,6 +39,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
+    "express": "^5.2.1",
     "graphql": "^16.13.1",
     "lucide-react": "^0.460.0",
     "next": "^15.5.12",

@@ -32,7 +32,7 @@ const ZONES = [
   },
 ];
 
-export default function ZonesShowcase() {
+export default function ZonesShowcase({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,10 +107,10 @@ export default function ZonesShowcase() {
               letterSpacing: "-0.02em",
             }}
           >
-            Три зоны —{" "}
+            {cms?.title || <>Три зоны —{" "}
             <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
               одна цель
-            </span>
+            </span></>}
           </h2>
         </div>
 

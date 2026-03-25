@@ -46,7 +46,7 @@ const PILLARS = [
   },
 ];
 
-export default function PhilosophySection() {
+export default function PhilosophySection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,11 +122,11 @@ export default function PhilosophySection() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Пространство,<br />
+              {cms?.title || <>Пространство,<br />
               <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
                 где рождается
               </span>{" "}
-              красота
+              красота</>}
             </h2>
             <p
               style={{
@@ -138,9 +138,7 @@ export default function PhilosophySection() {
                 maxWidth: 420,
               }}
             >
-              Profit Club — это не просто салон. Это экосистема, в которой косметология,
-              фитнес и барбершоп объединены в единое целое. Мы верим, что забота о себе
-              должна быть удовольствием, а не рутиной.
+              {cms?.subtitle || "Profit Club — это не просто салон. Это экосистема, в которой косметология, фитнес и барбершоп объединены в единое целое. Мы верим, что забота о себе должна быть удовольствием, а не рутиной."}
             </p>
           </div>
         </div>

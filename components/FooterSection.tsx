@@ -22,7 +22,7 @@ const SCHEDULE = [
   { days: "Вс", hours: "10:00 — 18:00" },
 ];
 
-export default function FooterSection() {
+export default function FooterSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   return (
     <footer className="relative w-full bg-[#04040A] overflow-hidden">
       {/* Subtle grid */}
@@ -59,7 +59,7 @@ export default function FooterSection() {
               lineHeight: 1.1,
             }}
           >
-            Готовы преобразиться?
+            {cms?.title || "Готовы преобразиться?"}
           </h3>
           <p
             className="relative"
@@ -74,7 +74,7 @@ export default function FooterSection() {
               lineHeight: 1.7,
             }}
           >
-            Запишитесь онлайн — выберите удобное время и мастера за пару кликов
+            {cms?.subtitle || "Запишитесь онлайн — выберите удобное время и мастера за пару кликов"}
           </p>
           <a href="/booking" className="pc-cta inline-flex relative">
             <span>Записаться</span>

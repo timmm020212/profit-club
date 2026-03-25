@@ -1,7 +1,24 @@
 import { formatDateRu, timeToMinutes } from "./utils";
-import { db } from "../../db";
-import { masters } from "../../db/schema";
+import { db } from "../../db/index-postgres";
+import { masters, botNotificationTemplates } from "../../db/schema-postgres";
 import { eq } from "drizzle-orm";
+
+async function getNotifTemplate(slug: string): Promise<{ template: string; enabled: boolean } | null> {
+  try {
+    const rows = await db.select({
+      messageTemplate: botNotificationTemplates.messageTemplate,
+      isEnabled: botNotificationTemplates.isEnabled,
+    }).from(botNotificationTemplates)
+      .where(eq(botNotificationTemplates.slug, slug))
+      .limit(1);
+    if (rows.length > 0) return { template: rows[0].messageTemplate, enabled: rows[0].isEnabled };
+  } catch {}
+  return null;
+}
+
+function renderTpl(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || "");
+}
 
 export interface NotificationSettings {
   newAppointments: boolean;
@@ -62,15 +79,21 @@ export async function notifyMasterNewAppointment(opts: {
   endTime: string;
 }) {
   if (!opts.masterTelegramId) return;
-  const s = await getMasterSettings(opts.masterTelegramId);
-  if (!s.newAppointments) return;
+  const tpl = await getNotifTemplate("master_new_appointment");
+  if (tpl && !tpl.enabled) return;
   const date = formatDateRu(opts.appointmentDate);
   const phone = opts.clientPhone ? `\n📞 ${opts.clientPhone}` : "";
-  const text =
-    `📌 Новая запись\n\n` +
-    `👤 ${opts.clientName}${phone}\n` +
-    `💇 ${opts.serviceName}\n` +
-    `📅 ${date}, ${opts.startTime}–${opts.endTime}`;
+  const vars = {
+    clientName: opts.clientName,
+    clientPhone: opts.clientPhone || "",
+    serviceName: opts.serviceName,
+    date,
+    startTime: opts.startTime,
+    endTime: opts.endTime,
+  };
+  const text = tpl
+    ? renderTpl(tpl.template, vars)
+    : `📌 Новая запись\n\n👤 ${opts.clientName}${phone}\n💇 ${opts.serviceName}\n📅 ${date}, ${opts.startTime}–${opts.endTime}`;
   await sendToMaster(opts.masterTelegramId, text);
 }
 
@@ -83,14 +106,19 @@ export async function notifyMasterCancellation(opts: {
   endTime: string;
 }) {
   if (!opts.masterTelegramId) return;
-  const s = await getMasterSettings(opts.masterTelegramId);
-  if (!s.cancellations) return;
+  const tpl = await getNotifTemplate("master_cancellation");
+  if (tpl && !tpl.enabled) return;
   const date = formatDateRu(opts.appointmentDate);
-  const text =
-    `❌ Запись отменена\n\n` +
-    `👤 ${opts.clientName}\n` +
-    `💇 ${opts.serviceName}\n` +
-    `📅 ${date}, ${opts.startTime}–${opts.endTime}`;
+  const vars = {
+    clientName: opts.clientName,
+    serviceName: opts.serviceName,
+    date,
+    startTime: opts.startTime,
+    endTime: opts.endTime,
+  };
+  const text = tpl
+    ? renderTpl(tpl.template, vars)
+    : `❌ Запись отменена\n\n👤 ${opts.clientName}\n💇 ${opts.serviceName}\n📅 ${date}, ${opts.startTime}–${opts.endTime}`;
   await sendToMaster(opts.masterTelegramId, text);
 
   // On cancellation, clear dedup for this date so breaks recalculate
@@ -130,17 +158,22 @@ export async function notifyMasterBreak(opts: {
   breakMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
-  const s = await getMasterSettings(opts.masterTelegramId);
-  if (!s.breaks) return;
   const key = `${opts.masterTelegramId}:${opts.appointmentDate}:${opts.breakStart}-${opts.breakEnd}`;
   if (sentNotifications.has(key)) return;
   sentNotifications.add(key);
 
+  const tpl = await getNotifTemplate("master_break");
+  if (tpl && !tpl.enabled) return;
   const date = formatDateRu(opts.appointmentDate);
-  const text =
-    `☕ Перерыв ${opts.breakMinutes} мин\n\n` +
-    `📅 ${date}\n` +
-    `🕐 ${opts.breakStart}–${opts.breakEnd}`;
+  const vars = {
+    breakMinutes: String(opts.breakMinutes),
+    date,
+    breakStart: opts.breakStart,
+    breakEnd: opts.breakEnd,
+  };
+  const text = tpl
+    ? renderTpl(tpl.template, vars)
+    : `☕ Перерыв ${opts.breakMinutes} мин\n\n📅 ${date}\n🕐 ${opts.breakStart}–${opts.breakEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
   console.log(`[notify-master] Sent break notification: ${key}`);
 }
@@ -153,18 +186,22 @@ export async function notifyMasterEarlyFinish(opts: {
   freeMinutes: number;
 }) {
   if (!opts.masterTelegramId) return;
-  const s = await getMasterSettings(opts.masterTelegramId);
-  if (!s.breaks) return;
   const key = `${opts.masterTelegramId}:${opts.appointmentDate}:earlyFinish:${opts.freeFrom}`;
   if (sentNotifications.has(key)) return;
   sentNotifications.add(key);
 
+  const tpl = await getNotifTemplate("master_early_finish");
+  if (tpl && !tpl.enabled) return;
   const date = formatDateRu(opts.appointmentDate);
-  const text =
-    `🏁 Вы свободны с ${opts.freeFrom}\n\n` +
-    `📅 ${date}\n` +
-    `🕐 Последняя запись заканчивается в ${opts.freeFrom}\n` +
-    `📋 Конец смены: ${opts.shiftEnd}`;
+  const vars = {
+    freeFrom: opts.freeFrom,
+    date,
+    shiftEnd: opts.shiftEnd,
+    freeMinutes: String(opts.freeMinutes),
+  };
+  const text = tpl
+    ? renderTpl(tpl.template, vars)
+    : `🏁 Вы свободны с ${opts.freeFrom}\n\n📅 ${date}\n🕐 Последняя запись заканчивается в ${opts.freeFrom}\n📋 Конец смены: ${opts.shiftEnd}`;
   await sendToMaster(opts.masterTelegramId, text);
   console.log(`[notify-master] Sent early finish notification: ${key}`);
 }

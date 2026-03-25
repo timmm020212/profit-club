@@ -19,7 +19,13 @@ interface Service {
   badgeType?: "dark" | "light" | "accent" | "discount" | null;
 }
 
-export default function BookingServicesGrid({ carousel = false }: { carousel?: boolean }) {
+interface TelegramUser {
+  telegramId: string;
+  name: string;
+  phone: string;
+}
+
+export default function BookingServicesGrid({ carousel = false, telegramUser }: { carousel?: boolean; telegramUser?: TelegramUser | null }) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeService, setActiveService] = useState<Service | null>(null);
@@ -229,7 +235,7 @@ export default function BookingServicesGrid({ carousel = false }: { carousel?: b
       `}</style>
 
       {activeService && (
-        <BookingModal service={activeService} onClose={() => setActiveService(null)} />
+        <BookingModal service={activeService} onClose={() => setActiveService(null)} telegramUser={telegramUser} />
       )}
     </>
   );

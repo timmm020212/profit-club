@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { services } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 
 export async function GET() {
   try {
-    console.log("Fetching services from SQLite...");
-    const allServices = await db.select().from(services);
+    console.log("Fetching services...");
+    const allServices = await db.select().from(services).orderBy(asc(services.orderDesktop));
     
     // Преобразуем в нужный формат
     const formattedServices = allServices.map((service: any) => ({

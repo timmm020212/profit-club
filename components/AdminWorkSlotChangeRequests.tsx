@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface ChangeRequestItem {
   id: number;
@@ -46,6 +47,7 @@ function timeOptions(fromHour: number, toHour: number): string[] {
 
 export default function AdminWorkSlotChangeRequests() {
   useSession();
+  const router = useRouter();
   const [items, setItems] = useState<ChangeRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export default function AdminWorkSlotChangeRequests() {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Не удалось обработать запрос");
       setItems((prev) => prev.filter((it) => it.id !== id));
+      router.refresh();
     } catch (e: any) {
       setError(e?.message || "Ошибка");
     } finally {

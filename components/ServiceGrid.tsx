@@ -2,7 +2,7 @@
 
 import BookingServicesGrid from "./BookingServicesGrid";
 
-const ServiceGrid = () => {
+const ServiceGrid = ({ cms }: { cms?: { title?: string; subtitle?: string } }) => {
   return (
     <section id="services" className="relative w-full bg-[#09090D] overflow-hidden">
       {/* Grid lines */}
@@ -38,10 +38,10 @@ const ServiceGrid = () => {
                 letterSpacing: "-0.02em",
               }}
             >
-              Наши{" "}
+              {cms?.title ? cms.title : <>Наши{" "}
               <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
                 услуги
-              </span>
+              </span></>}
             </h2>
             <p
               style={{
@@ -53,8 +53,7 @@ const ServiceGrid = () => {
                 maxWidth: 380,
               }}
             >
-              Выберите процедуру, подберите удобное время и запишитесь онлайн.
-              Каждая услуга выполняется сертифицированным специалистом.
+              {cms?.subtitle || "Выберите процедуру, подберите удобное время и запишитесь онлайн. Каждая услуга выполняется сертифицированным специалистом."}
             </p>
           </div>
         </div>

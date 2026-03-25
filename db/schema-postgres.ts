@@ -1,17 +1,17 @@
-import { pgTable, text, varchar, serial, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const services = pgTable("services", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   price: varchar("price", { length: 50 }),
-  imageUrl: varchar("imageUrl", { length: 500 }),
-  orderDesktop: integer("orderDesktop").notNull().default(0),
-  orderMobile: integer("orderMobile").notNull().default(0),
+  imageUrl: varchar("image_url", { length: 500 }),
+  orderDesktop: integer("order_desktop").notNull().default(0),
+  orderMobile: integer("order_mobile").notNull().default(0),
   duration: integer("duration").notNull().default(60),
-  badgeText: varchar("badgeText", { length: 50 }),
-  badgeType: varchar("badgeType", { length: 20 }),
-  executorRole: varchar("executorRole", { length: 255 }),
+  badgeText: varchar("badge_text", { length: 50 }),
+  badgeType: varchar("badge_type", { length: 20 }),
+  executorRole: varchar("executor_role", { length: 255 }),
   category: varchar("category", { length: 255 }),
 });
 
@@ -27,16 +27,16 @@ export const admins = pgTable("admins", {
 
 export const masters = pgTable("masters", {
   id: serial("id").primaryKey(),
-  fullName: varchar("fullName", { length: 255 }).notNull(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
   specialization: varchar("specialization", { length: 255 }).notNull(),
-  telegramId: varchar("telegramId", { length: 50 }),
+  telegramId: varchar("telegram_id", { length: 50 }),
   phone: varchar("phone", { length: 50 }),
-  staffPassword: varchar("staffPassword", { length: 255 }),
-  photoUrl: varchar("photoUrl", { length: 500 }),
-  isActive: boolean("isActive").default(true).notNull(),
-  showOnSite: boolean("showOnSite").default(true).notNull(),
-  notificationSettings: text("notificationSettings"),
-  createdAt: text("createdAt").notNull(),
+  staffPassword: varchar("staff_password", { length: 255 }),
+  photoUrl: varchar("photo_url", { length: 500 }),
+  isActive: boolean("is_active").default(true).notNull(),
+  showOnSite: boolean("show_on_site").default(true).notNull(),
+  notificationSettings: text("notification_settings"),
+  createdAt: text("created_at").notNull(),
 });
 
 export const appointments = pgTable("appointments", {
@@ -145,6 +145,83 @@ export const adminSettings = pgTable("adminSettings", {
   value: text("value"),
 });
 
+export const botNotificationTemplates = pgTable("bot_notification_templates", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  botType: varchar("bot_type", { length: 20 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  messageTemplate: text("message_template").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  variables: text("variables").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const botFlows = pgTable("bot_flows", {
+  id: serial("id").primaryKey(),
+  botType: varchar("bot_type", { length: 20 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  triggerCommand: varchar("trigger_command", { length: 100 }),
+  triggerCallback: varchar("trigger_callback", { length: 100 }),
+  triggerText: varchar("trigger_text", { length: 255 }),
+  isActive: boolean("is_active").default(true).notNull(),
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("bot_flows_bot_type_slug_idx").on(table.botType, table.slug),
+]);
+
+export const botSteps = pgTable("bot_steps", {
+  id: serial("id").primaryKey(),
+  flowId: integer("flow_id").notNull().references(() => botFlows.id, { onDelete: "cascade" }),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 30 }).notNull(),
+  messageTemplate: text("message_template"),
+  parseMode: varchar("parse_mode", { length: 20 }),
+  order: integer("order").default(0).notNull(),
+  actionType: varchar("action_type", { length: 50 }),
+  dataSource: varchar("data_source", { length: 100 }),
+  dataFilter: text("data_filter"),
+  backStepId: integer("back_step_id"),
+  nextStepId: integer("next_step_id"),
+  conditionFn: varchar("condition_fn", { length: 50 }),
+  conditionParams: text("condition_params"),
+  onConditionFailStepId: integer("on_condition_fail_step_id"),
+  useReplyKeyboard: boolean("use_reply_keyboard").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("bot_steps_flow_id_slug_idx").on(table.flowId, table.slug),
+]);
+
+export const botButtons = pgTable("bot_buttons", {
+  id: serial("id").primaryKey(),
+  stepId: integer("step_id").notNull().references(() => botSteps.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 255 }).notNull(),
+  type: varchar("type", { length: 20 }).notNull(),
+  targetStepId: integer("target_step_id"),
+  targetFlowSlug: varchar("target_flow_slug", { length: 100 }),
+  callbackData: varchar("callback_data", { length: 100 }),
+  urlTemplate: varchar("url_template", { length: 500 }),
+  order: integer("order").default(0).notNull(),
+  row: integer("row").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const botUserStates = pgTable("bot_user_states", {
+  id: serial("id").primaryKey(),
+  telegramId: varchar("telegram_id", { length: 50 }).notNull().unique(),
+  botType: varchar("bot_type", { length: 20 }).notNull(),
+  flowId: integer("flow_id"),
+  stepId: integer("step_id"),
+  vars: text("vars"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Types
 export type Service = typeof services.$inferSelect;
 export type NewService = typeof services.$inferInsert;
@@ -166,3 +243,10 @@ export type TelegramVerificationCode = typeof telegramVerificationCodes.$inferSe
 export type NewTelegramVerificationCode = typeof telegramVerificationCodes.$inferInsert;
 export type ReminderSent = typeof reminderSent.$inferSelect;
 export type NewReminderSent = typeof reminderSent.$inferInsert;
+export type BotFlow = typeof botFlows.$inferSelect;
+export type NewBotFlow = typeof botFlows.$inferInsert;
+export type BotStep = typeof botSteps.$inferSelect;
+export type NewBotStep = typeof botSteps.$inferInsert;
+export type BotButton = typeof botButtons.$inferSelect;
+export type NewBotButton = typeof botButtons.$inferInsert;
+export type BotUserState = typeof botUserStates.$inferSelect;

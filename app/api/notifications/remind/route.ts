@@ -130,7 +130,7 @@ export async function GET() {
 
       await db
         .insert(reminderSent)
-        .values({ appointmentId: row.appointmentId, reminderType: "2hour" });
+        .values({ appointmentId: row.appointmentId, reminderType: "2hour", sentAt: new Date().toISOString() });
 
       sent += 1;
     } catch (error) {

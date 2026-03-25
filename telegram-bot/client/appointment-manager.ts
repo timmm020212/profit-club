@@ -1,8 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { eq, and, gte } from "drizzle-orm";
-import { db } from "../../db";
-import { appointments, services, masters, workSlots, scheduleOptimizations, optimizationMoves } from "../../db/schema";
-import { bookingStates } from "./types";
+import { db } from "../../db/index-postgres";
+import { appointments, services, masters, workSlots, scheduleOptimizations, optimizationMoves } from "../../db/schema-postgres";
 import {
   timeToMinutes,
   formatDateRu,
@@ -301,18 +300,6 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
       const svc = svcRows[0];
       const master = masterRows[0];
 
-      // Set booking state for reschedule
-      bookingStates.set(telegramId, {
-        step: "date",
-        serviceId: apt.serviceId,
-        serviceName: svc.name,
-        serviceDuration: svc.duration,
-        servicePrice: svc.price || "",
-        masterId: apt.masterId,
-        masterName: master.fullName,
-        rescheduleFromId: apt.id,
-      });
-
       // Show date selection
       const today = new Date();
       const dates: string[] = [];
@@ -336,7 +323,6 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
       const availableDates = dates.filter((d) => slotDates.has(d));
 
       if (availableDates.length === 0) {
-        bookingStates.delete(telegramId);
         await ctx.editMessageText(
           `У мастера ${master.fullName} нет доступных дат на ближайшие 7 дней.`,
           menuBtn,
@@ -362,7 +348,6 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
   bot.action("reschedule_cancel", async (ctx) => {
     try {
       await ctx.answerCbQuery();
-      bookingStates.delete(uid(ctx));
       await ctx.editMessageText("Перенос отменён. Запись сохранена.", menuBtn);
     } catch (e) {
       console.error("[appointment-manager] reschedule_cancel error:", e);

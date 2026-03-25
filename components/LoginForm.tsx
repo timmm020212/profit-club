@@ -89,6 +89,8 @@ export default function LoginForm() {
     try {
       const res = await fetch("/api/clients/telegram-login-code", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() || undefined }),
       });
 
       const data = await res.json();

@@ -41,7 +41,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function TestimonialsSection() {
+export default function TestimonialsSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const sectionRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,10 +111,10 @@ export default function TestimonialsSection() {
               letterSpacing: "-0.02em",
             }}
           >
-            Что говорят{" "}
+            {cms?.title || <>Что говорят{" "}
             <span style={{ color: "transparent", WebkitTextStroke: "1px rgba(200,169,110,0.5)" }}>
               клиенты
-            </span>
+            </span></>}
           </h2>
         </div>
 

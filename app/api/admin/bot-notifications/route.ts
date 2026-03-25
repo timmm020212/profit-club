@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { botNotificationTemplates } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { DEFAULT_TEMPLATES } from "@/lib/bot-templates";
+
+export const dynamic = "force-dynamic";
+
+async function seedIfEmpty() {
+  const existing = await db.select({ id: botNotificationTemplates.id })
+    .from(botNotificationTemplates).limit(1);
+  if (existing.length > 0) return;
+
+  for (const t of DEFAULT_TEMPLATES) {
+    await db.insert(botNotificationTemplates).values({
+      slug: t.slug,
+      botType: t.botType,
+      name: t.name,
+      messageTemplate: t.messageTemplate,
+      isEnabled: t.isEnabled,
+      variables: JSON.stringify(t.variables),
+    });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    await seedIfEmpty();
+    const { searchParams } = new URL(request.url);
+    const botType = searchParams.get("botType");
+
+    const conditions = botType ? eq(botNotificationTemplates.botType, botType) : undefined;
+    const templates = await db.select().from(botNotificationTemplates).where(conditions);
+
+    return NextResponse.json(templates.map(t => ({
+      ...t,
+      variables: JSON.parse(t.variables),
+    })));
+  } catch (error) {
+    console.error("Error fetching notification templates:", error);
+    return NextResponse.json({ error: "Failed to fetch templates" }, { status: 500 });
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import type { Master, WorkSlot } from "@/db/schema";
 import AdminSelect from "@/components/ui/AdminSelect";
 
@@ -28,6 +29,7 @@ interface Props {
 
 export default function AdminWorkSlotsCreator({ masters, currentDate }: Props) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [masterId, setMasterId] = useState<number | "">("");
   const [date, setDate] = useState(currentDate);
   const [startTime, setStartTime] = useState("");
@@ -70,6 +72,7 @@ export default function AdminWorkSlotsCreator({ masters, currentDate }: Props) {
       const name = selectedMasterName ? toDativeFullName(selectedMasterName) : "мастеру";
       setSuccess(`Запрос отправлен ${name}`);
       setMasterId(""); setStartTime(""); setEndTime("");
+      router.refresh();
       setTimeout(() => setSuccess(null), 4000);
     } catch (e: any) {
       setError(e?.message || "Ошибка");
