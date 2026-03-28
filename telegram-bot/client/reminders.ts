@@ -4,7 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { formatDateRu } from "./utils";
 
 function getBotToken(): string {
-  return process.env.TELEGRAM_BOT_TOKEN || "8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30";
+  return process.env.TELEGRAM_BOT_TOKEN || "";
 }
 
 async function getTemplate(slug: string): Promise<{ template: string; enabled: boolean } | null> {

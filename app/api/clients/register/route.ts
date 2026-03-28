@@ -19,7 +19,7 @@ async function getBotUsername(): Promise<string> {
   }
   
   // Пытаемся получить username из API Telegram
-  const botToken = process.env.TELEGRAM_BOT_TOKEN || "8568554790:AAEHlp0un2EoHLGSJlE2G-suTZKp5seXz30";
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || "";
   
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
