@@ -15,8 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev              # Next.js сервер (0.0.0.0:3000)
 npm run bot:client       # Клиентский Telegram-бот
 npm run bot:masters      # Бот мастеров
-npm run bot:start        # Бот администратора
-npm run db:push          # Применить схему к SQLite
+npm run db:push          # Применить схему к PostgreSQL (Supabase)
 npm run db:studio        # Drizzle Studio (просмотр БД)
 npm run db:seed          # Заполнить тестовыми услугами
 npm run db:seed-masters  # Заполнить мастерами
@@ -27,13 +26,13 @@ npm run build            # Production сборка
 
 ## Стек
 
-**Next.js 15 App Router · TypeScript · Tailwind · SQLite → PostgreSQL (план) · NextAuth v4 · Telegraf**
+**Next.js 15 App Router · TypeScript · Tailwind · PostgreSQL (Supabase) · NextAuth v4 · Telegraf**
 
 ## Критические правила
 
-**БД-импорт в Next.js:** `import { db } from "@/db"` (реэкспорт из `db/index-sqlite.ts`)
-**БД-импорт в ботах:** `import { db } from "../db/index-sqlite"` — НЕ из `../db`
-**Схема:** `db/schema-sqlite.ts`. Ключевые таблицы: `services`, `masters`, `appointments`, `workSlots`, `clients`, `pendingClients`, `telegramVerificationCodes`.
+**БД-импорт в Next.js:** `import { db } from "@/db"` (реэкспорт из `db/index-postgres.ts`)
+**БД-импорт в ботах:** `import { db } from "../db/index-postgres"`
+**Схема:** `db/schema-postgres.ts`. Ключевые таблицы: `services`, `masters`, `appointments`, `workSlots`, `clients`, `pendingClients`, `telegramVerificationCodes`.
 
 **Даты:** всегда `getFullYear/getMonth/getDate`. НИКОГДА `toISOString().slice(0,10)` — timezone bug.
 **Модалки:** через `createPortal(modal, document.body)` c `z-[9999]` (backdrop-filter ломает z-index).

@@ -15,7 +15,6 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-masters": "tsx scripts/seed-masters.ts",
     "db:view": "tsx scripts/view-services.ts",
-    "bot:start": "tsx telegram-bot/admin-bot-full.ts",
     "bot:masters": "tsx telegram-bot/masters-bot-full.ts",
     "bot:client": "tsx telegram-bot/client-simple.ts",
     "add-admin-telegram-ids": "tsx scripts/add-admin-telegram-ids.ts",
@@ -27,9 +26,7 @@
   "dependencies": {
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-    "@types/better-sqlite3": "^7.6.13",
     "bcrypt": "^6.0.0",
-    "better-sqlite3": "^12.6.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

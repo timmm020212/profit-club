@@ -11,6 +11,7 @@ import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
 import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
+import AutoRefresh from "@/components/AutoRefresh";
 import { and, eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
@@ -140,6 +141,7 @@ export default async function AdminDashboardPage({
 
   return (
     <div className="min-h-screen bg-[#070709] text-white">
+      <AutoRefresh intervalMs={5000} />
       <AdminHeader masters={mastersData as any} />
 
       {/* Sticky subheader: date nav + stats */}
