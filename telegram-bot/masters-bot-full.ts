@@ -11,6 +11,7 @@ function getMastersToken(): string {
 }
 
 const bot = new Telegraf(getMastersToken());
+const SITE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
 // Простое хранилище состояний
 const userStates = new Map<string, any>();
@@ -103,6 +104,7 @@ async function buildMasterMenu(): Promise<{ markup: any; isInline: boolean }> {
   if (!isReply) {
     return {
       markup: Markup.inlineKeyboard([
+        ...(SITE_URL.startsWith('https://') ? [[Markup.button.webApp('📱 Мини-приложение', `${SITE_URL}/master`)]] : []),
         [Markup.button.callback('📅 Расписание', 'master_schedule')],
         [Markup.button.callback('🔄 Изменить рабочий день', 'master_change_day')],
         [Markup.button.callback('⚙️ Настройки', 'master_settings')],
@@ -298,6 +300,17 @@ bot.start(async (ctx) => {
   const master = await isMaster(telegramId);
 
   if (master) {
+    // Set persistent WebApp menu button
+    if (SITE_URL.startsWith('https://')) {
+      bot.telegram.setChatMenuButton({
+        chatId: ctx.from.id,
+        menuButton: {
+          type: 'web_app',
+          text: '📱 Мини-апп',
+          web_app: { url: `${SITE_URL}/master` },
+        },
+      }).catch(() => {});
+    }
     const welcomeText = `Добро пожаловать, ${master.fullName}!`;
     await showMasterMenu(ctx, welcomeText);
   } else {
