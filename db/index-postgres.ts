@@ -9,6 +9,7 @@ import * as schema from './schema-postgres';
 
 // Создаем пул соединений PostgreSQL
 const dbUrl = process.env.DATABASE_URL || "";
+console.log(`[db] DATABASE_URL user: ${dbUrl ? (dbUrl.match(/\/\/([^:@]+)/)?.[1] ?? "parse-error") : "EMPTY"}`);
 const pool = new Pool({
   connectionString: dbUrl,
   ssl: dbUrl.includes("supabase") ? { rejectUnauthorized: false } : undefined,
