@@ -127,13 +127,6 @@ async function buildMasterMenu(): Promise<{ markup: any; isInline: boolean }> {
 /** Показывает главное меню. Если inline — сначала убирает reply-клавиатуру, затем отправляет меню. */
 async function showMasterMenu(ctx: any, text: string) {
   const { markup, isInline } = await buildMasterMenu();
-  if (isInline) {
-    // Убираем reply-клавиатуру: отправляем скрытое сообщение и сразу удаляем его
-    try {
-      const rm = await ctx.reply('·', Markup.removeKeyboard());
-      await ctx.telegram.deleteMessage(ctx.chat.id, rm.message_id);
-    } catch {}
-  }
   await ctx.reply(text, markup);
 }
 
