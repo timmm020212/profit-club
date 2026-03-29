@@ -3,7 +3,7 @@ config({ path: '.env.local' });
 
 import { Telegraf, Markup } from 'telegraf';
 import { db } from '../db/index-postgres';
-import { masters, workSlots, appointments, services, workSlotChangeRequests, botFlows, botSteps } from '../db/schema-postgres';
+import { masters, workSlots, appointments, services, workSlotChangeRequests, botFlows, botSteps, optimizationMoves } from '../db/schema-postgres';
 import { eq, and, gte, asc } from 'drizzle-orm';
 
 function getMastersToken(): string {
@@ -603,6 +603,52 @@ async function handleWorkSlotChange(telegramId: string, slot: any, type: string,
     console.error('Error creating change request:', error);
   }
 }
+
+// ── Optimization master approval ─────────────────────────────
+
+bot.action(/^opt_master_accept_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const moveId = parseInt(ctx.match[1]);
+
+  const [move] = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId));
+  if (!move || move.clientResponse !== "awaiting_master") {
+    try { await ctx.editMessageText("Это предложение уже обработано."); } catch {}
+    return;
+  }
+
+  await db.update(optimizationMoves)
+    .set({ clientResponse: "master_accepted", masterRespondedAt: new Date().toISOString() })
+    .where(eq(optimizationMoves.id, moveId));
+
+  try {
+    await ctx.editMessageText(
+      `✅ Перенос одобрен!\n\n🕐 ${move.oldStartTime}–${move.oldEndTime} → ${move.newStartTime}–${move.newEndTime}\n\nПредложение будет отправлено клиенту.`,
+      Markup.inlineKeyboard([[Markup.button.callback("🏠 Главное меню", "go_main")]]),
+    );
+  } catch {}
+});
+
+bot.action(/^opt_master_decline_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const moveId = parseInt(ctx.match[1]);
+
+  const [move] = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId));
+  if (!move || move.clientResponse !== "awaiting_master") {
+    try { await ctx.editMessageText("Это предложение уже обработано."); } catch {}
+    return;
+  }
+
+  await db.update(optimizationMoves)
+    .set({ clientResponse: "master_declined", masterRespondedAt: new Date().toISOString() })
+    .where(eq(optimizationMoves.id, moveId));
+
+  try {
+    await ctx.editMessageText(
+      `❌ Перенос отклонён\n\n🕐 Запись остаётся на ${move.oldStartTime}–${move.oldEndTime}`,
+      Markup.inlineKeyboard([[Markup.button.callback("🏠 Главное меню", "go_main")]]),
+    );
+  } catch {}
+});
 
 // ── Complete appointment ─────────────────────────────────────
 
