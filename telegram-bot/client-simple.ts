@@ -125,39 +125,70 @@ bot.action(/^confirm_complete_(\d+)$/, async (ctx) => {
     .set({ status: "completed" })
     .where(eq(appointments.id, aptId));
   try {
-    await ctx.editMessageText("✅ Запись завершена! Спасибо за подтверждение.");
+    await ctx.editMessageText(
+      "✅ Запись завершена! Спасибо за подтверждение.",
+      Markup.inlineKeyboard([[Markup.button.callback("🏠 Главное меню", "menu")]]),
+    );
   } catch {}
 });
 
 bot.action(/^dispute_complete_(\d+)$/, async (ctx) => {
   try { await ctx.answerCbQuery(); } catch {}
   const aptId = parseInt(ctx.match[1]);
-  const adminId = process.env.ADMIN_TELEGRAM_ID;
-  if (adminId && adminId !== "123456789") {
-    const [apt] = await db.select({
-      clientName: appointments.clientName,
-      serviceId: appointments.serviceId,
-      masterId: appointments.masterId,
-      startTime: appointments.startTime,
-      appointmentDate: appointments.appointmentDate,
-    }).from(appointments).where(eq(appointments.id, aptId));
 
-    if (apt) {
-      const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId));
-      const [master] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, apt.masterId));
-      const botToken = process.env.TELEGRAM_BOT_TOKEN || "";
+  // Set status to disputed
+  await db.update(appointments)
+    .set({ status: "disputed" })
+    .where(eq(appointments.id, aptId));
+
+  // Notify admin (all admins via DB)
+  const [apt] = await db.select({
+    clientName: appointments.clientName,
+    serviceId: appointments.serviceId,
+    masterId: appointments.masterId,
+    startTime: appointments.startTime,
+    appointmentDate: appointments.appointmentDate,
+  }).from(appointments).where(eq(appointments.id, aptId));
+
+  if (apt) {
+    const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId));
+    const [master] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, apt.masterId));
+    const adminId = process.env.ADMIN_TELEGRAM_ID;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN || "";
+    if (adminId) {
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: adminId,
-          text: `⚠️ Клиент не согласен с завершением записи!\n\n👤 ${apt.clientName}\n💇 ${svc?.name || "Услуга"}\n👩 ${master?.fullName || "Мастер"}\n📅 ${apt.appointmentDate} ${apt.startTime}`,
+          text: `⚠️ Клиент не согласен с завершением записи!\n\n👤 ${apt.clientName}\n💇 ${svc?.name || "Услуга"}\n👩 ${master?.fullName || "Мастер"}\n📅 ${apt.appointmentDate} ${apt.startTime}\n\nСтатус: Оспорена`,
         }),
       });
     }
   }
+
   try {
-    await ctx.editMessageText("📨 Ваше обращение отправлено администратору. Мы свяжемся с вами.");
+    await ctx.editMessageText(
+      "📨 Ваше обращение отправлено администратору. Мы свяжемся с вами.",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🔄 Изменить решение", `change_decision_${aptId}`)],
+        [Markup.button.callback("🏠 Главное меню", "menu")],
+      ]),
+    );
+  } catch {}
+});
+
+bot.action(/^change_decision_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const aptId = parseInt(ctx.match[1]);
+  try {
+    await ctx.editMessageText(
+      "Подтвердите завершение записи:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("✅ Подтверждаю", `confirm_complete_${aptId}`)],
+        [Markup.button.callback("❌ Не согласен", `dispute_complete_${aptId}`)],
+      ]),
+    );
   } catch {}
 });
 

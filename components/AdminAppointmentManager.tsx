@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<string, { border: string; badge: string; label: stri
   in_progress: { border: "rgba(59,130,246,0.6)", badge: "bg-blue-500/20 text-blue-400", label: "В процессе" },
   completed_by_master: { border: "rgba(245,158,11,0.6)", badge: "bg-amber-500/20 text-amber-400", label: "Ожидает" },
   completed: { border: "rgba(34,197,94,0.6)", badge: "bg-green-500/20 text-green-400", label: "Завершена" },
+  disputed: { border: "rgba(239,68,68,0.6)", badge: "bg-red-500/20 text-red-400", label: "Оспорена" },
 };
 
 export default function AdminAppointmentManager({ appointment, masters, services, cardHeight }: Props) {

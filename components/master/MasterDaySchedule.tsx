@@ -7,6 +7,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   in_progress: { color: "#3B82F6", label: "В процессе" },
   completed_by_master: { color: "#F59E0B", label: "Ожидает подтверждения" },
   completed: { color: "#22C55E", label: "Завершена" },
+  disputed: { color: "#EF4444", label: "Оспорена клиентом" },
 };
 
 interface Appointment {
