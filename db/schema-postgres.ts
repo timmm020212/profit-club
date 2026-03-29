@@ -36,6 +36,7 @@ export const masters = pgTable("masters", {
   isActive: boolean("is_active").default(true).notNull(),
   showOnSite: boolean("show_on_site").default(true).notNull(),
   notificationSettings: text("notification_settings"),
+  commissionPercent: integer("commission_percent").default(50).notNull(),
   createdAt: text("created_at").notNull(),
 });
 
@@ -220,6 +221,23 @@ export const botUserStates = pgTable("bot_user_states", {
   stepId: integer("step_id"),
   vars: text("vars"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const masterPortfolio = pgTable("masterPortfolio", {
+  id: serial("id").primaryKey(),
+  masterId: integer("masterId").notNull(),
+  imageUrl: varchar("imageUrl", { length: 500 }).notNull(),
+  description: varchar("description", { length: 200 }),
+  serviceId: integer("serviceId"),
+  createdAt: text("createdAt").notNull(),
+});
+
+export const masterClientNotes = pgTable("masterClientNotes", {
+  id: serial("id").primaryKey(),
+  masterId: integer("masterId").notNull(),
+  clientIdentifier: varchar("clientIdentifier", { length: 20 }).notNull(),
+  note: text("note"),
+  updatedAt: text("updatedAt").notNull(),
 });
 
 // Types
