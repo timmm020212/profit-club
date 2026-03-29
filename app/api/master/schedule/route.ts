@@ -46,14 +46,14 @@ export async function GET(request: Request) {
         clientTelegramId: appointments.clientTelegramId,
         serviceId: appointments.serviceId,
         status: appointments.status,
+        autoCompleted: appointments.autoCompleted,
       })
       .from(appointments)
       .where(
         and(
           eq(appointments.masterId, masterId),
           gte(appointments.appointmentDate, week.start),
-          lte(appointments.appointmentDate, week.end),
-          eq(appointments.status, "confirmed")
+          lte(appointments.appointmentDate, week.end)
         )
       );
 

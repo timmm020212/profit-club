@@ -3,11 +3,12 @@ config({ path: '.env.local' });
 
 import { Telegraf, Markup } from 'telegraf';
 import { db } from '../db/index-postgres';
-import { clients, telegramVerificationCodes } from '../db/schema-postgres';
+import { clients, telegramVerificationCodes, appointments, services, masters } from '../db/schema-postgres';
 import { eq, and, gt } from 'drizzle-orm';
 import { registerAppointmentHandlers } from './client/appointment-manager';
 import { startReminderLoop } from './client/reminders';
 import { registerOptimizationHandlers } from './client/optimization-handler';
+import { checkStatusTransitions } from './client/status-tracker';
 
 const SITE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
@@ -116,6 +117,50 @@ bot.start(async (ctx) => {
   await showRegistrationPrompt(ctx, firstName);
 });
 
+// ── Appointment completion confirm/dispute ──────────────────
+bot.action(/^confirm_complete_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const aptId = parseInt(ctx.match[1]);
+  await db.update(appointments)
+    .set({ status: "completed" })
+    .where(eq(appointments.id, aptId));
+  try {
+    await ctx.editMessageText("✅ Запись завершена! Спасибо за подтверждение.");
+  } catch {}
+});
+
+bot.action(/^dispute_complete_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const aptId = parseInt(ctx.match[1]);
+  const adminId = process.env.ADMIN_TELEGRAM_ID;
+  if (adminId && adminId !== "123456789") {
+    const [apt] = await db.select({
+      clientName: appointments.clientName,
+      serviceId: appointments.serviceId,
+      masterId: appointments.masterId,
+      startTime: appointments.startTime,
+      appointmentDate: appointments.appointmentDate,
+    }).from(appointments).where(eq(appointments.id, aptId));
+
+    if (apt) {
+      const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId));
+      const [master] = await db.select({ fullName: masters.fullName }).from(masters).where(eq(masters.id, apt.masterId));
+      const botToken = process.env.TELEGRAM_BOT_TOKEN || "";
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: adminId,
+          text: `⚠️ Клиент не согласен с завершением записи!\n\n👤 ${apt.clientName}\n💇 ${svc?.name || "Услуга"}\n👩 ${master?.fullName || "Мастер"}\n📅 ${apt.appointmentDate} ${apt.startTime}`,
+        }),
+      });
+    }
+  }
+  try {
+    await ctx.editMessageText("📨 Ваше обращение отправлено администратору. Мы свяжемся с вами.");
+  } catch {}
+});
+
 // ── About ───────────────────────────────────────────────────
 bot.action('about', async (ctx) => {
   await ctx.answerCbQuery();
@@ -152,6 +197,10 @@ bot.action('book_back_menu', handleBackToMenu);
 
 // ── Launch ──────────────────────────────────────────────────
 startReminderLoop();
+setInterval(() => {
+  checkStatusTransitions().catch(err => console.error('[status-tracker] loop error:', err));
+}, 60_000);
+console.log('[status-tracker] Loop started (every 1 min)');
 console.log('[client-bot] Starting...');
 bot.launch({ dropPendingUpdates: true }).then(() => {
   console.log('[client-bot] Stopped.');

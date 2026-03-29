@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  confirmed: { color: "#9CA3AF", label: "Подтверждена" },
+  in_progress: { color: "#3B82F6", label: "В процессе" },
+  completed_by_master: { color: "#F59E0B", label: "Ожидает подтверждения" },
+  completed: { color: "#22C55E", label: "Завершена" },
+};
+
 interface Appointment {
   id: number;
   startTime: string;
@@ -11,6 +18,8 @@ interface Appointment {
   clientPhone: string;
   clientTelegramId?: string;
   clientNote?: string;
+  status?: string;
+  autoCompleted?: boolean;
 }
 
 interface WorkSlot {
@@ -129,7 +138,7 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
             <div
               key={apt.id}
               className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden"
-              style={{ borderLeft: "3px solid #B2223C" }}
+              style={{ borderLeft: `3px solid ${(STATUS_CONFIG[apt.status || "confirmed"] || STATUS_CONFIG.confirmed).color}` }}
             >
               <div
                 onClick={() => setExpandedId(isExpanded ? null : apt.id)}
@@ -142,6 +151,14 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
                 <div className="flex-1 pl-1">
                   <div className="text-[13px] font-semibold text-gray-900">{apt.serviceName}</div>
                   <div className="text-[11px] text-gray-500 mt-0.5">{apt.clientName}</div>
+                  {apt.status && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: (STATUS_CONFIG[apt.status] || STATUS_CONFIG.confirmed).color }} />
+                      <span className="text-[9px] font-medium" style={{ color: (STATUS_CONFIG[apt.status] || STATUS_CONFIG.confirmed).color }}>
+                        {(STATUS_CONFIG[apt.status] || STATUS_CONFIG.confirmed).label}{apt.autoCompleted ? " (авто)" : ""}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center text-gray-300 text-sm">
                   {isExpanded ? "▲" : "▼"}

@@ -603,6 +603,59 @@ async function handleWorkSlotChange(telegramId: string, slot: any, type: string,
   }
 }
 
+// ── Complete appointment ─────────────────────────────────────
+
+bot.action(/^complete_apt_(\d+)$/, async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch {}
+  const aptId = parseInt(ctx.match[1]);
+
+  const [apt] = await db.select({
+    id: appointments.id,
+    status: appointments.status,
+    clientName: appointments.clientName,
+    clientTelegramId: appointments.clientTelegramId,
+    serviceId: appointments.serviceId,
+    startTime: appointments.startTime,
+    endTime: appointments.endTime,
+  }).from(appointments).where(eq(appointments.id, aptId));
+
+  if (!apt || (apt.status !== "in_progress" && apt.status !== "confirmed")) {
+    try { await ctx.editMessageText("❌ Запись уже завершена или не найдена."); } catch {}
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await db.update(appointments)
+    .set({ status: "completed_by_master", completedByMasterAt: now })
+    .where(eq(appointments.id, aptId));
+
+  if (apt.clientTelegramId) {
+    const [svc] = await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId));
+    const clientBotToken = process.env.TELEGRAM_BOT_TOKEN || "";
+    await fetch(`https://api.telegram.org/bot${clientBotToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: apt.clientTelegramId,
+        text: `✅ Мастер завершил вашу запись\n\n💇 ${svc?.name || "Услуга"}\n⏰ ${apt.startTime}–${apt.endTime}\n\nПодтвердите завершение:`,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "✅ Подтверждаю", callback_data: `confirm_complete_${aptId}` }],
+            [{ text: "❌ Не согласен", callback_data: `dispute_complete_${aptId}` }],
+          ],
+        },
+      }),
+    });
+  }
+
+  try {
+    await ctx.editMessageText(
+      `✅ Запись завершена!\n\n💇 ${apt.clientName}\n⏰ ${apt.startTime}–${apt.endTime}\n\nКлиенту отправлен запрос на подтверждение.`,
+      Markup.inlineKeyboard([[Markup.button.callback("🏠 Главное меню", "go_main")]]),
+    );
+  } catch {}
+});
+
 // ── Callback queries (confirm/reject slots) ──────────────────
 
 bot.on('callback_query', async (ctx) => {
