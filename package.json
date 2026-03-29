@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
+    "db:seed-all": "tsx db/seed-all-services.ts",
     "db:seed-masters": "tsx scripts/seed-masters.ts",
     "db:view": "tsx scripts/view-services.ts",
     "bot:masters": "tsx telegram-bot/masters-bot-full.ts",
