@@ -12,7 +12,7 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
 
       // Load move
       const moveRows = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId)).limit(1);
-      if (!moveRows.length || moveRows[0].clientResponse !== "pending") {
+      if (!moveRows.length || moveRows[0].clientResponse !== "sent_to_client") {
         await ctx.editMessageText("Это предложение уже обработано.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         return;
       }
@@ -47,7 +47,7 @@ export function registerOptimizationHandlers(bot: Telegraf<any>) {
       const moveId = parseInt(ctx.match[1]);
 
       const moveRows = await db.select().from(optimizationMoves).where(eq(optimizationMoves.id, moveId)).limit(1);
-      if (!moveRows.length || moveRows[0].clientResponse !== "pending") {
+      if (!moveRows.length || moveRows[0].clientResponse !== "sent_to_client") {
         await ctx.editMessageText("Это предложение уже обработано.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "book_back_menu")]]));
         return;
       }
