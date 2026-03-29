@@ -52,6 +52,8 @@ export const appointments = pgTable("appointments", {
   clientTelegramId: varchar("clientTelegramId", { length: 50 }),
   status: varchar("status", { length: 20 }).default("confirmed").notNull(),
   createdAt: text("createdAt").notNull(),
+  completedByMasterAt: text("completedByMasterAt"),
+  autoCompleted: boolean("autoCompleted").default(false).notNull(),
 });
 
 export const workSlots = pgTable("workSlots", {
