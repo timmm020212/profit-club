@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { workSlots, masters, services, appointments } from "@/db/schema";
+import { workSlots, masters, services, appointments, scheduleBlocks } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
@@ -222,6 +222,15 @@ export async function GET(request: Request) {
         )
       );
 
+    const blocks = await db.select({
+      startTime: scheduleBlocks.startTime,
+      endTime: scheduleBlocks.endTime,
+    }).from(scheduleBlocks)
+      .where(and(
+        eq(scheduleBlocks.masterId, masterIdNum),
+        eq(scheduleBlocks.blockDate, date),
+      ));
+
     // Генерируем доступные слоты
     // Слот создается каждые 30 минут (можно настроить)
     const slotInterval = 30; // минут
@@ -254,6 +263,11 @@ export async function GET(request: Request) {
           break;
         }
       }
+
+      const blockOverlap = blocks.some((b: any) =>
+        timeRangesOverlap(slotStart, slotEnd, timeToMinutes(b.startTime), timeToMinutes(b.endTime))
+      );
+      if (blockOverlap) continue;
 
       if (isAvailable) {
         availableSlots.push({

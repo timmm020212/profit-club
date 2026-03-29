@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { appointments, masters, services, workSlots } from "@/db/schema";
+import { appointments, masters, services, workSlots, scheduleBlocks } from "@/db/schema";
 import AdminHeader from "@/components/AdminHeader";
 import AdminWorkSlotsCreator from "@/components/AdminWorkSlotsCreator";
 import AdminWorkSlotsList from "@/components/AdminWorkSlotsList";
@@ -10,6 +10,7 @@ import AdminAppointmentManager from "@/components/AdminAppointmentManager";
 import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
 import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
+import AdminAddBlockButton from "@/components/AdminAddBlockButton";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import AutoRefresh from "@/components/AutoRefresh";
 import { and, eq } from "drizzle-orm";
@@ -24,7 +25,7 @@ function minutesToTime(m: number): string {
 }
 
 async function getAdminDataForDate(dateStr: string) {
-  const [appointmentsData, mastersData, servicesData, workSlotsData] = await Promise.all([
+  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData] = await Promise.all([
     db.select().from(appointments)
       .where(eq(appointments.appointmentDate, dateStr))
       .orderBy(appointments.startTime as any),
@@ -33,8 +34,10 @@ async function getAdminDataForDate(dateStr: string) {
     db.select().from(workSlots)
       .where(eq(workSlots.workDate, dateStr))
       .orderBy(workSlots.startTime as any),
+    db.select().from(scheduleBlocks)
+      .where(eq(scheduleBlocks.blockDate, dateStr)),
   ]);
-  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData };
+  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData };
 }
 
 const MONTHS_RU = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -51,7 +54,7 @@ export default async function AdminDashboardPage({
   const requestedDate = typeof params?.date === "string" ? params.date : undefined;
   const currentDateStr = requestedDate || todayStr;
 
-  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData } =
+  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData } =
     await getAdminDataForDate(currentDateStr);
 
   const now = new Date();
@@ -178,6 +181,11 @@ export default async function AdminDashboardPage({
               <div className="h-6 w-px bg-white/[0.07]" />
               <AdminMasterCreator masters={mastersData as any} />
               <AdminRoleCreator masters={mastersData as any} />
+              <AdminAddBlockButton
+                masters={(mastersData as any[]).map((m: any) => ({ id: m.id, fullName: m.fullName }))}
+                services={(servicesData as any[]).map((s: any) => ({ id: s.id, name: s.name }))}
+                date={dateStr}
+              />
             </div>
           </div>
         </div>
@@ -365,6 +373,38 @@ export default async function AdminDashboardPage({
                                 </div>
                               );
                             })}
+
+                            {/* Schedule blocks (breaks, custom) */}
+                            {(blocksData as any[] || [])
+                              .filter((b: any) => b.masterId === master.id)
+                              .map((block: any) => {
+                                const bStart = timeToMinutes(block.startTime);
+                                const bEnd = timeToMinutes(block.endTime);
+                                const top = (bStart - roundedMin) * PX_PER_MIN;
+                                const height = (bEnd - bStart) * PX_PER_MIN;
+                                const isBreak = block.blockType === "break";
+                                return (
+                                  <div
+                                    key={`block-${block.id}`}
+                                    className="absolute left-1 right-1 rounded-lg border overflow-hidden"
+                                    style={{
+                                      top: `${top}px`,
+                                      height: `${height}px`,
+                                      borderColor: isBreak ? "rgba(59,130,246,0.3)" : "rgba(156,163,175,0.3)",
+                                      background: isBreak ? "rgba(59,130,246,0.08)" : "rgba(156,163,175,0.08)",
+                                    }}
+                                  >
+                                    <div className="px-2 py-1 h-full flex flex-col justify-center">
+                                      <div className="text-[10px] font-medium" style={{ color: isBreak ? "#60A5FA" : "#9CA3AF" }}>
+                                        {isBreak ? "☕ Перерыв" : `📌 ${block.blockType}`}
+                                      </div>
+                                      {block.comment && height > 30 && (
+                                        <div className="text-[9px] text-zinc-500 truncate">{block.comment}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
 
                             {/* Break gaps between appointments */}
                             {apps.length >= 2 && apps.map((app, i) => {
