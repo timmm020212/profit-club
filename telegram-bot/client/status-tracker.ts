@@ -10,9 +10,14 @@ function getMastersBotToken(): string {
   return process.env.MASTERS_BOT_TOKEN || "";
 }
 
+function getMoscowDate(): Date {
+  const now = new Date();
+  return new Date(now.getTime() + 3 * 60 * 60 * 1000);
+}
+
 function nowStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const d = getMoscowDate();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 function timeToMin(t: string): number {
@@ -21,8 +26,8 @@ function timeToMin(t: string): number {
 }
 
 function currentMinutes(): number {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+  const d = getMoscowDate();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 async function sendMasterMessage(chatId: string, text: string, buttons?: any) {
