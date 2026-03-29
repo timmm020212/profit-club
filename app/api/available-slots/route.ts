@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { workSlots, masters, services, appointments, scheduleBlocks } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, inArray } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
 
@@ -218,7 +218,7 @@ export async function GET(request: Request) {
         and(
           eq(appointments.masterId, masterIdNum),
           eq(appointments.appointmentDate, date),
-          eq(appointments.status, "confirmed")
+          inArray(appointments.status, ["confirmed", "preliminary"])
         )
       );
 
