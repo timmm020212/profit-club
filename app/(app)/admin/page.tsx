@@ -14,6 +14,7 @@ import AdminAddBlockButton from "@/components/AdminAddBlockButton";
 import AdminBlockManager from "@/components/AdminBlockManager";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import AutoRefresh from "@/components/AutoRefresh";
+import AdminPreliminaryBookings from "@/components/AdminPreliminaryBookings";
 import { and, eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
@@ -26,7 +27,7 @@ function minutesToTime(m: number): string {
 }
 
 async function getAdminDataForDate(dateStr: string) {
-  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData] = await Promise.all([
+  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData] = await Promise.all([
     db.select().from(appointments)
       .where(eq(appointments.appointmentDate, dateStr))
       .orderBy(appointments.startTime as any),
@@ -37,8 +38,10 @@ async function getAdminDataForDate(dateStr: string) {
       .orderBy(workSlots.startTime as any),
     db.select().from(scheduleBlocks)
       .where(eq(scheduleBlocks.blockDate, dateStr)),
+    db.select().from(appointments)
+      .where(eq(appointments.status, "preliminary")),
   ]);
-  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData };
+  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData };
 }
 
 const MONTHS_RU = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -55,7 +58,7 @@ export default async function AdminDashboardPage({
   const requestedDate = typeof params?.date === "string" ? params.date : undefined;
   const currentDateStr = requestedDate || todayStr;
 
-  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData } =
+  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData } =
     await getAdminDataForDate(currentDateStr);
 
   const now = new Date();
@@ -218,6 +221,28 @@ export default async function AdminDashboardPage({
                   ))}
                 </div>
               </section>
+            )}
+
+            {(preliminaryData as any[]).length > 0 && (
+              <AdminPreliminaryBookings
+                appointments={(preliminaryData as any[]).map((apt: any) => {
+                  const master = (mastersData as any[]).find((m: any) => m.id === apt.masterId);
+                  const service = (servicesData as any[]).find((s: any) => s.id === apt.serviceId);
+                  const workSlot = (workSlotsData as any[]).find(
+                    (w: any) => w.masterId === apt.masterId && w.workDate === apt.appointmentDate && w.isConfirmed
+                  );
+                  const fitsInSlot = workSlot
+                    ? timeToMinutes(apt.startTime) >= timeToMinutes(workSlot.startTime) && timeToMinutes(apt.endTime) <= timeToMinutes(workSlot.endTime)
+                    : undefined;
+                  return {
+                    ...apt,
+                    masterName: master?.fullName || "Мастер",
+                    serviceName: service?.name || "Услуга",
+                    hasWorkSlot: !!workSlot,
+                    fitsInSlot: workSlot ? fitsInSlot : undefined,
+                  };
+                })}
+              />
             )}
 
             {/* Main schedule area */}
