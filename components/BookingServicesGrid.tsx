@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import BookingServiceCard from "./BookingServiceCard";
+import ServiceVariantModal from "./ServiceVariantModal";
 
 const BookingModal = dynamic(() => import("./BookingModal"), { ssr: false });
 
-interface Service {
+/* ─── Types ─────────────────────────────────────────────────── */
+
+interface Variant {
+  id: number;
+  name: string;
+  price: number;
+  duration: number;
+}
+
+interface NestedService {
   id: number;
   name: string;
   description: string;
@@ -17,6 +27,19 @@ interface Service {
   executorRole?: string | null;
   badgeText?: string | null;
   badgeType?: "dark" | "light" | "accent" | "discount" | null;
+  variants: Variant[];
+}
+
+interface Subgroup {
+  id: number;
+  name: string;
+  services: NestedService[];
+}
+
+interface Category {
+  id: number;
+  name: string;
+  subgroups: Subgroup[];
 }
 
 interface TelegramUser {
@@ -25,108 +48,74 @@ interface TelegramUser {
   phone: string;
 }
 
-export default function BookingServicesGrid({ carousel = false, telegramUser }: { carousel?: boolean; telegramUser?: TelegramUser | null }) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeService, setActiveService] = useState<Service | null>(null);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const gridRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const prevRects = useRef<Map<string, DOMRect>>(new Map());
+/* ─── Component ──────────────────────────────────────────────── */
 
+export default function BookingServicesGrid({
+  carousel = false,
+  telegramUser,
+}: {
+  carousel?: boolean;
+  telegramUser?: TelegramUser | null;
+}) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+
+  // Service selected for booking (after variant chosen or if no variants)
+  const [activeService, setActiveService] = useState<NestedService | null>(null);
+  const [activeVariant, setActiveVariant] = useState<Variant | null>(null);
+
+  // Variant modal state
+  const [variantModalService, setVariantModalService] = useState<NestedService | null>(null);
+
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  /* Fetch nested data */
   useEffect(() => {
-    fetch("/api/services")
+    fetch("/api/services?nested=true")
       .then((r) => r.json())
-      .then((data) => setServices(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const cats: Category[] = Array.isArray(data?.categories) ? data.categories : [];
+        setCategories(cats);
+        if (cats.length > 0) setSelectedCategoryId(cats[0].id);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setSearch((e as CustomEvent<{ query: string }>).detail.query ?? "");
-    };
-    window.addEventListener("profit_club_search", handler);
-    return () => window.removeEventListener("profit_club_search", handler);
-  }, []);
+  /* Active category object */
+  const activeCategory = categories.find((c) => c.id === selectedCategoryId) ?? null;
 
-  const cats = useMemo(() => {
-    return Array.from(new Set(services.map((s) => s.category).filter(Boolean) as string[]));
-  }, [services]);
+  /* Handle card tap */
+  function handleCardBook(service: NestedService) {
+    // Auth check on site (not mini-app)
+    if (!telegramUser && typeof window !== "undefined") {
+      const isRegistered = localStorage.getItem("profit_club_user_registered") === "verified";
+      if (!isRegistered) {
+        setShowLoginPrompt(true);
+        return;
+      }
+    }
 
-  const displayedCategories = useMemo(() => {
-    const active = cats.filter((c) => activeFilters.has(c));
-    const rest = cats.filter((c) => !activeFilters.has(c));
-    return [...active, ...rest];
-  }, [cats, activeFilters]);
+    if (service.variants && service.variants.length > 0) {
+      setVariantModalService(service);
+    } else {
+      setActiveVariant(null);
+      setActiveService(service);
+    }
+  }
 
-  const toggleFilter = (cat: string) => {
-    chipRefs.current.forEach((el, key) => {
-      prevRects.current.set(key, el.getBoundingClientRect());
-    });
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
-      return next;
-    });
-  };
+  /* Variant selected from modal */
+  function handleVariantSelect(variant: Variant) {
+    if (!variantModalService) return;
+    setActiveVariant(variant);
+    setActiveService(variantModalService);
+    setVariantModalService(null);
+  }
 
-  const filtered = useMemo(() => {
-    let list = services;
-    if (activeFilters.size > 0) list = list.filter((s) => s.category && activeFilters.has(s.category));
-    if (search.trim())
-      list = list.filter(
-        (s) =>
-          s.name.toLowerCase().includes(search.trim().toLowerCase()) ||
-          (s.description ?? "").toLowerCase().includes(search.trim().toLowerCase())
-      );
-    return list;
-  }, [services, activeFilters, search]);
-
-  /* FLIP animation for chips */
-  useLayoutEffect(() => {
-    if (prevRects.current.size === 0) return;
-    chipRefs.current.forEach((el, key) => {
-      const prev = prevRects.current.get(key);
-      if (!prev) return;
-      const curr = el.getBoundingClientRect();
-      const dx = prev.left - curr.left;
-      if (Math.abs(dx) < 1) return;
-      el.style.transition = "none";
-      el.style.transform = `translateX(${dx}px)`;
-      requestAnimationFrame(() => {
-        el.style.transition = "transform 0.35s cubic-bezier(0.34,1.4,0.64,1)";
-        el.style.transform = "translateX(0)";
-      });
-    });
-    prevRects.current.clear();
-  }, [activeFilters]);
-
-  /* Stagger entrance */
-  useEffect(() => {
-    if (!gridRef.current) return;
-    const items = gridRef.current.querySelectorAll<HTMLElement>("[data-card]");
-    items.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(16px)"; });
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const el = entry.target as HTMLElement;
-          setTimeout(() => {
-            el.style.opacity = "1";
-            el.style.transform = "translateY(0)";
-          }, Number(el.dataset.card ?? 0) * 50);
-          io.unobserve(el);
-        });
-      },
-      { threshold: 0.04 }
-    );
-    items.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [filtered]);
-
+  /* ── Loading ── */
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -135,109 +124,115 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
     );
   }
 
+  /* ── Empty state ── */
+  if (categories.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <p className="text-sm text-white/30" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
+          Услуги не найдены
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Filter chips */}
-      {displayedCategories.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none">
-          {displayedCategories.map((cat) => {
-            const active = activeFilters.has(cat);
+      {/* ── Category tabs ───────────────────────────────────── */}
+      {categories.length > 1 && (
+        <div
+          ref={tabsRef}
+          className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none"
+        >
+          {categories.map((cat) => {
+            const active = cat.id === selectedCategoryId;
             return (
               <button
-                key={cat}
-                ref={(el) => { if (el) chipRefs.current.set(cat, el); else chipRefs.current.delete(cat); }}
+                key={cat.id}
                 type="button"
-                onClick={() => toggleFilter(cat)}
-                className={`flex-shrink-0 flex items-center gap-1.5 rounded-full py-1.5 text-xs font-medium ${active ? "pl-3.5 pr-2.5" : "px-4"}`}
+                onClick={() => setSelectedCategoryId(cat.id)}
+                className="flex-shrink-0 rounded-full py-1.5 text-xs font-medium transition-all duration-200"
                 style={{
                   fontFamily: "var(--font-montserrat)",
                   fontWeight: active ? 500 : 400,
+                  padding: "6px 16px",
                   background: active ? "#B2223C" : "rgba(255,255,255,0.04)",
                   border: active ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
                   color: active ? "#fff" : "rgba(255,255,255,0.45)",
                   boxShadow: active ? "0 2px 10px rgba(178,34,60,0.25)" : undefined,
-                  transition: "background 0.2s, color 0.2s, box-shadow 0.2s, padding 0.2s",
                 }}
               >
-                {cat}
-                {active && (
-                  <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white/25">
-                    <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
-                      <path d="M2 2l6 6M8 2l-6 6" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-                    </svg>
-                  </span>
-                )}
+                {cat.name}
               </button>
             );
           })}
         </div>
       )}
 
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-          </svg>
-          <p className="text-sm text-white/30" style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300 }}>
-            Ничего не найдено
-          </p>
-          <button
-            type="button"
-            onClick={() => { setSearch(""); setActiveFilters(new Set()); window.dispatchEvent(new CustomEvent("profit_club_search", { detail: { query: "" } })); }}
-            className="text-xs text-[#B2223C] hover:text-[#e8556e] transition-colors"
-            style={{ fontFamily: "var(--font-montserrat)" }}
-          >
-            Сбросить фильтры
-          </button>
-        </div>
-      ) : (
-        <div className="relative">
-          <div
-            ref={gridRef}
-            className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${carousel ? "overflow-y-auto scrollbar-none snap-y-mobile" : ""}`}
-            style={carousel ? { maxHeight: 580 } : undefined}
-          >
-            {filtered.map((service, i) => (
-              <div
-                key={service.id}
-                data-card={i}
-                className={carousel ? "snap-start-mobile" : ""}
-                style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
-              >
-                <BookingServiceCard
-                  id={service.id}
-                  name={service.name}
-                  description={service.description}
-                  price={service.price}
-                  imageUrl={service.imageUrl}
-                  duration={service.duration}
-                  category={service.category}
-                  badgeText={service.badgeText}
-                  badgeType={service.badgeType}
-                  onBook={() => {
-                    // In Mini App (telegramUser provided) — always allow
-                    // On site — check if logged in
-                    if (!telegramUser && typeof window !== "undefined") {
-                      const isRegistered = localStorage.getItem("profit_club_user_registered") === "verified";
-                      if (!isRegistered) {
-                        setShowLoginPrompt(true);
-                        return;
-                      }
-                    }
-                    setActiveService(service);
-                  }}
-                />
+      {/* ── Subgroup sections ───────────────────────────────── */}
+      {activeCategory && (
+        <div className="flex flex-col gap-8">
+          {activeCategory.subgroups.map((sg) => {
+            if (!sg.services || sg.services.length === 0) return null;
+            return (
+              <div key={sg.id}>
+                {/* Subgroup header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <h3
+                    className="text-sm font-semibold text-white/70 uppercase tracking-widest"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    {sg.name}
+                  </h3>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+
+                {/* Service cards grid */}
+                <div
+                  className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${
+                    carousel ? "overflow-y-auto scrollbar-none" : ""
+                  }`}
+                  style={carousel ? { maxHeight: 500 } : undefined}
+                >
+                  {sg.services.map((service, i) => (
+                    <div
+                      key={service.id}
+                      data-card={i}
+                      style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
+                    >
+                      <BookingServiceCard
+                        id={service.id}
+                        name={service.name}
+                        description={service.description}
+                        price={
+                          service.variants && service.variants.length > 0
+                            ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString()} ₽`
+                            : service.price ?? undefined
+                        }
+                        imageUrl={service.imageUrl}
+                        duration={
+                          service.variants && service.variants.length > 0
+                            ? undefined
+                            : service.duration ?? undefined
+                        }
+                        category={service.category}
+                        badgeText={
+                          service.variants && service.variants.length > 0
+                            ? `${service.variants.length} вар.`
+                            : service.badgeText ?? undefined
+                        }
+                        badgeType={
+                          service.variants && service.variants.length > 0
+                            ? "dark"
+                            : service.badgeType ?? undefined
+                        }
+                        onBook={() => handleCardBook(service)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-          {carousel && (
-            <div
-              className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none z-10"
-              style={{ background: "linear-gradient(to top, #09090D, transparent)" }}
-            />
-          )}
+            );
+          })}
         </div>
       )}
 
@@ -246,11 +241,28 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {activeService && (
-        <BookingModal service={activeService} onClose={() => setActiveService(null)} telegramUser={telegramUser} />
+      {/* ── ServiceVariantModal ──────────────────────────────── */}
+      {variantModalService && (
+        <ServiceVariantModal
+          isOpen={true}
+          onClose={() => setVariantModalService(null)}
+          onSelect={handleVariantSelect}
+          serviceName={variantModalService.name}
+          variants={variantModalService.variants}
+        />
       )}
 
-      {/* Login prompt for unauthenticated site users */}
+      {/* ── BookingModal ─────────────────────────────────────── */}
+      {activeService && (
+        <BookingModal
+          service={activeService}
+          onClose={() => { setActiveService(null); setActiveVariant(null); }}
+          telegramUser={telegramUser}
+          variant={activeVariant}
+        />
+      )}
+
+      {/* ── Login prompt ─────────────────────────────────────── */}
       {showLoginPrompt && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -266,10 +278,16 @@ export default function BookingServicesGrid({ carousel = false, telegramUser }: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2" style={{ fontFamily: "var(--font-montserrat)" }}>
+            <h3
+              className="text-lg font-semibold text-white mb-2"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
               Войдите для записи
             </h3>
-            <p className="text-sm text-white/40 mb-5" style={{ fontFamily: "var(--font-montserrat)" }}>
+            <p
+              className="text-sm text-white/40 mb-5"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
               Для записи на услуги необходимо войти в аккаунт
             </p>
             <a

@@ -56,6 +56,13 @@ function displayDate(d: Date) {
 
 const STEPS = ["Мастер", "Дата", "Время", "Данные"];
 
+interface Variant {
+  id: number;
+  name: string;
+  price: number;
+  duration: number;
+}
+
 interface Props {
   service: Service;
   onClose: () => void;
@@ -64,9 +71,10 @@ interface Props {
     name: string;
     phone: string;
   } | null;
+  variant?: Variant | null;
 }
 
-export default function BookingModal({ service, onClose, telegramUser }: Props) {
+export default function BookingModal({ service, onClose, telegramUser, variant }: Props) {
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>(1);
 
@@ -131,14 +139,15 @@ export default function BookingModal({ service, onClose, telegramUser }: Props) 
     setSlots([]);
     setSelectedSlot(null);
     try {
+      const variantParam = variant ? `&variantId=${variant.id}` : "";
       const res = await fetch(
-        `/api/available-slots?masterId=${selectedMaster.id}&serviceId=${service.id}&date=${formatDate(selectedDate)}`
+        `/api/available-slots?masterId=${selectedMaster.id}&serviceId=${service.id}&date=${formatDate(selectedDate)}${variantParam}`
       );
       const data = await res.json();
       setSlots(Array.isArray(data) ? data : []);
     } catch { setSlots([]); }
     finally { setSlotsLoading(false); }
-  }, [selectedMaster, selectedDate, service.id]);
+  }, [selectedMaster, selectedDate, service.id, variant]);
 
   useEffect(() => {
     if (step === 3) loadSlots();
@@ -159,6 +168,7 @@ export default function BookingModal({ service, onClose, telegramUser }: Props) 
         body: JSON.stringify({
           masterId: selectedMaster.id,
           serviceId: service.id,
+          variantId: variant?.id || null,
           appointmentDate: formatDate(selectedDate),
           startTime: selectedSlot.startTime,
           clientName: clientName.trim(),
@@ -194,7 +204,7 @@ export default function BookingModal({ service, onClose, telegramUser }: Props) 
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1" style={{ fontFamily: FONT }}>
-                {service.name}
+                {service.name}{variant ? ` · ${variant.name}` : ""}
               </p>
               <h2 className="text-lg font-semibold text-white leading-tight" style={{ fontFamily: FONT, fontWeight: 600 }}>
                 {step === 1 && "Выберите мастера"}
