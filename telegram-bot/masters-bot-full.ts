@@ -61,7 +61,6 @@ async function isMaster(telegramId: string): Promise<any> {
 
 function buildMenuKeyboard() {
   return Markup.inlineKeyboard([
-    ...(SITE_URL.startsWith('https://') ? [[Markup.button.webApp('📱 Мини-приложение', `${SITE_URL}/master`)]] : []),
     [Markup.button.callback('📅 Расписание', 'master_schedule')],
     [Markup.button.callback('🔄 Изменить рабочий день', 'master_change_day')],
     [Markup.button.callback('⚙️ Настройки', 'master_settings')],
@@ -248,8 +247,9 @@ bot.start(async (ctx) => {
 
 bot.action('go_main', async (ctx) => {
   try { await ctx.answerCbQuery(); } catch {}
+  try { await ctx.deleteMessage(); } catch {}
   try {
-    await ctx.editMessageText('Главное меню:', buildMenuKeyboard());
+    await ctx.reply('Главное меню:', buildMenuKeyboard());
   } catch {}
 });
 
