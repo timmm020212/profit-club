@@ -131,9 +131,9 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
               className="bg-white rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden"
               style={{ borderLeft: "3px solid #B2223C" }}
             >
-              <button
+              <div
                 onClick={() => setExpandedId(isExpanded ? null : apt.id)}
-                className="w-full flex p-3.5 text-left"
+                className="w-full flex p-3.5 text-left cursor-pointer"
               >
                 <div className="min-w-[48px]">
                   <div className="text-sm font-bold text-gray-900">{apt.startTime}</div>
@@ -146,7 +146,7 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
                 <div className="flex items-center text-gray-300 text-sm">
                   {isExpanded ? "▲" : "▼"}
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="border-t border-gray-100 px-4 py-3">
@@ -167,23 +167,23 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
                   )}
 
                   {/* Action buttons */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     {apt.clientPhone && (
                       <a
                         href={`tel:${apt.clientPhone}`}
-                        className="flex-1 py-2 rounded-lg text-xs font-semibold text-white text-center"
+                        className="flex-1 py-2.5 rounded-lg text-xs font-semibold text-white text-center active:opacity-80"
                         style={{ background: "#B2223C" }}
                       >
-                        Позвонить
+                        📞 Позвонить
                       </a>
                     )}
                     {apt.clientTelegramId && (
                       <a
                         href={`tg://user?id=${apt.clientTelegramId}`}
-                        className="flex-1 py-2 rounded-lg text-xs font-semibold text-center border"
+                        className="flex-1 py-2.5 rounded-lg text-xs font-semibold text-center border active:opacity-80"
                         style={{ color: "#B2223C", borderColor: "#B2223C" }}
                       >
-                        Telegram
+                        ✈️ Telegram
                       </a>
                     )}
                   </div>
