@@ -167,24 +167,40 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
                   )}
 
                   {/* Action buttons */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-2">
                     {apt.clientPhone && (
-                      <a
-                        href={`tel:${apt.clientPhone}`}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const tg = (window as any).Telegram?.WebApp;
+                          if (tg?.openLink) {
+                            tg.openLink(`tel:${apt.clientPhone}`);
+                          } else {
+                            window.location.href = `tel:${apt.clientPhone}`;
+                          }
+                        }}
                         className="flex-1 py-2.5 rounded-lg text-xs font-semibold text-white text-center active:opacity-80"
                         style={{ background: "#B2223C" }}
                       >
                         📞 Позвонить
-                      </a>
+                      </button>
                     )}
                     {apt.clientTelegramId && (
-                      <a
-                        href={`tg://user?id=${apt.clientTelegramId}`}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const tg = (window as any).Telegram?.WebApp;
+                          if (tg?.openTelegramLink) {
+                            tg.openTelegramLink(`https://t.me/?id=${apt.clientTelegramId}`);
+                          } else {
+                            window.location.href = `tg://user?id=${apt.clientTelegramId}`;
+                          }
+                        }}
                         className="flex-1 py-2.5 rounded-lg text-xs font-semibold text-center border active:opacity-80"
                         style={{ color: "#B2223C", borderColor: "#B2223C" }}
                       >
                         ✈️ Telegram
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>
