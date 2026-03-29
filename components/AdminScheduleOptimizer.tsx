@@ -185,34 +185,25 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
   const hasSent = optimization?.moves.some((m) => m.status === "sent");
   const hasAccepted = optimization?.moves.some((m) => m.status === "accepted");
   const allResolved = optimization?.moves.every((m) => m.status === "accepted" || m.status === "declined");
+  const hasMasterAccepted = optimization?.moves?.some((m: any) => m.status === "master_accepted" || m.clientResponse === "master_accepted");
 
-  const statusBadge = (status: OptimizeMove["status"]) => {
-    switch (status) {
-      case "pending":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-500/[0.08] border border-zinc-500/15 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-            Черновик
-          </span>
-        );
-      case "sent":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/[0.08] border border-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
-            <span>&#128336;</span> Ожидает
-          </span>
-        );
-      case "accepted":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-            <span>&#9989;</span> Согласился
-          </span>
-        );
-      case "declined":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-red-500/[0.08] border border-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-400">
-            <span>&#10060;</span> Отказался
-          </span>
-        );
-    }
+  const statusBadge = (status: string) => {
+    const configs: Record<string, { bg: string; border: string; text: string; label: string }> = {
+      pending: { bg: "bg-zinc-500/[0.08]", border: "border-zinc-500/15", text: "text-zinc-400", label: "Черновик" },
+      awaiting_master: { bg: "bg-violet-500/[0.08]", border: "border-violet-500/15", text: "text-violet-400", label: "Ожидает мастера" },
+      master_accepted: { bg: "bg-blue-500/[0.08]", border: "border-blue-500/15", text: "text-blue-400", label: "Мастер одобрил" },
+      master_declined: { bg: "bg-red-500/[0.08]", border: "border-red-500/15", text: "text-red-400", label: "Отклонено мастером" },
+      sent_to_client: { bg: "bg-amber-500/[0.08]", border: "border-amber-500/15", text: "text-amber-400", label: "Отправлено клиенту" },
+      sent: { bg: "bg-amber-500/[0.08]", border: "border-amber-500/15", text: "text-amber-400", label: "Ожидает клиента" },
+      accepted: { bg: "bg-emerald-500/[0.08]", border: "border-emerald-500/15", text: "text-emerald-400", label: "Клиент согласен" },
+      declined: { bg: "bg-red-500/[0.08]", border: "border-red-500/15", text: "text-red-400", label: "Клиент отказался" },
+    };
+    const cfg = configs[status] || configs.pending;
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-lg ${cfg.bg} border ${cfg.border} px-2 py-0.5 text-[10px] font-medium ${cfg.text}`}>
+        {cfg.label}
+      </span>
+    );
   };
 
   const formatDate = (d: string) => {
@@ -492,23 +483,44 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                 {hasPending && (
                   <button
                     type="button"
-                    onClick={handleSendProposals}
+                    onClick={async () => {
+                      setSending(true);
+                      try {
+                        await fetch("/api/admin/optimize-schedule/send", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ optimizationId: optimization.id, sendTo: "master" }),
+                        });
+                        await refreshStatuses(optimization.id);
+                      } catch (e) { console.error(e); }
+                      setSending(false);
+                    }}
                     disabled={sending}
                     className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25"
                   >
-                    {sending ? (
-                      <>
-                        <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        Отправляем...
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                          <path d="M2.87 2.298a.75.75 0 0 0-.812 1.021L3.39 6.624a1 1 0 0 0 .928.626H8.25a.75.75 0 0 1 0 1.5H4.318a1 1 0 0 0-.927.626l-1.333 3.305a.75.75 0 0 0 .811 1.022l11.502-3.593a.75.75 0 0 0 0-1.42L2.87 2.298Z" />
-                        </svg>
-                        Отправить предложения
-                      </>
-                    )}
+                    {sending ? "Отправляем..." : "Отправить мастеру"}
+                  </button>
+                )}
+
+                {hasMasterAccepted && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setSending(true);
+                      try {
+                        await fetch("/api/admin/optimize-schedule/send", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ optimizationId: optimization.id, sendTo: "client" }),
+                        });
+                        await refreshStatuses(optimization.id);
+                      } catch (e) { console.error(e); }
+                      setSending(false);
+                    }}
+                    disabled={sending}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-amber-900/25"
+                  >
+                    {sending ? "Отправляем..." : "Отправить клиентам"}
                   </button>
                 )}
 
