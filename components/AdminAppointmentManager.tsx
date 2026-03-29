@@ -12,8 +12,16 @@ interface Props {
   cardHeight?: number;
 }
 
+const STATUS_COLORS: Record<string, { border: string; badge: string; label: string }> = {
+  confirmed: { border: "rgba(156,163,175,0.5)", badge: "bg-gray-500/20 text-gray-400", label: "Подтверждена" },
+  in_progress: { border: "rgba(59,130,246,0.6)", badge: "bg-blue-500/20 text-blue-400", label: "В процессе" },
+  completed_by_master: { border: "rgba(245,158,11,0.6)", badge: "bg-amber-500/20 text-amber-400", label: "Ожидает" },
+  completed: { border: "rgba(34,197,94,0.6)", badge: "bg-green-500/20 text-green-400", label: "Завершена" },
+};
+
 export default function AdminAppointmentManager({ appointment, masters, services, cardHeight }: Props) {
   const router = useRouter();
+  const statusCfg = STATUS_COLORS[appointment.status] || STATUS_COLORS.confirmed;
 
   const [isOpen, setIsOpen] = useState(false);
   const [masterId, setMasterId] = useState<number>(appointment.masterId);
@@ -111,7 +119,7 @@ export default function AdminAppointmentManager({ appointment, masters, services
       type="button"
       onClick={handleOpen}
       className="group w-full h-full text-left rounded-lg border border-white/[0.08] bg-[#16161B] hover:border-violet-500/40 hover:bg-violet-500/5 transition-all duration-200 overflow-hidden"
-      style={{ borderLeft: "2px solid rgba(139,92,246,0.45)" }}
+      style={{ borderLeft: `2px solid ${statusCfg.border}` }}
     >
       {isTiny ? (
         /* Ultra-compact: одна строка — время + имя */
@@ -151,6 +159,11 @@ export default function AdminAppointmentManager({ appointment, masters, services
             {currentService ? currentService.name : "Услуга"}
           </div>
           <div className="text-[11px] text-zinc-400 truncate">{appointment.clientName}</div>
+          {appointment.status !== "confirmed" && (
+            <div className={`text-[8px] font-semibold mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${statusCfg.badge}`}>
+              {statusCfg.label}{(appointment as any).autoCompleted ? " (авто)" : ""}
+            </div>
+          )}
           {appointment.clientPhone && (cardHeight ?? 999) >= 110 && (
             <div className="text-[10px] text-zinc-600 mt-0.5 truncate">{appointment.clientPhone}</div>
           )}

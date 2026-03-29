@@ -131,6 +131,7 @@ async function showSchedule(
           clientName: appointments.clientName,
           serviceName: services.name,
           serviceDuration: services.duration,
+          status: appointments.status,
         })
         .from(appointments)
         .leftJoin(services, eq(appointments.serviceId, services.id))
@@ -138,7 +139,6 @@ async function showSchedule(
           and(
             eq(appointments.masterId, masterId),
             eq(appointments.appointmentDate, targetDate),
-            eq(appointments.status, 'confirmed'),
           ),
         )
         .orderBy(asc(appointments.startTime));
@@ -170,7 +170,8 @@ async function showSchedule(
           }
 
           const clientShort = apt.clientName || 'Клиент';
-          msg += `${apt.startTime}–${apt.endTime} 💇 ${apt.serviceName || 'Услуга'} — ${clientShort}\n`;
+          const statusEmoji = apt.status === 'in_progress' ? '🔵' : apt.status === 'completed_by_master' ? '🟡' : apt.status === 'completed' ? '✅' : '⬜';
+          msg += `${statusEmoji} ${apt.startTime}–${apt.endTime} 💇 ${apt.serviceName || 'Услуга'} — ${clientShort}\n`;
 
           cursor = aptEnd;
         }

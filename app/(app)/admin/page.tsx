@@ -26,7 +26,7 @@ function minutesToTime(m: number): string {
 async function getAdminDataForDate(dateStr: string) {
   const [appointmentsData, mastersData, servicesData, workSlotsData] = await Promise.all([
     db.select().from(appointments)
-      .where(and(eq(appointments.appointmentDate, dateStr), eq(appointments.status, "confirmed")))
+      .where(eq(appointments.appointmentDate, dateStr))
       .orderBy(appointments.startTime as any),
     db.select().from(masters).where(eq(masters.isActive, true)),
     db.select().from(services),
