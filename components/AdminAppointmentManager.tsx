@@ -122,21 +122,27 @@ export default function AdminAppointmentManager({ appointment, masters, services
       style={{ borderLeft: `2px solid ${statusCfg.border}` }}
     >
       {isTiny ? (
-        /* Ultra-compact: одна строка — время + имя */
+        /* Ultra-compact: одна строка — время + имя + статус */
         <div className="flex items-center h-full px-2 gap-2">
-          <span className="text-[10px] font-bold text-violet-400 tabular-nums whitespace-nowrap flex-shrink-0">
+          <span className="text-[10px] font-bold tabular-nums whitespace-nowrap flex-shrink-0" style={{ color: statusCfg.border }}>
             {appointment.startTime}
           </span>
           <span className="text-[10px] text-zinc-300 truncate">
             {appointment.clientName}
           </span>
+          <span className={`text-[7px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 ${statusCfg.badge}`}>
+            {statusCfg.label}
+          </span>
         </div>
       ) : isCompact ? (
-        /* Компактный: время + услуга + клиент */
+        /* Компактный: время + услуга + клиент + статус */
         <div className="flex flex-col justify-between h-full px-2 py-1.5">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] font-bold text-violet-400 tabular-nums">
+            <span className="text-[10px] font-bold tabular-nums" style={{ color: statusCfg.border }}>
               {appointment.startTime}–{appointment.endTime}
+            </span>
+            <span className={`text-[7px] font-semibold px-1 py-0.5 rounded-full ${statusCfg.badge}`}>
+              {statusCfg.label}
             </span>
           </div>
           <div className="text-[11px] font-semibold text-zinc-100 truncate leading-tight">
