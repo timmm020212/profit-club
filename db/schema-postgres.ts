@@ -1,5 +1,20 @@
 import { pgTable, text, varchar, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
+export const serviceCategories = pgTable("serviceCategories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  icon: varchar("icon", { length: 10 }),
+  order: integer("order").notNull().default(0),
+  isActive: boolean("isActive").default(true).notNull(),
+});
+
+export const serviceSubgroups = pgTable("serviceSubgroups", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("categoryId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  order: integer("order").notNull().default(0),
+});
+
 export const services = pgTable("services", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -13,6 +28,16 @@ export const services = pgTable("services", {
   badgeType: varchar("badge_type", { length: 20 }),
   executorRole: varchar("executor_role", { length: 255 }),
   category: varchar("category", { length: 255 }),
+  subgroupId: integer("subgroup_id"),
+});
+
+export const serviceVariants = pgTable("serviceVariants", {
+  id: serial("id").primaryKey(),
+  serviceId: integer("serviceId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  price: integer("price").notNull(),
+  duration: integer("duration").notNull(),
+  order: integer("order").notNull().default(0),
 });
 
 export const admins = pgTable("admins", {
@@ -55,6 +80,7 @@ export const appointments = pgTable("appointments", {
   completedByMasterAt: text("completedByMasterAt"),
   autoCompleted: boolean("autoCompleted").default(false).notNull(),
   source: varchar("source", { length: 20 }).default("site").notNull(),
+  variantId: integer("variantId"),
 });
 
 export const workSlots = pgTable("workSlots", {
