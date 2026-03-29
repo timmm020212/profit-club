@@ -183,30 +183,15 @@ export async function GET(request: Request) {
       workStart = timeToMinutes(workDayData.startTime);
       workEnd = timeToMinutes(workDayData.endTime);
     } else {
-      // Дата через 2+ дней: только по подтверждённому рабочему дню
+      // Дата через 2+ дней: по рабочему дню или дефолт 08:00–20:00 (предварительная запись)
       if (workDay.length > 0) {
         const workDayData = workDay[0];
         workStart = timeToMinutes(workDayData.startTime);
         workEnd = timeToMinutes(workDayData.endTime);
       } else {
-        // Нет рабочего дня — нет слотов
-        console.log(`[available-slots] No work day for master ${masterIdNum} on ${date} (no confirmed slot)`);
-        if (debug) {
-          return NextResponse.json({
-            ok: true,
-            reason: "NO_CONFIRMED_WORKDAY",
-            diffDays,
-            date,
-            masterId: masterIdNum,
-            serviceId: serviceIdNum,
-            serviceDuration,
-            executorRole: executorRole ?? null,
-            masterSpecialization,
-            roleMatched,
-            slots: [],
-          });
-        }
-        return NextResponse.json([]);
+        // Нет рабочего дня — показываем дефолтный диапазон для предварительной записи
+        workStart = salonStartMinutes;
+        workEnd = salonEndMinutes;
       }
     }
 
