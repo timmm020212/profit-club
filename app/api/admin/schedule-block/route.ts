@@ -96,6 +96,27 @@ export async function POST(request: Request) {
   }
 }
 
+// PATCH — update block
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, startTime, endTime, blockType, comment } = body;
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+    const updates: any = {};
+    if (startTime) updates.startTime = startTime;
+    if (endTime) updates.endTime = endTime;
+    if (blockType) updates.blockType = blockType;
+    if (comment !== undefined) updates.comment = comment;
+
+    await db.update(scheduleBlocks).set(updates).where(eq(scheduleBlocks.id, id));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("schedule-block PATCH error:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

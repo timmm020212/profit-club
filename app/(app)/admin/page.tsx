@@ -11,6 +11,7 @@ import AdminMasterCreator from "@/components/AdminMasterCreator";
 import AdminRoleCreator from "@/components/AdminRoleCreator";
 import AdminScheduleOptimizerButton from "@/components/AdminScheduleOptimizerButton";
 import AdminAddBlockButton from "@/components/AdminAddBlockButton";
+import AdminBlockManager from "@/components/AdminBlockManager";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import AutoRefresh from "@/components/AutoRefresh";
 import { and, eq } from "drizzle-orm";
@@ -382,26 +383,17 @@ export default async function AdminDashboardPage({
                                 const bEnd = timeToMinutes(block.endTime);
                                 const top = (bStart - roundedMin) * PX_PER_MIN;
                                 const height = (bEnd - bStart) * PX_PER_MIN;
-                                const isBreak = block.blockType === "break";
                                 return (
                                   <div
                                     key={`block-${block.id}`}
-                                    className="absolute left-1 right-1 rounded-lg border overflow-hidden"
-                                    style={{
-                                      top: `${top}px`,
-                                      height: `${height}px`,
-                                      borderColor: isBreak ? "rgba(59,130,246,0.3)" : "rgba(156,163,175,0.3)",
-                                      background: isBreak ? "rgba(59,130,246,0.08)" : "rgba(156,163,175,0.08)",
-                                    }}
+                                    className="absolute left-1 right-1 overflow-hidden"
+                                    style={{ top: `${top}px`, height: `${height}px` }}
                                   >
-                                    <div className="px-2 py-1 h-full flex flex-col justify-center">
-                                      <div className="text-[10px] font-medium" style={{ color: isBreak ? "#60A5FA" : "#9CA3AF" }}>
-                                        {isBreak ? "☕ Перерыв" : `📌 ${block.blockType}`}
-                                      </div>
-                                      {block.comment && height > 30 && (
-                                        <div className="text-[9px] text-zinc-500 truncate">{block.comment}</div>
-                                      )}
-                                    </div>
+                                    <AdminBlockManager
+                                      block={block as any}
+                                      masters={(mastersData as any[]).map((m: any) => ({ id: m.id, fullName: m.fullName }))}
+                                      cardHeight={height}
+                                    />
                                   </div>
                                 );
                               })}
