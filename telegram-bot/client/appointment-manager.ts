@@ -43,10 +43,13 @@ export function registerAppointmentHandlers(bot: Telegraf<any>) {
 
       if (rows.length === 0) {
         const text = "У вас нет предстоящих записей.";
-        const kb = Markup.inlineKeyboard([
-          [Markup.button.callback("📅 Записаться", "book")],
-          [Markup.button.callback("← Главное меню", "book_back_menu")],
-        ]);
+        const siteUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const bookButtons: any[] = [];
+        if (siteUrl.startsWith("https://")) {
+          bookButtons.push([Markup.button.webApp("📅 Записаться", `${siteUrl}/miniapp`)]);
+        }
+        bookButtons.push([Markup.button.callback("← Главное меню", "book_back_menu")]);
+        const kb = Markup.inlineKeyboard(bookButtons);
         if (ctx.callbackQuery) {
           try { await ctx.editMessageText(text, kb); } catch {}
         } else {
