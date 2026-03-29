@@ -159,11 +159,9 @@ export default function AdminAppointmentManager({ appointment, masters, services
             {currentService ? currentService.name : "Услуга"}
           </div>
           <div className="text-[11px] text-zinc-400 truncate">{appointment.clientName}</div>
-          {appointment.status !== "confirmed" && (
-            <div className={`text-[8px] font-semibold mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${statusCfg.badge}`}>
-              {statusCfg.label}{(appointment as any).autoCompleted ? " (авто)" : ""}
-            </div>
-          )}
+          <div className={`text-[8px] font-semibold mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${statusCfg.badge}`}>
+            {statusCfg.label}{(appointment as any).autoCompleted ? " (авто)" : ""}
+          </div>
           {appointment.clientPhone && (cardHeight ?? 999) >= 110 && (
             <div className="text-[10px] text-zinc-600 mt-0.5 truncate">{appointment.clientPhone}</div>
           )}
