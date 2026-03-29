@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, workSlots, services } from "@/db/schema";
+import { appointments, workSlots, services, masterClientNotes } from "@/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -84,11 +84,23 @@ export async function GET(request: Request) {
       if (svc) serviceMap[sid] = svc.name;
     }
 
+    // Fetch client notes for this master
+    const clientPhones = [...new Set(weekAppointments.map((a) => a.clientPhone).filter(Boolean))];
+    const noteMap: Record<string, string> = {};
+    for (const phone of clientPhones) {
+      const [noteRow] = await db
+        .select({ note: masterClientNotes.note, clientIdentifier: masterClientNotes.clientIdentifier })
+        .from(masterClientNotes)
+        .where(and(eq(masterClientNotes.masterId, masterId), eq(masterClientNotes.clientIdentifier, phone!)));
+      if (noteRow?.note) noteMap[noteRow.clientIdentifier] = noteRow.note;
+    }
+
     return NextResponse.json({
       week: week.dates,
       appointments: weekAppointments.map((a) => ({
         ...a,
         serviceName: serviceMap[a.serviceId] || "Услуга",
+        clientNote: (a.clientPhone && noteMap[a.clientPhone]) || "",
       })),
       workSlots: weekSlots,
     });

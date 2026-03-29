@@ -10,6 +10,7 @@ interface Appointment {
   clientName: string;
   clientPhone: string;
   clientTelegramId?: string;
+  clientNote?: string;
 }
 
 interface WorkSlot {
@@ -156,6 +157,14 @@ export default function MasterDaySchedule({ dayLabel, appointments, workSlot }: 
                       <div className="text-gray-400">{apt.clientPhone}</div>
                     )}
                   </div>
+
+                  {/* Client note */}
+                  {apt.clientNote && (
+                    <div className="mb-3 bg-gray-50 rounded-lg p-2.5">
+                      <div className="text-[10px] text-gray-400 font-medium mb-1">Заметка</div>
+                      <div className="text-[11px] text-gray-600">{apt.clientNote}</div>
+                    </div>
+                  )}
 
                   {/* Action buttons */}
                   <div className="flex gap-2">
