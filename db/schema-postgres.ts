@@ -54,6 +54,7 @@ export const appointments = pgTable("appointments", {
   createdAt: text("createdAt").notNull(),
   completedByMasterAt: text("completedByMasterAt"),
   autoCompleted: boolean("autoCompleted").default(false).notNull(),
+  source: varchar("source", { length: 20 }).default("site").notNull(),
 });
 
 export const workSlots = pgTable("workSlots", {
@@ -241,6 +242,18 @@ export const masterClientNotes = pgTable("masterClientNotes", {
   clientIdentifier: varchar("clientIdentifier", { length: 20 }).notNull(),
   note: text("note"),
   updatedAt: text("updatedAt").notNull(),
+});
+
+export const scheduleBlocks = pgTable("scheduleBlocks", {
+  id: serial("id").primaryKey(),
+  masterId: integer("masterId").notNull(),
+  blockDate: varchar("blockDate", { length: 10 }).notNull(),
+  startTime: varchar("startTime", { length: 5 }).notNull(),
+  endTime: varchar("endTime", { length: 5 }).notNull(),
+  blockType: varchar("blockType", { length: 30 }).notNull(),
+  status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+  comment: text("comment"),
+  createdAt: text("createdAt").notNull(),
 });
 
 // Types
