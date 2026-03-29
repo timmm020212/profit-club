@@ -141,6 +141,7 @@ export const optimizationMoves = pgTable("optimizationMoves", {
   newEndTime: varchar("newEndTime", { length: 5 }).notNull(),
   clientResponse: varchar("clientResponse", { length: 20 }).notNull().default("pending"),
   sentAt: text("sentAt"),
+  masterRespondedAt: text("masterRespondedAt"),
 });
 
 export const adminSettings = pgTable("adminSettings", {
