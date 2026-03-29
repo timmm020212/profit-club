@@ -1,5 +1,5 @@
 import { db } from "../../db/index-postgres";
-import { appointments, services, masters } from "../../db/schema-postgres";
+import { appointments, services, masters, scheduleBlocks } from "../../db/schema-postgres";
 import { eq, and } from "drizzle-orm";
 
 function getBotToken(): string {
@@ -128,7 +128,14 @@ export async function checkStatusTransitions(): Promise<void> {
         const [svc] = await db.select({ name: services.name })
           .from(services).where(eq(services.id, apt.serviceId));
 
-        if (apt.clientTelegramId) {
+        const [aptSource] = await db.select({ source: appointments.source }).from(appointments).where(eq(appointments.id, apt.id));
+        if (aptSource?.source === "admin") {
+          // Direct appointment — skip client, go straight to completed
+          await db.update(appointments)
+            .set({ status: "completed" })
+            .where(eq(appointments.id, apt.id));
+          console.log(`[status-tracker] apt ${apt.id} → completed (direct, no client confirm)`);
+        } else if (apt.clientTelegramId) {
           await sendClientMessage(apt.clientTelegramId,
             `✅ Ваша запись завершена\n\n💇 ${svc?.name || "Услуга"}\n⏰ ${apt.startTime}–${apt.endTime}\n\nПодтвердите завершение:`,
             [
@@ -170,6 +177,46 @@ export async function checkStatusTransitions(): Promise<void> {
           `⚠️ Запись завершена автоматически — клиент не подтвердил\n\n💇 ${svc?.name || "Услуга"}\n👤 ${apt.clientName}\n👩 ${master?.fullName || "Мастер"}\n⏰ ${apt.startTime}`,
         );
         console.log(`[status-tracker] apt ${apt.id} → completed (auto, client no response)`);
+      }
+    }
+    // 4. Schedule blocks: scheduled → active (startTime reached)
+    const scheduledBlocks = await db.select({
+      id: scheduleBlocks.id,
+      startTime: scheduleBlocks.startTime,
+      endTime: scheduleBlocks.endTime,
+      blockType: scheduleBlocks.blockType,
+    }).from(scheduleBlocks)
+      .where(and(
+        eq(scheduleBlocks.blockDate, today),
+        eq(scheduleBlocks.status, "scheduled"),
+      ));
+
+    for (const block of scheduledBlocks) {
+      if (nowMin >= timeToMin(block.startTime)) {
+        await db.update(scheduleBlocks)
+          .set({ status: "active" })
+          .where(eq(scheduleBlocks.id, block.id));
+        console.log(`[status-tracker] block ${block.id} (${block.blockType}) → active`);
+      }
+    }
+
+    // 5. Schedule blocks: active → finished (endTime reached)
+    const activeBlocks = await db.select({
+      id: scheduleBlocks.id,
+      endTime: scheduleBlocks.endTime,
+      blockType: scheduleBlocks.blockType,
+    }).from(scheduleBlocks)
+      .where(and(
+        eq(scheduleBlocks.blockDate, today),
+        eq(scheduleBlocks.status, "active"),
+      ));
+
+    for (const block of activeBlocks) {
+      if (nowMin >= timeToMin(block.endTime)) {
+        await db.update(scheduleBlocks)
+          .set({ status: "finished" })
+          .where(eq(scheduleBlocks.id, block.id));
+        console.log(`[status-tracker] block ${block.id} (${block.blockType}) → finished`);
       }
     }
   } catch (err) {
