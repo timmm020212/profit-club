@@ -119,18 +119,21 @@ bot.start(async (ctx) => {
 // ── About ───────────────────────────────────────────────────
 bot.action('about', async (ctx) => {
   await ctx.answerCbQuery();
-  await ctx.reply(
-    '💈 *Profit Club* — салон красоты\n\nМы предлагаем:\n• Профессиональные услуги\n• Опытных мастеров\n• Удобную запись онлайн',
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([[Markup.button.callback('← Главное меню', 'menu')]]),
-    }
-  );
+  try {
+    await ctx.editMessageText(
+      '💈 *Profit Club* — салон красоты\n\nМы предлагаем:\n• Профессиональные услуги\n• Опытных мастеров\n• Удобную запись онлайн',
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([[Markup.button.callback('← Главное меню', 'menu')]]),
+      }
+    );
+  } catch {}
 });
 
 // ── Back to menu ────────────────────────────────────────────
 async function handleBackToMenu(ctx: any) {
   await ctx.answerCbQuery();
+  try { await ctx.deleteMessage(); } catch {}
   const telegramId = ctx.from?.id.toString();
   if (!telegramId) return;
 
