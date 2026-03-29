@@ -151,8 +151,8 @@ export default function MasterApp() {
         selectedDate={selectedDate}
         appointmentCounts={appointmentCounts}
         onSelectDate={setSelectedDate}
-        onPrevWeek={() => setSelectedDate(shiftWeek(selectedDate, -1))}
-        onNextWeek={() => setSelectedDate(shiftWeek(selectedDate, 1))}
+        onPrevWeek={() => setSelectedDate(weekDates.length ? shiftWeek(weekDates[0], -1) : shiftWeek(selectedDate, -1))}
+        onNextWeek={() => setSelectedDate(weekDates.length ? shiftWeek(weekDates[0], 1) : shiftWeek(selectedDate, 1))}
       />
       <MasterDaySchedule
         dayLabel={formatDayLabel(selectedDate)}
