@@ -44,15 +44,17 @@ function formatDateDisplay(dateStr: string): string {
 
 async function isMaster(telegramId: string): Promise<any> {
   try {
+    console.log('[masters-bot] Checking telegramId:', telegramId);
     const master = await db
       .select()
       .from(masters)
       .where(eq(masters.telegramId, telegramId))
       .limit(1);
 
+    console.log('[masters-bot] DB result:', master.length, 'rows');
     return master.length > 0 ? master[0] : null;
-  } catch (error) {
-    console.error('Error checking master rights:', error);
+  } catch (error: any) {
+    console.error('[masters-bot] DB error in isMaster:', error.message);
     return null;
   }
 }

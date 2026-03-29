@@ -43,6 +43,7 @@ export async function GET(request: Request) {
         endTime: appointments.endTime,
         clientName: appointments.clientName,
         clientPhone: appointments.clientPhone,
+        clientTelegramId: appointments.clientTelegramId,
         serviceId: appointments.serviceId,
         status: appointments.status,
       })

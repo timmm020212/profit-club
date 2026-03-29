@@ -20,6 +20,7 @@ interface Appointment {
   endTime: string;
   clientName: string;
   clientPhone: string;
+  clientTelegramId?: string;
   serviceName: string;
 }
 
