@@ -1,10 +1,49 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { services } from "@/db/schema";
+import { services, serviceCategories, serviceSubgroups, serviceVariants } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const nested = searchParams.get("nested") === "true";
+
+  if (nested) {
+    try {
+      const allCategories = await db.select().from(serviceCategories).orderBy(serviceCategories.order);
+      const allSubgroups = await db.select().from(serviceSubgroups).orderBy(serviceSubgroups.order);
+      const allServices = await db.select().from(services).orderBy(services.orderDesktop);
+      const allVariants = await db.select().from(serviceVariants).orderBy(serviceVariants.order);
+
+      const result = allCategories
+        .filter(c => c.isActive)
+        .map(cat => ({
+          ...cat,
+          subgroups: allSubgroups
+            .filter(sg => sg.categoryId === cat.id)
+            .map(sg => ({
+              ...sg,
+              services: allServices
+                .filter(s => s.subgroupId === sg.id)
+                .map(s => ({
+                  ...s,
+                  variants: allVariants.filter(v => v.serviceId === s.id),
+                })),
+            })),
+        }));
+
+      return NextResponse.json({ categories: result }, {
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
+    } catch (error) {
+      console.error("Error fetching nested services:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch nested services" },
+        { status: 500 }
+      );
+    }
+  }
+
   try {
     console.log("Fetching services...");
     const allServices = await db.select().from(services).orderBy(asc(services.orderDesktop));
