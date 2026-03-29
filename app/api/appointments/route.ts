@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, workSlots, masters, services, clients, scheduleOptimizations, optimizationMoves } from "@/db/schema";
+import { appointments, workSlots, masters, services, clients, scheduleOptimizations, optimizationMoves, serviceVariants } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 
 
@@ -295,6 +295,7 @@ export async function POST(request: Request) {
     const {
       masterId,
       serviceId,
+      variantId,
       appointmentDate,
       startTime,
       clientName,
@@ -333,9 +334,16 @@ export async function POST(request: Request) {
     }
 
     // Рассчитываем время окончания
+    const serviceDuration = service[0].duration;
+    let effectiveDuration = serviceDuration;
+    if (variantId) {
+      const [variant] = await db.select({ duration: serviceVariants.duration }).from(serviceVariants).where(eq(serviceVariants.id, variantId));
+      if (variant) effectiveDuration = variant.duration;
+    }
+
     const [hours, minutes] = startTime.split(":").map(Number);
     const startMinutes = hours * 60 + minutes;
-    const endMinutes = startMinutes + service[0].duration;
+    const endMinutes = startMinutes + effectiveDuration;
     const endHours = Math.floor(endMinutes / 60);
     const endMins = endMinutes % 60;
     const endTime = `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`;
@@ -500,6 +508,7 @@ export async function POST(request: Request) {
       .values({
         masterId: masterIdNum,
         serviceId,
+        variantId: variantId || null,
         appointmentDate,
         startTime,
         endTime,

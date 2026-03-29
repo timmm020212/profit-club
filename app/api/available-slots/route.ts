@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { workSlots, masters, services, appointments, scheduleBlocks } from "@/db/schema";
+import { workSlots, masters, services, appointments, scheduleBlocks, serviceVariants } from "@/db/schema";
 import { eq, and, gte, lte, inArray } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
     const serviceId = searchParams.get("serviceId");
     const date = searchParams.get("date"); // Формат: YYYY-MM-DD
     const debug = searchParams.get("debug") === "1";
+    const variantId = parseInt(searchParams.get("variantId") || "0") || null;
 
     // Проверяем обязательные параметры
     if (!masterId || !serviceId || !date) {
@@ -86,6 +87,11 @@ export async function GET(request: Request) {
     }
 
     const serviceDuration = service[0].duration; // в минутах
+    let effectiveDuration = serviceDuration;
+    if (variantId) {
+      const [variant] = await db.select({ duration: serviceVariants.duration }).from(serviceVariants).where(eq(serviceVariants.id, variantId));
+      if (variant) effectiveDuration = variant.duration;
+    }
     const executorRole = (service[0] as any).executorRole as string | null | undefined;
 
     let roleMatched: boolean | null = null;
@@ -224,9 +230,9 @@ export async function GET(request: Request) {
     // Начинаем с начала рабочего дня
     let currentTime = workStart;
 
-    while (currentTime + serviceDuration <= workEnd) {
+    while (currentTime + effectiveDuration <= workEnd) {
       const slotStart = currentTime;
-      const slotEnd = currentTime + serviceDuration;
+      const slotEnd = currentTime + effectiveDuration;
 
       // Проверяем, не пересекается ли этот слот с существующими записями
       let isAvailable = true;
