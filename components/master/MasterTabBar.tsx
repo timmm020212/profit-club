@@ -66,8 +66,7 @@ export default function MasterTabBar() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50"
-         style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)" }}>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50 pb-2">
       {tabs.map((tab) => {
         const active = tab.href === "/master"
           ? pathname === "/master"
