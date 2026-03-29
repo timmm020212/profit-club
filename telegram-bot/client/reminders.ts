@@ -136,39 +136,36 @@ async function checkAutoOptimization(): Promise<void> {
             const delay = await getOptimizeDelay();
             const ageMin = (Date.now() - new Date(draft.createdAt).getTime()) / 60000;
             if (ageMin >= delay) {
-              // Send all pending moves
+              // Send to master first (not client)
+              const mastersBotToken = process.env.MASTERS_BOT_TOKEN || "";
               const pendingMoves = await db.select().from(optimizationMoves)
                 .where(and(eq(optimizationMoves.optimizationId, draft.id), eq(optimizationMoves.clientResponse, "pending")));
 
               for (const move of pendingMoves) {
                 const [apt] = await db.select().from(appointments).where(and(eq(appointments.id, move.appointmentId), eq(appointments.status, "confirmed")));
-                if (!apt?.clientTelegramId) continue;
+                if (!apt) continue;
                 const [svc] = await db.select().from(services).where(eq(services.id, apt.serviceId));
-                const fDate = new Date(dateStr + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" });
-                const optTpl = await getTemplate("optimization_proposal");
-                if (optTpl && !optTpl.enabled) continue;
-                const optVars = {
-                  serviceName: svc?.name || "Услуга",
-                  masterName: master.fullName,
-                  oldTime: `${move.oldStartTime}–${move.oldEndTime}`,
-                  newTime: `${move.newStartTime}–${move.newEndTime}`,
-                };
-                const proposalText = optTpl
-                  ? renderTpl(optTpl.template, optVars)
-                  : `🔄 Предложение о переносе\n\n💇 ${optVars.serviceName}\n👩 ${optVars.masterName}\n\n❌ Текущее время: ${optVars.oldTime}\n✅ Предлагаемое: ${optVars.newTime}\n\nЭто позволит оптимизировать расписание мастера.`;
+
+                const text =
+                  `🔄 Предложение по оптимизации\n\n` +
+                  `💇 ${svc?.name || "Услуга"} — ${apt.clientName || "Клиент"}\n` +
+                  `❌ Сейчас: ${move.oldStartTime}–${move.oldEndTime}\n` +
+                  `✅ Предлагается: ${move.newStartTime}–${move.newEndTime}\n\n` +
+                  `Согласны на перенос?`;
+
                 try {
-                  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  await fetch(`https://api.telegram.org/bot${mastersBotToken}/sendMessage`, {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      chat_id: apt.clientTelegramId,
-                      text: proposalText,
+                      chat_id: master.telegramId,
+                      text,
                       reply_markup: { inline_keyboard: [[
-                        { text: "✅ Согласиться", callback_data: `opt_accept_${move.id}` },
-                        { text: "❌ Оставить как есть", callback_data: `opt_decline_${move.id}` },
+                        { text: "✅ Согласен", callback_data: `opt_master_accept_${move.id}` },
+                        { text: "❌ Отклонить", callback_data: `opt_master_decline_${move.id}` },
                       ]] },
                     }),
                   });
-                  await db.update(optimizationMoves).set({ sentAt: new Date().toISOString() }).where(eq(optimizationMoves.id, move.id));
+                  await db.update(optimizationMoves).set({ clientResponse: "awaiting_master", sentAt: new Date().toISOString() }).where(eq(optimizationMoves.id, move.id));
                 } catch {}
               }
               await db.update(scheduleOptimizations).set({ status: "sent", sentAt: new Date().toISOString() }).where(eq(scheduleOptimizations.id, draft.id));
