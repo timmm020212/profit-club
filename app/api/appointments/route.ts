@@ -499,9 +499,6 @@ export async function POST(request: Request) {
       console.log("No Telegram ID provided - user may not be registered/verified");
     }
 
-    // Determine status: preliminary if 2+ days ahead and no work slot
-    const appointmentStatus = (diffDays >= 2 && workDays.length === 0) ? "preliminary" : "confirmed";
-
     // Создаем запись
     const newAppointment = await db
       .insert(appointments)
@@ -515,30 +512,10 @@ export async function POST(request: Request) {
         clientName: finalClientName,
         clientPhone: finalClientPhone,
         clientTelegramId: finalTelegramId || null,
-        status: appointmentStatus,
+        status: "confirmed",
         createdAt: new Date().toISOString(),
       })
       .returning();
-
-    // Notify master about preliminary booking
-    if (appointmentStatus === "preliminary") {
-      try {
-        const masterInfo = await db.select({ telegramId: masters.telegramId, fullName: masters.fullName })
-          .from(masters).where(eq(masters.id, masterIdNum));
-        if (masterInfo[0]?.telegramId) {
-          const svcInfo = await db.select({ name: services.name }).from(services).where(eq(services.id, serviceId));
-          const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
-          await fetch(`https://api.telegram.org/bot${MASTERS_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: masterInfo[0].telegramId,
-              text: `📋 Новая запись (предварительно)\n\n💇 ${svcInfo[0]?.name || "Услуга"} — ${finalClientName}\n⏰ ${startTime}–${endTime}\n📅 ${appointmentDate}\n📝 Запись предварительная — рабочий день ещё не создан`,
-            }),
-          }).catch(() => {});
-        }
-      } catch {}
-    }
 
     // Отправляем уведомление клиенту в Telegram, если есть Telegram ID
     if (finalTelegramId) {

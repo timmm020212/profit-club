@@ -106,6 +106,14 @@ export async function POST(request: Request) {
       })
       .returning();
 
+    // Set adminUpdateStatus to pending on the work slot
+    if (mode === "create_from_admin") {
+      await db
+        .update(workSlots)
+        .set({ adminUpdateStatus: "pending" })
+        .where(eq(workSlots.id, Number(workSlotId)));
+    }
+
     // Если запрос от администратора — уведомить мастера в Telegram
     if (mode === "create_from_admin") {
       const session = await getServerSession(authOptions);

@@ -1,4 +1,4 @@
-import { formatDateRu, timeToMinutes } from "./utils";
+import { formatDateRu } from "./utils";
 import { db } from "../../db/index-postgres";
 import { masters, botNotificationTemplates } from "../../db/schema-postgres";
 import { eq } from "drizzle-orm";
@@ -129,79 +129,3 @@ export async function notifyMasterCancellation(opts: {
   }
 }
 
-export function detectBreaks(
-  appointmentsList: { startTime: string; endTime: string }[],
-  slotInterval: number = 30
-): { breakStart: string; breakEnd: string; breakMinutes: number }[] {
-  const sorted = [...appointmentsList].sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const breaks: { breakStart: string; breakEnd: string; breakMinutes: number }[] = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const endMin = timeToMinutes(sorted[i].endTime);
-    const nextStartMin = timeToMinutes(sorted[i + 1].startTime);
-    const gap = nextStartMin - endMin;
-    if (gap > 0 && gap < slotInterval) {
-      breaks.push({
-        breakStart: sorted[i].endTime,
-        breakEnd: sorted[i + 1].startTime,
-        breakMinutes: gap,
-      });
-    }
-  }
-  return breaks;
-}
-
-export async function notifyMasterBreak(opts: {
-  masterTelegramId: string | null;
-  appointmentDate: string;
-  breakStart: string;
-  breakEnd: string;
-  breakMinutes: number;
-}) {
-  if (!opts.masterTelegramId) return;
-  const key = `${opts.masterTelegramId}:${opts.appointmentDate}:${opts.breakStart}-${opts.breakEnd}`;
-  if (sentNotifications.has(key)) return;
-  sentNotifications.add(key);
-
-  const tpl = await getNotifTemplate("master_break");
-  if (tpl && !tpl.enabled) return;
-  const date = formatDateRu(opts.appointmentDate);
-  const vars = {
-    breakMinutes: String(opts.breakMinutes),
-    date,
-    breakStart: opts.breakStart,
-    breakEnd: opts.breakEnd,
-  };
-  const text = tpl
-    ? renderTpl(tpl.template, vars)
-    : `☕ Перерыв ${opts.breakMinutes} мин\n\n📅 ${date}\n🕐 ${opts.breakStart}–${opts.breakEnd}`;
-  await sendToMaster(opts.masterTelegramId, text);
-  console.log(`[notify-master] Sent break notification: ${key}`);
-}
-
-export async function notifyMasterEarlyFinish(opts: {
-  masterTelegramId: string | null;
-  appointmentDate: string;
-  freeFrom: string;
-  shiftEnd: string;
-  freeMinutes: number;
-}) {
-  if (!opts.masterTelegramId) return;
-  const key = `${opts.masterTelegramId}:${opts.appointmentDate}:earlyFinish:${opts.freeFrom}`;
-  if (sentNotifications.has(key)) return;
-  sentNotifications.add(key);
-
-  const tpl = await getNotifTemplate("master_early_finish");
-  if (tpl && !tpl.enabled) return;
-  const date = formatDateRu(opts.appointmentDate);
-  const vars = {
-    freeFrom: opts.freeFrom,
-    date,
-    shiftEnd: opts.shiftEnd,
-    freeMinutes: String(opts.freeMinutes),
-  };
-  const text = tpl
-    ? renderTpl(tpl.template, vars)
-    : `🏁 Вы свободны с ${opts.freeFrom}\n\n📅 ${date}\n🕐 Последняя запись заканчивается в ${opts.freeFrom}\n📋 Конец смены: ${opts.shiftEnd}`;
-  await sendToMaster(opts.masterTelegramId, text);
-  console.log(`[notify-master] Sent early finish notification: ${key}`);
-}

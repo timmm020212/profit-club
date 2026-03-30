@@ -10,6 +10,7 @@ interface Props {
   masters: Master[];
   services: Service[];
   cardHeight?: number;
+  outsideSchedule?: boolean;
 }
 
 const STATUS_COLORS: Record<string, { border: string; badge: string; label: string }> = {
@@ -18,12 +19,13 @@ const STATUS_COLORS: Record<string, { border: string; badge: string; label: stri
   completed_by_master: { border: "rgba(245,158,11,0.6)", badge: "bg-amber-500/20 text-amber-400", label: "Ожидает" },
   completed: { border: "rgba(34,197,94,0.6)", badge: "bg-green-500/20 text-green-400", label: "Завершена" },
   disputed: { border: "rgba(239,68,68,0.6)", badge: "bg-red-500/20 text-red-400", label: "Оспорена" },
-  preliminary: { border: "rgba(139,92,246,0.5)", badge: "bg-violet-500/20 text-violet-400", label: "Предварительно" },
 };
 
-export default function AdminAppointmentManager({ appointment, masters, services, cardHeight }: Props) {
+export default function AdminAppointmentManager({ appointment, masters, services, cardHeight, outsideSchedule }: Props) {
   const router = useRouter();
-  const statusCfg = STATUS_COLORS[appointment.status] || STATUS_COLORS.confirmed;
+  const statusCfg = outsideSchedule
+    ? { border: "rgba(239,68,68,0.6)", badge: "bg-red-500/20 text-red-400", label: "Вне графика" }
+    : STATUS_COLORS[appointment.status] || STATUS_COLORS.confirmed;
 
   const [isOpen, setIsOpen] = useState(false);
   const [masterId, setMasterId] = useState<number>(appointment.masterId);

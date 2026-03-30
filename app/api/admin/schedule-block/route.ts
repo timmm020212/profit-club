@@ -9,14 +9,21 @@ const TELEGRAM_API = "https://api.telegram.org/bot";
 
 async function notifyMaster(masterTelegramId: string, text: string) {
   const token = process.env.MASTERS_BOT_TOKEN;
-  if (!token || !masterTelegramId) return;
+  if (!token) { console.error("notifyMaster: MASTERS_BOT_TOKEN not set"); return; }
+  if (!masterTelegramId) { console.error("notifyMaster: no telegramId"); return; }
   try {
-    await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
+    const res = await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: masterTelegramId, text }),
     });
-  } catch {}
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("notifyMaster: Telegram API error", res.status, body);
+    }
+  } catch (e) {
+    console.error("notifyMaster: fetch error", e);
+  }
 }
 
 export async function GET(request: Request) {
@@ -39,13 +46,14 @@ export async function POST(request: Request) {
     if (!masterId || !date || !startTime || !endTime || !blockType) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+    const masterIdNum = Number(masterId);
     const now = new Date().toISOString();
     const [master] = await db.select({ telegramId: masters.telegramId, fullName: masters.fullName })
-      .from(masters).where(eq(masters.id, masterId));
+      .from(masters).where(eq(masters.id, masterIdNum));
 
     if (blockType === "appointment") {
       const [newApt] = await db.insert(appointments).values({
-        masterId,
+        masterId: masterIdNum,
         serviceId: serviceId || 0,
         appointmentDate: date,
         startTime,
@@ -71,7 +79,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ type: "appointment", id: newApt.id }, { status: 201 });
     } else {
       const [block] = await db.insert(scheduleBlocks).values({
-        masterId,
+        masterId: masterIdNum,
         blockDate: date,
         startTime,
         endTime,
@@ -81,13 +89,18 @@ export async function POST(request: Request) {
         createdAt: now,
       }).returning();
 
-      if (master?.telegramId) {
+      // Notify master about break only if it's for today (Moscow time)
+      const moscowStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Moscow" });
+      const moscowNow = new Date(moscowStr);
+      const todayStr = `${moscowNow.getFullYear()}-${String(moscowNow.getMonth() + 1).padStart(2, "0")}-${String(moscowNow.getDate()).padStart(2, "0")}`;
+      if (date === todayStr && master?.telegramId) {
         const icon = blockType === "break" ? "☕" : "📌";
-        const label = blockType === "break" ? "Перерыв запланирован" : blockType;
+        const label = blockType === "break" ? "Перерыв добавлен" : blockType;
         await notifyMaster(master.telegramId,
           `${icon} ${label}\n\n⏰ ${startTime}–${endTime}\n📅 ${date}${comment ? `\n📝 ${comment}` : ""}`,
         );
       }
+
       return NextResponse.json({ type: "block", id: block.id }, { status: 201 });
     }
   } catch (error) {

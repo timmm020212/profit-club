@@ -14,8 +14,8 @@ import AdminAddBlockButton from "@/components/AdminAddBlockButton";
 import AdminBlockManager from "@/components/AdminBlockManager";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import AutoRefresh from "@/components/AutoRefresh";
-import AdminPreliminaryBookings from "@/components/AdminPreliminaryBookings";
-import { and, eq } from "drizzle-orm";
+
+import { eq } from "drizzle-orm";
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map((v) => parseInt(v, 10));
@@ -27,7 +27,7 @@ function minutesToTime(m: number): string {
 }
 
 async function getAdminDataForDate(dateStr: string) {
-  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData] = await Promise.all([
+  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData] = await Promise.all([
     db.select().from(appointments)
       .where(eq(appointments.appointmentDate, dateStr))
       .orderBy(appointments.startTime as any),
@@ -38,10 +38,9 @@ async function getAdminDataForDate(dateStr: string) {
       .orderBy(workSlots.startTime as any),
     db.select().from(scheduleBlocks)
       .where(eq(scheduleBlocks.blockDate, dateStr)),
-    db.select().from(appointments)
-      .where(eq(appointments.status, "preliminary")),
   ]);
-  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData };
+
+  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData };
 }
 
 const MONTHS_RU = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -58,7 +57,7 @@ export default async function AdminDashboardPage({
   const requestedDate = typeof params?.date === "string" ? params.date : undefined;
   const currentDateStr = requestedDate || todayStr;
 
-  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData, preliminaryData } =
+  const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData } =
     await getAdminDataForDate(currentDateStr);
 
   const now = new Date();
@@ -83,23 +82,26 @@ export default async function AdminDashboardPage({
     workSlotsByMaster.set(w.masterId, arr);
   });
 
-  const appointmentsByMaster = new Map<number, (typeof appointmentsData)[number][]>();
-  appointmentsData.forEach((a) => {
-    const arr = appointmentsByMaster.get(a.masterId) || [];
-    arr.push(a);
-    appointmentsByMaster.set(a.masterId, arr);
-  });
-
-  const problemAppointments = appointmentsData.filter((a) => {
+  // Appointments without a work slot or outside work hours
+  const outsideAppointments = appointmentsData.filter((a: any) => {
     const masterSlots = workSlotsByMaster.get(a.masterId) || [];
     if (!masterSlots.length) return true;
     const as = timeToMinutes(a.startTime);
     const ae = timeToMinutes(a.endTime);
-    return !masterSlots.some((w) => {
+    return !masterSlots.some((w: any) => {
       const ws = timeToMinutes(w.startTime);
       const we = timeToMinutes(w.endTime);
       return as >= ws && ae <= we;
     });
+  });
+  const outsideIds = new Set(outsideAppointments.map((a: any) => a.id));
+
+  const appointmentsByMaster = new Map<number, (typeof appointmentsData)[number][]>();
+  appointmentsData.forEach((a) => {
+    if (outsideIds.has(a.id)) return;
+    const arr = appointmentsByMaster.get(a.masterId) || [];
+    arr.push(a);
+    appointmentsByMaster.set(a.masterId, arr);
   });
 
   // Masters working today (only confirmed slots), sorted
@@ -154,7 +156,7 @@ export default async function AdminDashboardPage({
       {/* Sticky subheader: date nav + stats */}
       <div className="sticky top-14 z-30 bg-[#070709]/95 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="mx-auto max-w-screen-2xl px-4 lg:px-6">
-          <div className="flex items-center gap-4 py-3 overflow-x-auto">
+          <div className="flex items-center gap-4 py-3 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
             <div className="flex-shrink-0">
               <Suspense fallback={null}>
                 <AdminDateSelector currentDate={dateStr} />
@@ -175,13 +177,6 @@ export default async function AdminDashboardPage({
                   <path fillRule="evenodd" d="M4 1.75a.75.75 0 0 1 1.5 0V3h5V1.75a.75.75 0 0 1 1.5 0V3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2V1.75ZM4.5 7a.5.5 0 0 0 0 1H6a.5.5 0 0 0 0-1H4.5Zm0 2.5a.5.5 0 0 0 0 1H6a.5.5 0 0 0 0-1H4.5Zm3.5-2.5a.5.5 0 0 0 0 1h1.5a.5.5 0 0 0 0-1H8Zm0 2.5a.5.5 0 0 0 0 1h1.5a.5.5 0 0 0 0-1H8Z" clipRule="evenodd" />
                 </svg>
               } value={appointmentsData.length} label="записей" />
-              {problemAppointments.length > 0 && (
-                <StatChip icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-red-400">
-                    <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.01-1 2.588 0l6.7 11.5c.577 1-.144 2.25-1.294 2.25H1.295C.145 16-.576 14.75 0 13.75l6.7-11.5ZM8 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
-                  </svg>
-                } value={problemAppointments.length} label="проблем" danger />
-              )}
               <div className="h-6 w-px bg-white/[0.07]" />
               <AdminMasterCreator masters={mastersData as any} />
               <AdminRoleCreator masters={mastersData as any} />
@@ -201,48 +196,26 @@ export default async function AdminDashboardPage({
           {/* ===== LEFT COLUMN: SCHEDULE ===== */}
           <div className="space-y-4 min-w-0">
 
-            {/* Problem appointments */}
-            {problemAppointments.length > 0 && (
-              <section className="rounded-2xl border border-red-500/20 bg-red-950/20 overflow-hidden">
-                <div className="px-4 py-3 border-b border-red-500/10 flex items-center gap-2.5">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-red-400">
-                      <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.01-1 2.588 0l6.7 11.5c.577 1-.144 2.25-1.294 2.25H1.295C.145 16-.576 14.75 0 13.75l6.7-11.5ZM8 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+            {/* Appointments outside work schedule */}
+            {outsideAppointments.length > 0 && (
+              <section className="rounded-2xl border border-violet-500/[0.15] bg-[#0D0D10] overflow-hidden">
+                <div className="px-4 py-3 border-b border-violet-500/10 flex items-center gap-2.5">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500/20 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-violet-400">
+                      <path fillRule="evenodd" d="M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8Zm7.75-4.25a.75.75 0 0 0-1.5 0V8c0 .414.336.75.75.75h3.25a.75.75 0 0 0 0-1.5h-2.5v-3.5Z" clipRule="evenodd" />
                     </svg>
                   </span>
-                  <span className="text-sm font-semibold text-red-300">Записи вне рабочего времени</span>
-                  <span className="ml-auto inline-flex items-center rounded-full bg-red-500/15 border border-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400">
-                    {problemAppointments.length}
+                  <span className="text-sm font-semibold text-violet-300">Предварительные записи</span>
+                  <span className="ml-auto inline-flex items-center rounded-full bg-violet-500/15 border border-violet-500/20 px-2 py-0.5 text-xs font-bold text-violet-400">
+                    {outsideAppointments.length}
                   </span>
                 </div>
                 <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {problemAppointments.map((a) => (
-                    <AdminAppointmentManager key={a.id} appointment={a as any} masters={mastersData as any} services={servicesData as any} />
+                  {outsideAppointments.map((a: any) => (
+                    <AdminAppointmentManager key={a.id} appointment={a as any} masters={mastersData as any} services={servicesData as any} outsideSchedule />
                   ))}
                 </div>
               </section>
-            )}
-
-            {(preliminaryData as any[]).length > 0 && (
-              <AdminPreliminaryBookings
-                appointments={(preliminaryData as any[]).map((apt: any) => {
-                  const master = (mastersData as any[]).find((m: any) => m.id === apt.masterId);
-                  const service = (servicesData as any[]).find((s: any) => s.id === apt.serviceId);
-                  const workSlot = (workSlotsData as any[]).find(
-                    (w: any) => w.masterId === apt.masterId && w.workDate === apt.appointmentDate && w.isConfirmed
-                  );
-                  const fitsInSlot = workSlot
-                    ? timeToMinutes(apt.startTime) >= timeToMinutes(workSlot.startTime) && timeToMinutes(apt.endTime) <= timeToMinutes(workSlot.endTime)
-                    : undefined;
-                  return {
-                    ...apt,
-                    masterName: master?.fullName || "Мастер",
-                    serviceName: service?.name || "Услуга",
-                    hasWorkSlot: !!workSlot,
-                    fitsInSlot: workSlot ? fitsInSlot : undefined,
-                  };
-                })}
-              />
             )}
 
             {/* Main schedule area */}

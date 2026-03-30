@@ -36,15 +36,21 @@ export default function AdminPreliminaryBookings({ appointments }: Props) {
 
   if (appointments.length === 0) return null;
 
+  const canConfirm = (apt: PreliminaryAppointment) => apt.hasWorkSlot && apt.fitsInSlot !== false;
+
   const toggleSelect = (id: number) => {
+    const apt = appointments.find((a) => a.id === id);
+    if (apt && !canConfirm(apt)) return;
     const next = new Set(selected);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelected(next);
   };
 
+  const confirmableAppointments = appointments.filter(canConfirm);
+
   const selectAll = () => {
-    if (selected.size === appointments.length) setSelected(new Set());
-    else setSelected(new Set(appointments.map((a) => a.id)));
+    if (selected.size === confirmableAppointments.length) setSelected(new Set());
+    else setSelected(new Set(confirmableAppointments.map((a) => a.id)));
   };
 
   const handleConfirm = async () => {
@@ -78,7 +84,7 @@ export default function AdminPreliminaryBookings({ appointments }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={selectAll} className="text-[10px] text-zinc-400 hover:text-zinc-200 transition-colors">
-            {selected.size === appointments.length ? "Снять все" : "Выбрать все"}
+            {selected.size === confirmableAppointments.length ? "Снять все" : "Выбрать все"}
           </button>
           {selected.size > 0 && (
             <button onClick={handleConfirm} disabled={confirming}
@@ -91,18 +97,21 @@ export default function AdminPreliminaryBookings({ appointments }: Props) {
       <div className="divide-y divide-white/[0.04]">
         {appointments.map((apt) => {
           const isSelected = selected.has(apt.id);
+          const isDisabled = !canConfirm(apt);
           const borderColor = apt.fitsInSlot === false ? "border-l-red-500/50" : apt.hasWorkSlot ? "border-l-emerald-500/50" : "border-l-zinc-500/30";
           return (
             <div key={apt.id} onClick={() => toggleSelect(apt.id)}
-              className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-white/[0.02] transition-colors border-l-2 ${borderColor}`}>
-              <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                isSelected ? "bg-violet-600 border-violet-500" : "border-zinc-600 bg-transparent"}`}>
-                {isSelected && (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-white">
-                    <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
+              className={`flex items-center gap-3 px-4 py-2.5 transition-colors border-l-2 ${borderColor} ${isDisabled ? "opacity-60" : "cursor-pointer hover:bg-white/[0.02]"}`}>
+              {!isDisabled && (
+                <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                  isSelected ? "bg-violet-600 border-violet-500" : "border-zinc-600 bg-transparent"}`}>
+                  {isSelected && (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-white">
+                      <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-zinc-200">{apt.serviceName || "Услуга"}</span>

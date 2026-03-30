@@ -85,6 +85,7 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
           endTime: updates.endTime ?? slot.endTime,
         },
       }));
+      setItems((prev) => prev.map((it) => it.id === slot.id ? { ...it, adminUpdateStatus: "pending" } : it));
       setEditingId(null);
     } catch (e: any) {
       setError(e?.message || "Ошибка");
@@ -245,12 +246,14 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
                     </span>
                   </td>
                   <td className="px-5 py-3 font-mono text-sm">
-                    {pendingRequest && isRequestedLocal ? (
-                      <span className="text-amber-300">
-                        {pendingRequest.startTime} — {pendingRequest.endTime}
-                      </span>
-                    ) : (
-                      <span className="text-zinc-300">{slot.startTime} — {slot.endTime}</span>
+                    <span className="text-zinc-300">{slot.startTime} — {slot.endTime}</span>
+                    {pendingRequest && isRequestedLocal && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-amber-500/60">
+                          <path fillRule="evenodd" d="M8 2a.75.75 0 0 1 .75.75v8.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.22 3.22V2.75A.75.75 0 0 1 8 2Z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-amber-400 text-xs">{pendingRequest.startTime} — {pendingRequest.endTime}</span>
+                      </div>
                     )}
                   </td>
                   <td className="px-5 py-3">
