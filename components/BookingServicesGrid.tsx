@@ -168,58 +168,73 @@ export default function BookingServicesGrid({
         </div>
       )}
 
-      {/* ── All services in category (flat grid) ──────────── */}
-      {activeCategory && (() => {
-        const allServices = activeCategory.subgroups.flatMap((sg) => sg.services || []);
-        if (allServices.length === 0) return (
-          <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-sm text-white/30" style={{ fontFamily: "var(--font-montserrat)" }}>Нет услуг</p>
-          </div>
-        );
-        return (
-          <div
-            className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${carousel ? "overflow-y-auto scrollbar-none" : ""}`}
-            style={carousel ? { maxHeight: 500 } : undefined}
-          >
-            {allServices.map((service, i) => (
-              <div
-                key={service.id}
-                data-card={i}
-                style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
-              >
-                <BookingServiceCard
-                  id={service.id}
-                  name={service.name}
-                  description={service.description}
-                  price={
-                    service.variants && service.variants.length > 0
-                      ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString()} ₽`
-                      : service.price ?? undefined
-                  }
-                  imageUrl={service.imageUrl}
-                  duration={
-                    service.variants && service.variants.length > 0
-                      ? undefined
-                      : service.duration ?? undefined
-                  }
-                  category={service.category}
-                  badgeText={
-                    service.variants && service.variants.length > 0
-                      ? `${service.variants.length} вар.`
-                      : service.badgeText ?? undefined
-                  }
-                  badgeType={
-                    service.variants && service.variants.length > 0
-                      ? "dark"
-                      : service.badgeType ?? undefined
-                  }
-                  onBook={() => handleCardBook(service)}
-                />
+      {/* ── Subgroup sections ───────────────────────────────── */}
+      {activeCategory && (
+        <div className="flex flex-col gap-8">
+          {activeCategory.subgroups.map((sg) => {
+            if (!sg.services || sg.services.length === 0) return null;
+            return (
+              <div key={sg.id}>
+                {/* Subgroup header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <h3
+                    className="text-sm font-semibold text-white/70 uppercase tracking-widest"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    {sg.name}
+                  </h3>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+
+                {/* Service cards grid */}
+                <div
+                  className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${
+                    carousel ? "overflow-y-auto scrollbar-none" : ""
+                  }`}
+                  style={carousel ? { maxHeight: 500 } : undefined}
+                >
+                  {sg.services.map((service, i) => (
+                    <div
+                      key={service.id}
+                      data-card={i}
+                      style={{ transition: "opacity 0.48s ease, transform 0.48s ease" }}
+                    >
+                      <BookingServiceCard
+                        id={service.id}
+                        name={service.name}
+                        description={service.description}
+                        price={
+                          service.variants && service.variants.length > 0
+                            ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString()} ₽`
+                            : service.price ?? undefined
+                        }
+                        imageUrl={service.imageUrl}
+                        duration={
+                          service.variants && service.variants.length > 0
+                            ? undefined
+                            : service.duration ?? undefined
+                        }
+                        category={service.category}
+                        badgeText={
+                          service.variants && service.variants.length > 0
+                            ? `${service.variants.length} вар.`
+                            : service.badgeText ?? undefined
+                        }
+                        badgeType={
+                          service.variants && service.variants.length > 0
+                            ? "dark"
+                            : service.badgeType ?? undefined
+                        }
+                        onBook={() => handleCardBook(service)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        );
-      })()}
+            );
+          })}
+        </div>
+      )}
 
       <style jsx global>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
