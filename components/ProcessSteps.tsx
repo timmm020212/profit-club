@@ -45,7 +45,21 @@ const STEPS = [
   },
 ];
 
-export default function ProcessSteps({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface ProcessCms {
+  overline?: string;
+  title?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  steps?: { number?: string; title: string; text: string; icon?: string }[];
+}
+
+export default function ProcessSteps({ cms }: { cms?: ProcessCms | null }) {
+  const steps = cms?.steps?.length ? cms.steps.map((s, i) => ({
+    ...STEPS[i] || STEPS[0],
+    num: s.number || String(i + 1).padStart(2, "0"),
+    title: s.title,
+    text: s.text,
+  })) : STEPS;
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -96,7 +110,7 @@ export default function ProcessSteps({ cms }: { cms?: { title?: string; subtitle
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Как записаться
+              {cms?.overline || "Как записаться"}
             </span>
           </div>
           <h2
@@ -125,7 +139,7 @@ export default function ProcessSteps({ cms }: { cms?: { title?: string; subtitle
           />
 
           <div className="space-y-6">
-            {STEPS.map((step, i) => (
+            {steps.map((step, i) => (
               <div
                 key={i}
                 data-step={i}
@@ -194,7 +208,7 @@ export default function ProcessSteps({ cms }: { cms?: { title?: string; subtitle
         {/* CTA */}
         <div className="mt-14 md:mt-20 flex items-center gap-6">
           <a href="/booking" className="pc-cta">
-            <span>Записаться сейчас</span>
+            <span>{cms?.ctaText || "Записаться сейчас"}</span>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>

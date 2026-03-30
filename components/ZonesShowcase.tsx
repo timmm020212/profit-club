@@ -32,7 +32,21 @@ const ZONES = [
   },
 ];
 
-export default function ZonesShowcase({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface ZonesCms {
+  overline?: string;
+  title?: string;
+  zones?: { title: string; subtitle?: string; description: string; image?: string; color?: string; features?: { text: string }[] }[];
+}
+
+export default function ZonesShowcase({ cms }: { cms?: ZonesCms | null }) {
+  const zones = cms?.zones?.length ? cms.zones.map((z, i) => ({
+    title: z.title,
+    subtitle: z.subtitle || "",
+    description: z.description,
+    image: z.image || ZONES[i]?.image || "",
+    accent: z.color || ZONES[i]?.accent || "#B2223C",
+    features: z.features?.map(f => f.text) || ZONES[i]?.features || [],
+  })) : ZONES;
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,7 +108,7 @@ export default function ZonesShowcase({ cms }: { cms?: { title?: string; subtitl
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Пространства
+              {cms?.overline || "Пространства"}
             </span>
           </div>
           <h2
@@ -119,7 +133,7 @@ export default function ZonesShowcase({ cms }: { cms?: { title?: string; subtitl
           ref={sectionRef}
           className="grid grid-cols-1 md:grid-cols-3 gap-4"
         >
-          {ZONES.map((zone, i) => (
+          {zones.map((zone, i) => (
             <div
               key={i}
               data-zone={i}

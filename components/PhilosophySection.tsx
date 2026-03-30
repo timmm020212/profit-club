@@ -46,7 +46,19 @@ const PILLARS = [
   },
 ];
 
-export default function PhilosophySection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface PhilosophyCms {
+  overline?: string;
+  title?: string;
+  subtitle?: string;
+  pillars?: { icon?: string; title: string; text: string; accent?: string }[];
+}
+
+export default function PhilosophySection({ cms }: { cms?: PhilosophyCms | null }) {
+  const pillars = cms?.pillars?.length ? cms.pillars.map((p, i) => ({
+    ...PILLARS[i] || PILLARS[0],
+    title: p.title,
+    text: p.text,
+  })) : PILLARS;
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,7 +120,7 @@ export default function PhilosophySection({ cms }: { cms?: { title?: string; sub
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Наша философия
+              {cms?.overline || "Наша философия"}
             </span>
           </div>
 
@@ -145,7 +157,7 @@ export default function PhilosophySection({ cms }: { cms?: { title?: string; sub
 
         {/* Pillars grid */}
         <div ref={sectionRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {PILLARS.map((p, i) => (
+          {pillars.map((p, i) => (
             <div
               key={i}
               data-phil={i}

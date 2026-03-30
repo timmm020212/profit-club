@@ -2,7 +2,7 @@
 
 import BookingServicesGrid from "./BookingServicesGrid";
 
-const ServiceGrid = ({ cms }: { cms?: { title?: string; subtitle?: string } }) => {
+const ServiceGrid = ({ cms }: { cms?: { overline?: string; title?: string; subtitle?: string } | null }) => {
   return (
     <section id="services" className="relative w-full bg-[#09090D] overflow-hidden">
       {/* Grid lines */}
@@ -24,7 +24,7 @@ const ServiceGrid = ({ cms }: { cms?: { title?: string; subtitle?: string } }) =
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Каталог
+              {cms?.overline || "Каталог"}
             </span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-end">

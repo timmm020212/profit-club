@@ -41,7 +41,14 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function TestimonialsSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface TestimonialsCms {
+  overline?: string;
+  title?: string;
+  items?: { name: string; service: string; text: string; rating?: number }[];
+}
+
+export default function TestimonialsSection({ cms }: { cms?: TestimonialsCms | null }) {
+  const testimonials = cms?.items?.length ? cms.items.map(t => ({ ...t, rating: t.rating || 5 })) : TESTIMONIALS;
   const [activeIdx, setActiveIdx] = useState(0);
   const sectionRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -49,7 +56,7 @@ export default function TestimonialsSection({ cms }: { cms?: { title?: string; s
   // Autoplay
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % TESTIMONIALS.length);
+      setActiveIdx((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
@@ -58,11 +65,11 @@ export default function TestimonialsSection({ cms }: { cms?: { title?: string; s
     setActiveIdx(idx);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % TESTIMONIALS.length);
+      setActiveIdx((prev) => (prev + 1) % testimonials.length);
     }, 5000);
   };
 
-  const current = TESTIMONIALS[activeIdx];
+  const current = testimonials[activeIdx];
 
   return (
     <section id="testimonials" className="relative w-full bg-[#06060A] overflow-hidden">
@@ -97,7 +104,7 @@ export default function TestimonialsSection({ cms }: { cms?: { title?: string; s
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Отзывы
+              {cms?.overline || "Отзывы"}
             </span>
             <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, #C8A96E, rgba(200,169,110,0.3))" }} />
           </div>
@@ -202,7 +209,7 @@ export default function TestimonialsSection({ cms }: { cms?: { title?: string; s
 
           {/* Navigation dots */}
           <div className="flex items-center justify-center gap-2 mt-8">
-            {TESTIMONIALS.map((_, i) => (
+            {testimonials.map((_, i) => (
               <button
                 key={i}
                 type="button"

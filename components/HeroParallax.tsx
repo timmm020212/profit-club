@@ -3,14 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
 
-const STATS = [
+const DEFAULT_STATS = [
   { num: "8+",   label: "лет опыта" },
   { num: "500+", label: "довольных клиентов" },
   { num: "15+",  label: "мастеров" },
   { num: "30+",  label: "видов услуг" },
 ];
 
-export default function HeroParallax({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface HeroCms {
+  overline?: string;
+  title1?: string;
+  title2?: string;
+  subtitle?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  secondaryText?: string;
+  secondaryLink?: string;
+  stats?: { value: string; label: string }[];
+  title?: string; // legacy
+}
+
+export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
+  const STATS = cms?.stats?.length ? cms.stats.map(s => ({ num: s.value, label: s.label })) : DEFAULT_STATS;
   const [scrollY, setScrollY] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -122,7 +136,7 @@ export default function HeroParallax({ cms }: { cms?: { title?: string; subtitle
             className="text-[#C8A96E] uppercase tracking-[0.35em]"
             style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
           >
-            Premium Beauty &amp; Fitness
+            {cms?.overline || "Premium Beauty & Fitness"}
           </span>
         </div>
 
@@ -222,7 +236,7 @@ export default function HeroParallax({ cms }: { cms?: { title?: string; subtitle
           style={{ animationDelay: "0.7s" }}
         >
           <a href="/booking" className="pc-cta">
-            <span>Записаться</span>
+            <span>{cms?.ctaText || "Записаться"}</span>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
@@ -240,7 +254,7 @@ export default function HeroParallax({ cms }: { cms?: { title?: string; subtitle
               transition: "color 0.3s ease",
             }}
           >
-            Наши услуги ↓
+            {cms?.secondaryText || "Наши услуги ↓"}
           </a>
         </div>
 

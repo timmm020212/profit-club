@@ -22,7 +22,21 @@ const SCHEDULE = [
   { days: "Вс", hours: "10:00 — 18:00" },
 ];
 
-export default function FooterSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+interface FooterCms {
+  cta?: { title?: string; subtitle?: string; buttonText?: string; buttonLink?: string };
+  brand?: { name?: string; description?: string };
+  serviceLinks?: { label: string; href: string }[];
+  infoLinks?: { label: string; href: string }[];
+  schedule?: { days: string; hours: string }[];
+  contacts?: { phone?: string; address?: string; telegram?: string; instagram?: string };
+  copyright?: string;
+  title?: string; subtitle?: string; // legacy
+}
+
+export default function FooterSection({ cms }: { cms?: FooterCms | null }) {
+  const serviceLinks = cms?.serviceLinks?.length ? cms.serviceLinks : LINKS.services;
+  const infoLinks = cms?.infoLinks?.length ? cms.infoLinks : LINKS.info;
+  const schedule = cms?.schedule?.length ? cms.schedule : SCHEDULE;
   return (
     <footer className="relative w-full bg-[#04040A] overflow-hidden">
       {/* Subtle grid */}
@@ -59,7 +73,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
               lineHeight: 1.1,
             }}
           >
-            {cms?.title || "Готовы преобразиться?"}
+            {cms?.cta?.title || cms?.title || "Готовы преобразиться?"}
           </h3>
           <p
             className="relative"
@@ -117,7 +131,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
                 lineHeight: 1.7,
               }}
             >
-              Премиальный салон красоты.<br />
+              {cms?.brand?.description || "Премиальный салон красоты."}<br />
               Косметология, фитнес и барбершоп
               в одном пространстве.
             </p>
@@ -132,7 +146,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
               Услуги
             </h5>
             <ul className="space-y-2.5">
-              {LINKS.services.map((link, i) => (
+              {serviceLinks.map((link, i) => (
                 <li key={i}>
                   <a
                     href={link.href}
@@ -161,7 +175,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
               Информация
             </h5>
             <ul className="space-y-2.5">
-              {LINKS.info.map((link, i) => (
+              {infoLinks.map((link, i) => (
                 <li key={i}>
                   <a
                     href={link.href}
@@ -190,7 +204,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
               Режим работы
             </h5>
             <ul className="space-y-2 mb-6">
-              {SCHEDULE.map((s, i) => (
+              {schedule.map((s, i) => (
                 <li key={i} className="flex justify-between gap-4">
                   <span
                     style={{
@@ -229,7 +243,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
                   textDecoration: "none",
                 }}
               >
-                +7 (900) 123-45-67
+                {cms?.contacts?.phone || "+7 (900) 123-45-67"}
               </a>
               <p
                 style={{
@@ -239,7 +253,7 @@ export default function FooterSection({ cms }: { cms?: { title?: string; subtitl
                   color: "rgba(255,255,255,0.2)",
                 }}
               >
-                г. Москва, ул. Пример, д. 1
+                {cms?.contacts?.address || "г. Москва, ул. Пример, д. 1"}
               </p>
             </div>
           </div>

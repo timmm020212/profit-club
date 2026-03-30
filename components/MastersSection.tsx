@@ -22,7 +22,7 @@ function getInitials(name: string) {
     .join("");
 }
 
-export default function MastersSection({ cms }: { cms?: { title?: string; subtitle?: string } }) {
+export default function MastersSection({ cms }: { cms?: { overline?: string; title?: string; subtitle?: string } | null }) {
   const [masters, setMasters] = useState<Master[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -114,7 +114,7 @@ export default function MastersSection({ cms }: { cms?: { title?: string; subtit
               className="text-[#C8A96E] uppercase tracking-[0.35em]"
               style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 10 }}
             >
-              Команда
+              {cms?.overline || "Команда"}
             </span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 items-end">

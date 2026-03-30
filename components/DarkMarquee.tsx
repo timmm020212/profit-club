@@ -1,10 +1,12 @@
 "use client";
 
-export default function DarkMarquee() {
-  const items = [
-    "КОСМЕТОЛОГИЯ", "ФИТНЕС", "БАРБЕРШОП", "МАНИКЮР", "МАССАЖ",
-    "УХОД ЗА ЛИЦОМ", "ИНЪЕКЦИИ", "ПИЛИНГ", "ЭПИЛЯЦИЯ", "СТРИЖКИ",
-  ];
+const DEFAULT_ITEMS = [
+  "КОСМЕТОЛОГИЯ", "ФИТНЕС", "БАРБЕРШОП", "МАНИКЮР", "МАССАЖ",
+  "УХОД ЗА ЛИЦОМ", "ИНЪЕКЦИИ", "ПИЛИНГ", "ЭПИЛЯЦИЯ", "СТРИЖКИ",
+];
+
+export default function DarkMarquee({ cms }: { cms?: { items?: { text: string }[] } | null }) {
+  const items = cms?.items?.length ? cms.items.map(i => i.text) : DEFAULT_ITEMS;
 
   return (
     <section className="relative w-full overflow-hidden bg-[#06060A] py-5 border-y border-white/[0.04]">
