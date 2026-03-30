@@ -155,7 +155,7 @@ export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
                 letterSpacing: "-0.01em",
               }}
             >
-              PROFIT
+              {cms?.title1 || "PROFIT"}
             </h1>
           </div>
           <div style={{ overflow: "hidden", marginBottom: 32 }}>
@@ -172,7 +172,7 @@ export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
                 WebkitTextStroke: "1.5px rgba(200,169,110,0.55)",
               }}
             >
-              CLUB
+              {cms?.title2 || "CLUB"}
             </h1>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
                 letterSpacing: "-0.01em",
               }}
             >
-              PROFIT
+              {cms?.title1 || "PROFIT"}
             </h1>
           </div>
           <div style={{ overflow: "hidden" }}>
@@ -208,7 +208,7 @@ export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
                 WebkitTextStroke: "1.5px rgba(200,169,110,0.55)",
               }}
             >
-              CLUB
+              {cms?.title2 || "CLUB"}
             </h1>
           </div>
         </div>
@@ -235,14 +235,14 @@ export default function HeroParallax({ cms }: { cms?: HeroCms | null }) {
           className="flex items-center gap-5 flex-wrap pc-fade-in"
           style={{ animationDelay: "0.7s" }}
         >
-          <a href="/booking" className="pc-cta">
+          <a href={cms?.ctaLink || "/booking"} className="pc-cta">
             <span>{cms?.ctaText || "Записаться"}</span>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </a>
           <a
-            href="#services"
+            href={cms?.secondaryLink || "#services"}
             style={{
               fontFamily: "var(--font-montserrat)",
               fontWeight: 300,
