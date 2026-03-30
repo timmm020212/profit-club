@@ -38,7 +38,9 @@ export async function GET(request: Request) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) return NextResponse.json({ error: "No bot token" }, { status: 500 });
 
-    const now = new Date();
+    // Use Moscow timezone for time calculations
+    const moscowStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Moscow" });
+    const now = new Date(moscowStr);
     const allAppointments = await db.select({
       id: appointments.id, appointmentDate: appointments.appointmentDate, startTime: appointments.startTime,
       clientTelegramId: appointments.clientTelegramId, serviceId: appointments.serviceId, masterId: appointments.masterId,
@@ -50,9 +52,12 @@ export async function GET(request: Request) {
       const aptDt = new Date(`${apt.appointmentDate}T${apt.startTime}:00`);
       const diffH = (aptDt.getTime() - now.getTime()) / 3600000;
 
+      // Skip past appointments
+      if (diffH <= 0) continue;
+
       let type: "24hour" | "2hour" | null = null;
-      if (diffH >= 23.5 && diffH <= 24.5) type = "24hour";
-      else if (diffH >= 1.5 && diffH <= 2.5) type = "2hour";
+      if (diffH <= 2) type = "2hour";
+      else if (diffH <= 24) type = "24hour";
       if (!type) continue;
 
       const existing = await db.select().from(reminderSent)
