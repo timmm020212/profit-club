@@ -15,10 +15,11 @@ export const Hero: GlobalConfig = {
     {
       name: "stats",
       type: "array",
-      label: "Статистика",
+      label: "Миниблоки статистики",
+      labels: { singular: "Миниблок", plural: "Миниблоки" },
       fields: [
-        { name: "value", type: "text", label: "Значение", required: true },
-        { name: "label", type: "text", label: "Подпись", required: true },
+        { name: "value", type: "text", label: "Значение (например: 8+)", required: true },
+        { name: "label", type: "text", label: "Текст (например: лет опыта)", required: true },
       ],
     },
   ],
