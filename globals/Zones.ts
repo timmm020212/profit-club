@@ -3,6 +3,7 @@ import type { GlobalConfig } from "payload";
 export const Zones: GlobalConfig = {
   slug: "zones",
   label: "Зоны",
+  access: { read: () => true },
   fields: [
     { name: "overline", type: "text", label: "Надзаголовок", defaultValue: "Пространства" },
     { name: "title", type: "text", label: "Заголовок", defaultValue: "Три зоны — одна цель" },

@@ -3,6 +3,7 @@ import type { GlobalConfig } from "payload";
 export const Testimonials: GlobalConfig = {
   slug: "testimonials",
   label: "Отзывы",
+  access: { read: () => true },
   fields: [
     { name: "overline", type: "text", label: "Надзаголовок", defaultValue: "Отзывы" },
     { name: "title", type: "text", label: "Заголовок", defaultValue: "Что говорят клиенты" },

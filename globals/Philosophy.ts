@@ -3,6 +3,7 @@ import type { GlobalConfig } from "payload";
 export const Philosophy: GlobalConfig = {
   slug: "philosophy",
   label: "Философия",
+  access: { read: () => true },
   fields: [
     { name: "overline", type: "text", label: "Надзаголовок", defaultValue: "Наша философия" },
     { name: "title", type: "text", label: "Заголовок", defaultValue: "Пространство, где рождается красота" },

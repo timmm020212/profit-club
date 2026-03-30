@@ -3,6 +3,7 @@ import type { GlobalConfig } from "payload";
 export const Hero: GlobalConfig = {
   slug: "hero",
   label: "Героблок",
+  access: { read: () => true },
   fields: [
     { name: "overline", type: "text", label: "Надзаголовок", defaultValue: "Premium Beauty & Fitness" },
     { name: "title1", type: "text", label: "Заголовок (строка 1)", defaultValue: "PROFIT" },
