@@ -11,7 +11,11 @@ type Args = {
 
 const serverFunction: typeof handleServerFunctions = async function (args) {
   "use server";
-  return handleServerFunctions(args);
+  return handleServerFunctions({
+    ...args,
+    config,
+    importMap,
+  });
 };
 
 const Layout = ({ children }: Args) => (
