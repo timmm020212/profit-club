@@ -74,8 +74,8 @@ export async function GET(request: Request) {
     for (const slot of todaySlots) {
       const slotStartMin = timeToMinutes(slot.startTime);
 
-      // Check if slot starts within [now - 5min, now]
-      if (slotStartMin < nowMinutes - 5 || slotStartMin > nowMinutes) continue;
+      // Check if slot starts within [now - 1min, now]
+      if (slotStartMin < nowMinutes - 1 || slotStartMin > nowMinutes) continue;
 
       // Deduplication: check reminderSent (use negative masterId as appointmentId)
       const dedupeId = -slot.masterId;
