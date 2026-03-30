@@ -7,6 +7,9 @@
       "Bash(mkdir -p \"c:/Users/timur/Downloads/Profit Club/app/\\(payload\\)/api/[...payload]\")",
       "Bash(node -e \":*)",
       "Bash(curl -s http://localhost:3000/ -o /dev/null -w \"%{http_code}\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\timur\\Downloads\\Profit Club\\app\\(payload)\\admin\\cms"
     ]
   }
 }
