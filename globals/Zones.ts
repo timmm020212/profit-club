@@ -15,7 +15,8 @@ export const Zones: GlobalConfig = {
         { name: "title", type: "text", label: "Название", required: true },
         { name: "subtitle", type: "text", label: "Подзаголовок" },
         { name: "description", type: "textarea", label: "Описание", required: true },
-        { name: "image", type: "text", label: "Путь к изображению" },
+        { name: "imagePath", type: "text", label: "Путь к изображению (или загрузите ниже)" },
+        { name: "image", type: "upload", relationTo: "cms_media", label: "Изображение" },
         { name: "color", type: "text", label: "Цвет (hex)", defaultValue: "#B2223C" },
         {
           name: "features",

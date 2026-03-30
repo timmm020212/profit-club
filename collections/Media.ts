@@ -6,6 +6,9 @@ export const Media: CollectionConfig = {
     singular: "Медиа",
     plural: "Медиа",
   },
+  access: {
+    read: () => true,
+  },
   upload: {
     staticDir: "public/media",
     mimeTypes: ["image/*", "video/*"],

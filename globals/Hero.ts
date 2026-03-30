@@ -13,6 +13,7 @@ export const Hero: GlobalConfig = {
     { name: "ctaLink", type: "text", label: "Ссылка CTA", defaultValue: "/booking" },
     { name: "secondaryText", type: "text", label: "Вторичная ссылка", defaultValue: "Наши услуги ↓" },
     { name: "secondaryLink", type: "text", label: "Ссылка вторичная", defaultValue: "#services" },
+    { name: "backgroundImage", type: "upload", relationTo: "cms_media", label: "Фоновое изображение" },
     {
       name: "stats",
       type: "array",
