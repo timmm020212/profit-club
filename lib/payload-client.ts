@@ -1,18 +1,9 @@
-import { getPayload } from "payload";
-import config from "@payload-config";
-
-let payloadInstance: Awaited<ReturnType<typeof getPayload>> | null = null;
-
-async function getPayloadClient() {
-  if (!payloadInstance) {
-    payloadInstance = await getPayload({ config });
-  }
-  return payloadInstance;
-}
+import configPromise from "@payload-config";
 
 export async function getGlobal<T = any>(slug: string): Promise<T | null> {
   try {
-    const payload = await getPayloadClient();
+    const { getPayload } = await import("payload");
+    const payload = await getPayload({ config: configPromise });
     const data = await payload.findGlobal({ slug });
     return data as T;
   } catch (e) {
