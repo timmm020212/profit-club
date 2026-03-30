@@ -12,10 +12,8 @@ export const Philosophy: GlobalConfig = {
       type: "array",
       label: "Столпы",
       fields: [
-        { name: "icon", type: "text", label: "Иконка (emoji)" },
         { name: "title", type: "text", label: "Заголовок", required: true },
         { name: "text", type: "textarea", label: "Описание", required: true },
-        { name: "accent", type: "text", label: "Акцент (слово)" },
       ],
     },
   ],
