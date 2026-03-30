@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import ServiceGrid from "@/components/ServiceGrid";
 import DarkMarquee from "@/components/DarkMarquee";
 import PhilosophySection from "@/components/PhilosophySection";
