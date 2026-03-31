@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload";
+import { supabaseUploadHook, supabaseDeleteHook } from "../lib/supabase-storage";
 
 export const Media: CollectionConfig = {
   slug: "cms_media",
@@ -10,7 +11,12 @@ export const Media: CollectionConfig = {
     read: () => true,
   },
   upload: {
+    staticDir: "public/media",
     mimeTypes: ["image/*", "video/*"],
+  },
+  hooks: {
+    afterChange: [supabaseUploadHook],
+    afterDelete: [supabaseDeleteHook],
   },
   admin: {
     useAsTitle: "alt",
@@ -21,6 +27,12 @@ export const Media: CollectionConfig = {
       type: "text",
       label: "Описание (alt)",
       required: true,
+    },
+    {
+      name: "supabaseUrl",
+      type: "text",
+      label: "URL в Supabase",
+      admin: { readOnly: true, position: "sidebar" },
     },
   ],
 };
