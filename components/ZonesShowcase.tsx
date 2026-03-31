@@ -35,18 +35,21 @@ const ZONES = [
 interface ZonesCms {
   overline?: string;
   title?: string;
-  zones?: { title: string; subtitle?: string; description: string; image?: string; color?: string; features?: { text: string }[] }[];
+  zones?: { title: string; subtitle?: string; description: string; image?: any; imagePath?: string; color?: string; features?: { text: string }[] }[];
 }
 
 export default function ZonesShowcase({ cms }: { cms?: ZonesCms | null }) {
-  const zones = cms?.zones?.length ? cms.zones.map((z, i) => ({
-    title: z.title,
-    subtitle: z.subtitle || "",
-    description: z.description,
-    image: z.image || ZONES[i]?.image || "",
-    accent: z.color || ZONES[i]?.accent || "#B2223C",
-    features: z.features?.map(f => f.text) || ZONES[i]?.features || [],
-  })) : ZONES;
+  const zones = cms?.zones?.length ? cms.zones.map((z, i) => {
+    const imgUrl = typeof z.image === "object" && z.image?.url ? z.image.url : (z.imagePath || ZONES[i]?.image || "");
+    return {
+      title: z.title,
+      subtitle: z.subtitle || "",
+      description: z.description,
+      image: imgUrl,
+      accent: z.color || ZONES[i]?.accent || "#B2223C",
+      features: z.features?.map(f => f.text) || ZONES[i]?.features || [],
+    };
+  }) : ZONES;
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
