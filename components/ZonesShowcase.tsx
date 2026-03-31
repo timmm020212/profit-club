@@ -149,22 +149,6 @@ export default function ZonesShowcase({ cms }: { cms?: ZonesCms | null }) {
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                   style={{ backgroundImage: `url(${zone.image})` }}
                 />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: `radial-gradient(ellipse at 30% 50%, ${zone.accent}18, transparent 60%), radial-gradient(ellipse at 70% 80%, ${zone.accent}10, #0C0C14 90%)`,
-                  }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: "linear-gradient(to top, #0C0C14 0%, rgba(12,12,20,0.5) 40%, rgba(12,12,20,0.15) 100%)",
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-[2px]"
-                  style={{ background: `linear-gradient(90deg, ${zone.accent}, transparent)`, opacity: 0.4 }}
-                />
               </div>
 
               {/* Content */}
