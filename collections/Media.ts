@@ -10,7 +10,6 @@ export const Media: CollectionConfig = {
     read: () => true,
   },
   upload: {
-    staticDir: "public/media",
     mimeTypes: ["image/*", "video/*"],
   },
   admin: {

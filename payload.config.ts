@@ -1,6 +1,7 @@
 import { buildConfig } from "payload";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
+import { s3Storage } from "@payloadcms/storage-s3";
 import path from "path";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
@@ -21,6 +22,9 @@ import { Footer } from "./globals/Footer";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
+
+const supabaseUrl = process.env.SUPABASE_URL || "https://nudnkpazetugfwykcxfw.supabase.co";
+const supabaseProjectRef = supabaseUrl.replace("https://", "").replace(".supabase.co", "");
 
 export default buildConfig({
   admin: {
@@ -44,6 +48,23 @@ export default buildConfig({
     push: false,
     schemaName: "cms",
   }),
+  plugins: [
+    s3Storage({
+      collections: {
+        cms_media: true,
+      },
+      bucket: "cms-media",
+      config: {
+        credentials: {
+          accessKeyId: supabaseProjectRef,
+          secretAccessKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+        },
+        region: "eu-central-1",
+        endpoint: `${supabaseUrl}/storage/v1/s3`,
+        forcePathStyle: true,
+      },
+    }),
+  ],
   typescript: {
     outputFile: path.resolve(dirname, "payload-types.ts"),
   },
