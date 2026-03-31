@@ -1,8 +1,16 @@
-const PAYLOAD_API = process.env.NEXT_PUBLIC_PAYLOAD_API || "http://localhost:3000/api/payload";
+function getBaseUrl() {
+  // Server-side: use NEXTAUTH_URL or localhost
+  if (typeof window === "undefined") {
+    return process.env.NEXTAUTH_URL || "http://localhost:3000";
+  }
+  // Client-side: relative URL
+  return "";
+}
 
 export async function getGlobal<T = any>(slug: string): Promise<T | null> {
   try {
-    const res = await fetch(`${PAYLOAD_API}/globals/${slug}`, {
+    const base = getBaseUrl();
+    const res = await fetch(`${base}/api/payload/globals/${slug}`, {
       next: { revalidate: 0 },
     });
     if (!res.ok) return null;
