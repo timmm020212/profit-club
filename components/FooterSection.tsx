@@ -255,6 +255,24 @@ export default function FooterSection({ cms }: { cms?: FooterCms | null }) {
               >
                 {cms?.contacts?.address || "г. Москва, ул. Пример, д. 1"}
               </p>
+              {(cms?.contacts?.telegram || cms?.contacts?.instagram) && (
+                <div className="flex items-center gap-3 mt-2">
+                  {cms?.contacts?.telegram && (
+                    <a href={cms.contacts.telegram} target="_blank" rel="noopener noreferrer"
+                      style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 12, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}
+                      className="hover:text-[#C8A96E] transition-colors">
+                      Telegram
+                    </a>
+                  )}
+                  {cms?.contacts?.instagram && (
+                    <a href={cms.contacts.instagram} target="_blank" rel="noopener noreferrer"
+                      style={{ fontFamily: "var(--font-montserrat)", fontWeight: 300, fontSize: 12, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}
+                      className="hover:text-[#C8A96E] transition-colors">
+                      Instagram
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
