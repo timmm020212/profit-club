@@ -112,14 +112,30 @@ export async function GET(request: Request) {
           eq(appointments.status, "confirmed"),
         ));
 
+      // Detect gaps between appointments as automatic breaks
+      const sortedApps = [...apps].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const autoBreaks: { startTime: string; endTime: string }[] = [];
+      for (let i = 0; i < sortedApps.length - 1; i++) {
+        const endMin = timeToMinutes(sortedApps[i].endTime);
+        const nextStartMin = timeToMinutes(sortedApps[i + 1].startTime);
+        if (nextStartMin > endMin) {
+          autoBreaks.push({ startTime: sortedApps[i].endTime, endTime: sortedApps[i + 1].startTime });
+        }
+      }
+
+      // Merge schedule blocks + auto-detected gaps
+      const allBreaks = [
+        ...breaks.map((b: any) => ({ startTime: b.startTime, endTime: b.endTime })),
+        ...autoBreaks,
+      ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
       // Build message
       const dateFormatted = formatDateRu(todayStr);
       let msg = `📋 Ваш день на сегодня\n\n📅 ${dateFormatted}, ${slot.startTime}–${slot.endTime}`;
 
       // Breaks section
-      if (breaks.length > 0) {
-        const breakLines = breaks
-          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+      if (allBreaks.length > 0) {
+        const breakLines = allBreaks
           .map((b) => `• ${b.startTime}–${b.endTime}`)
           .join("\n");
         msg += `\n\n☕ Перерывы:\n${breakLines}`;
