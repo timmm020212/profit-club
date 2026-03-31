@@ -293,7 +293,8 @@ export default function FooterSection({ cms }: { cms?: FooterCms | null }) {
           <div className="flex gap-4">
             {/* Telegram */}
             <a
-              href="#"
+              href={cms?.contacts?.telegram || "#"}
+              target="_blank" rel="noopener noreferrer"
               className="w-8 h-8 rounded-full border border-white/[0.06] flex items-center justify-center text-white/20 hover:text-[#C8A96E] hover:border-[#C8A96E]/20 transition-all duration-300"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -302,7 +303,8 @@ export default function FooterSection({ cms }: { cms?: FooterCms | null }) {
             </a>
             {/* Instagram */}
             <a
-              href="#"
+              href={cms?.contacts?.instagram || "#"}
+              target="_blank" rel="noopener noreferrer"
               className="w-8 h-8 rounded-full border border-white/[0.06] flex items-center justify-center text-white/20 hover:text-[#C8A96E] hover:border-[#C8A96E]/20 transition-all duration-300"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
