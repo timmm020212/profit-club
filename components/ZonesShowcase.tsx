@@ -40,7 +40,9 @@ interface ZonesCms {
 
 export default function ZonesShowcase({ cms }: { cms?: ZonesCms | null }) {
   const zones = cms?.zones?.length ? cms.zones.map((z, i) => {
-    const imgUrl = typeof z.image === "object" && z.image?.supabaseUrl ? z.image.supabaseUrl : (typeof z.image === "object" && z.image?.url ? z.image.url : (z.imagePath || ZONES[i]?.image || ""));
+    const imgObj = typeof z.image === "object" ? z.image : null;
+    const supabaseMediaUrl = "https://nudnkpazetugfwykcxfw.supabase.co/storage/v1/object/public/cms-media";
+    const imgUrl = imgObj?.supabaseUrl || (imgObj?.filename ? `${supabaseMediaUrl}/${imgObj.filename}` : null) || imgObj?.url || z.imagePath || ZONES[i]?.image || "";
     return {
       title: z.title,
       subtitle: z.subtitle || "",
