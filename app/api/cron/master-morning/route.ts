@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { workSlots, scheduleBlocks, appointments, masters, reminderSent } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getTemplate, renderTemplate } from "@/lib/bot-templates";
 
 export const dynamic = "force-dynamic";
 
@@ -129,33 +130,36 @@ export async function GET(request: Request) {
         ...autoBreaks,
       ].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-      // Build message
+      // Build message parts
       const dateFormatted = formatDateRu(todayStr);
-      let msg = `📋 Ваш день на сегодня\n\n📅 ${dateFormatted}, ${slot.startTime}–${slot.endTime}`;
 
-      // Breaks section
-      if (allBreaks.length > 0) {
-        const breakLines = allBreaks
-          .map((b) => `• ${b.startTime}–${b.endTime}`)
-          .join("\n");
-        msg += `\n\n☕ Перерывы:\n${breakLines}`;
-      }
+      const breaksText = allBreaks.length > 0
+        ? `\n\n☕ Перерывы:\n${allBreaks.map((b) => `• ${b.startTime}–${b.endTime}`).join("\n")}`
+        : "";
 
-      // Appointments / early finish section
+      let earlyFinishText = "";
+      let noAppointmentsText = "";
       if (apps.length === 0) {
-        msg += "\n\n📝 Записей пока нет";
+        noAppointmentsText = "\n\n📝 Записей пока нет";
       } else {
-        const lastEndTime = apps
-          .map((a) => a.endTime)
-          .sort()
-          .pop()!;
-        const lastEndMin = timeToMinutes(lastEndTime);
-        const shiftEndMin = timeToMinutes(slot.endTime);
-
-        if (lastEndMin < shiftEndMin) {
-          msg += `\n\n🏁 Последняя запись заканчивается в ${lastEndTime}\n   Свободны с ${lastEndTime} (смена до ${slot.endTime})`;
+        const lastEndTime = apps.map((a) => a.endTime).sort().pop()!;
+        if (timeToMinutes(lastEndTime) < timeToMinutes(slot.endTime)) {
+          earlyFinishText = `\n\n🏁 Последняя запись заканчивается в ${lastEndTime}\n   Свободны с ${lastEndTime} (смена до ${slot.endTime})`;
         }
       }
+
+      // Use template if available
+      const tpl = await getTemplate("master_morning");
+      const msg = tpl && tpl.enabled
+        ? renderTemplate(tpl.template, {
+            date: dateFormatted,
+            shiftStart: slot.startTime,
+            shiftEnd: slot.endTime,
+            breaks: breaksText,
+            earlyFinish: earlyFinishText,
+            noAppointments: noAppointmentsText,
+          })
+        : `📋 Ваш день на сегодня\n\n📅 ${dateFormatted}, ${slot.startTime}–${slot.endTime}${breaksText}${earlyFinishText}${noAppointmentsText}`;
 
       // Send
       const ok = await sendTelegram(master.telegramId, msg);

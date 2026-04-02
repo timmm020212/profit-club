@@ -6,12 +6,13 @@ import { DEFAULT_TEMPLATES } from "@/lib/bot-templates";
 
 export const dynamic = "force-dynamic";
 
-async function seedIfEmpty() {
-  const existing = await db.select({ id: botNotificationTemplates.id })
-    .from(botNotificationTemplates).limit(1);
-  if (existing.length > 0) return;
+async function seedMissing() {
+  const existing = await db.select({ slug: botNotificationTemplates.slug })
+    .from(botNotificationTemplates);
+  const existingSlugs = new Set(existing.map(e => e.slug));
 
   for (const t of DEFAULT_TEMPLATES) {
+    if (existingSlugs.has(t.slug)) continue;
     await db.insert(botNotificationTemplates).values({
       slug: t.slug,
       botType: t.botType,
@@ -25,7 +26,7 @@ async function seedIfEmpty() {
 
 export async function GET(request: Request) {
   try {
-    await seedIfEmpty();
+    await seedMissing();
     const { searchParams } = new URL(request.url);
     const botType = searchParams.get("botType");
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { appointments, scheduleBlocks, services, masters } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getTemplate, renderTemplate } from "@/lib/bot-templates";
 
 export const dynamic = "force-dynamic";
 
@@ -72,9 +73,11 @@ export async function POST(request: Request) {
       }
 
       if (master?.telegramId) {
-        await notifyMaster(master.telegramId,
-          `📋 Новая запись (прямая)\n\n💇 ${serviceName} — ${clientName || "Клиент"}\n⏰ ${startTime}–${endTime}\n📅 ${date}\n📝 Клиент записан напрямую${comment ? `\n💬 ${comment}` : ""}`,
-        );
+        const tpl = await getTemplate("master_direct_appointment");
+        const msg = tpl && tpl.enabled
+          ? renderTemplate(tpl.template, { serviceName, clientName: clientName || "Клиент", startTime, endTime, date, comment: comment ? `\n💬 ${comment}` : "" })
+          : `📋 Новая запись (прямая)\n\n💇 ${serviceName} — ${clientName || "Клиент"}\n⏰ ${startTime}–${endTime}\n📅 ${date}\n📝 Клиент записан напрямую${comment ? `\n💬 ${comment}` : ""}`;
+        await notifyMaster(master.telegramId, msg);
       }
       return NextResponse.json({ type: "appointment", id: newApt.id }, { status: 201 });
     } else {
@@ -96,9 +99,11 @@ export async function POST(request: Request) {
       if (date === todayStr && master?.telegramId) {
         const icon = blockType === "break" ? "☕" : "📌";
         const label = blockType === "break" ? "Перерыв добавлен" : blockType;
-        await notifyMaster(master.telegramId,
-          `${icon} ${label}\n\n⏰ ${startTime}–${endTime}\n📅 ${date}${comment ? `\n📝 ${comment}` : ""}`,
-        );
+        const tpl = await getTemplate("master_break_today");
+        const msg = tpl && tpl.enabled
+          ? renderTemplate(tpl.template, { icon, label, startTime, endTime, date, comment: comment ? `\n📝 ${comment}` : "" })
+          : `${icon} ${label}\n\n⏰ ${startTime}–${endTime}\n📅 ${date}${comment ? `\n📝 ${comment}` : ""}`;
+        await notifyMaster(master.telegramId, msg);
       }
 
       return NextResponse.json({ type: "block", id: block.id }, { status: 201 });

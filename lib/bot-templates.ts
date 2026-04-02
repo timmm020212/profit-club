@@ -68,6 +68,30 @@ export const DEFAULT_TEMPLATES: NotificationTemplate[] = [
     isEnabled: true,
     variables: ["date", "freeFrom", "shiftEnd"],
   },
+  {
+    slug: "master_morning",
+    botType: "masters",
+    name: "Утреннее уведомление",
+    messageTemplate: "📋 Ваш день на сегодня\n\n📅 {{date}}, {{shiftStart}}–{{shiftEnd}}{{breaks}}{{earlyFinish}}{{noAppointments}}",
+    isEnabled: true,
+    variables: ["date", "shiftStart", "shiftEnd", "breaks", "earlyFinish", "noAppointments"],
+  },
+  {
+    slug: "master_direct_appointment",
+    botType: "masters",
+    name: "Прямая запись (от админа)",
+    messageTemplate: "📋 Новая запись (прямая)\n\n💇 {{serviceName}} — {{clientName}}\n⏰ {{startTime}}–{{endTime}}\n📅 {{date}}\n📝 Клиент записан напрямую{{comment}}",
+    isEnabled: true,
+    variables: ["serviceName", "clientName", "startTime", "endTime", "date", "comment"],
+  },
+  {
+    slug: "master_break_today",
+    botType: "masters",
+    name: "Перерыв добавлен (сегодня)",
+    messageTemplate: "{{icon}} {{label}}\n\n⏰ {{startTime}}–{{endTime}}\n📅 {{date}}{{comment}}",
+    isEnabled: true,
+    variables: ["icon", "label", "startTime", "endTime", "date", "comment"],
+  },
 ];
 
 export async function getTemplate(slug: string): Promise<{ template: string; enabled: boolean } | null> {
