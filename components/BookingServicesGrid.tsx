@@ -222,7 +222,7 @@ export default function BookingServicesGrid({
                         price={
                           service.variants && service.variants.length > 0
                             ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString()} ₽`
-                            : service.price ?? undefined
+                            : service.price ? `${Number(service.price).toLocaleString()} ₽` : undefined
                         }
                         imageUrl={service.imageUrl}
                         duration={
