@@ -36,7 +36,7 @@ export default buildConfig({
   collections: [Users, Media, Pages],
   globals: [Hero, Marquee, ServicesSection, Philosophy, Zones, Process, MastersSection, Testimonials, Footer],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || "profit-club-payload-secret-2026",
+  secret: process.env.PAYLOAD_SECRET || (() => { if (process.env.NODE_ENV === "production") throw new Error("PAYLOAD_SECRET required"); return "dev-only-secret-change-in-production"; })(),
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URL || "",

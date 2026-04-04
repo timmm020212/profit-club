@@ -3,6 +3,7 @@ import { db, testConnection } from "@/db";
 import { clients, pendingClients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
 
     // Создаем/обновляем черновик регистрации (до подтверждения через Telegram)
     const verificationCode = generateVerificationCode();
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const existingPending = await db
       .select()
@@ -115,7 +117,7 @@ export async function POST(request: Request) {
         .set({
           name: name,
           email: email || null,
-          password: password,
+          password: hashedPassword,
           verificationCode,
         })
         .where(eq(pendingClients.id, existingPending[0].id));

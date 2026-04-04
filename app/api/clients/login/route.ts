@@ -38,6 +38,11 @@ export async function POST(request: Request) {
       valid = await bcrypt.compare(password, storedPassword);
     } else {
       valid = storedPassword === password;
+      // Migrate plaintext password to bcrypt on successful login
+      if (valid) {
+        const hash = await bcrypt.hash(password, 12);
+        await db.update(clients).set({ password: hash }).where(eq(clients.id, client.id));
+      }
     }
 
     if (!valid) {

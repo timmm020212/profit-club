@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { adminSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const rows = await db.select().from(adminSettings);
     const settings: Record<string, string> = {};
@@ -19,6 +22,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const { key, value } = body;

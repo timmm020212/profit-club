@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 
 export async function GET() {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const SITE_URL = process.env.NEXTAUTH_URL || "";
   const clientToken = process.env.TELEGRAM_BOT_TOKEN;
   const mastersToken = process.env.MASTERS_BOT_TOKEN;

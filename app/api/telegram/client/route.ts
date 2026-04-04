@@ -489,6 +489,15 @@ function getClientBot() {
 
 export async function POST(request: Request) {
   try {
+    // Verify Telegram webhook secret token
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const headerSecret = request.headers.get("x-telegram-bot-api-secret-token");
+      if (headerSecret !== webhookSecret) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     const body = await request.json();
     const bot = getClientBot();
     await bot.handleUpdate(body);
