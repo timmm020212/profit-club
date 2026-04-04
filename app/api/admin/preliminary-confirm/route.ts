@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import { appointments, services, masters } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const { ids } = await request.json();
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

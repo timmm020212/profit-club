@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import {
   scheduleOptimizations,
@@ -22,6 +23,8 @@ function minutesToTime(m: number): string {
 }
 
 export async function POST(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const { optimizationId } = body;

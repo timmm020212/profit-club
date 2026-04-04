@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import { appointments, scheduleBlocks, services, masters } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -28,6 +29,8 @@ async function notifyMaster(masterTelegramId: string, text: string) {
 }
 
 export async function GET(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
@@ -41,6 +44,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const { masterId, date, startTime, endTime, blockType, clientName, clientPhone, serviceId, comment } = body;
@@ -116,6 +121,8 @@ export async function POST(request: Request) {
 
 // PATCH — update block
 export async function PATCH(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const { id, startTime, endTime, blockType, comment } = body;
@@ -136,6 +143,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const { searchParams } = new URL(request.url);
     const id = parseInt(searchParams.get("id") || "0");

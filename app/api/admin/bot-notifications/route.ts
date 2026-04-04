@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { botNotificationTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { DEFAULT_TEMPLATES } from "@/lib/bot-templates";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,8 @@ async function seedMissing() {
 }
 
 export async function GET(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     await seedMissing();
     const { searchParams } = new URL(request.url);

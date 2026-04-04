@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import { workSlotChangeRequests, workSlots, masters } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/work-slot-change-requests-admin - все запросы на изменение
 export async function GET(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const rows = await db
@@ -45,6 +48,8 @@ export async function GET(request: Request) {
 
 // PATCH /api/work-slot-change-requests-admin?id=1&action=accept|reject - принять или отклонить запрос
 export async function PATCH(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const { searchParams } = new URL(request.url);

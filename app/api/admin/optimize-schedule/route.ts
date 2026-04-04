@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import {
   appointments,
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 // POST — compute optimization for a master on a given date
 export async function POST(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const body = await request.json();
@@ -145,6 +148,8 @@ export async function POST(request: Request) {
 
 // GET — list optimizations with moves
 export async function GET(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const { searchParams } = new URL(request.url);

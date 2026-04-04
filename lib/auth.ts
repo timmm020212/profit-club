@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { admins } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { rateLimit } from "./rate-limit";
 
 declare module "next-auth" {
   interface User {
@@ -33,9 +34,13 @@ export const authOptions: NextAuthOptions = {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const username = String(credentials?.username || "");
         const password = String(credentials?.password || "");
+
+        // Rate limit admin login: 5 attempts per minute per username
+        const rl = rateLimit(`admin-login:${username}`, 5, 60 * 1000);
+        if (!rl.ok) return null;
 
         if (!username || !password) {
           return null;

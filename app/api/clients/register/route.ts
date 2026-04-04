@@ -4,6 +4,7 @@ import { clients, pendingClients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,10 @@ async function getBotUsername(): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rl = rateLimit(`register:${ip}`, 3, 60 * 60 * 1000); // 3 registrations per hour
+  if (!rl.ok) return rateLimitResponse();
+
   try {
     // Проверяем подключение к базе данных перед обработкой запроса
     const isConnected = await testConnection();

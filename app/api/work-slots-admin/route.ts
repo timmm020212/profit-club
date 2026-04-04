@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import { workSlots, masters } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/work-slots-admin - все рабочие дни (включая неподтвержденные) для админа
 export async function GET(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const { searchParams } = new URL(request.url);
@@ -81,6 +84,8 @@ export async function GET(request: Request) {
 
 // PATCH /api/work-slots-admin?id=1 - обновить статус рабочего дня
 export async function PATCH(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const { searchParams } = new URL(request.url);
@@ -131,6 +136,8 @@ export async function PATCH(request: Request) {
 
 // DELETE /api/work-slots-admin?id=1 - удалить рабочий день
 export async function DELETE(request: Request) {
+  const session = await requireAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
 
     const { searchParams } = new URL(request.url);

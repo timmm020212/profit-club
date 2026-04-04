@@ -291,9 +291,15 @@ function createClientBot() {
     await ctx.answerCbQuery();
     const appointmentId = parseInt(ctx.match[1]);
     try {
+      const callerTgId = String(ctx.from?.id || "");
       const apt = await db.select().from(appointments).where(eq(appointments.id, appointmentId)).limit(1);
       if (!apt.length || apt[0].status === "cancelled") {
         await ctx.editMessageText("Запись уже отменена.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]]));
+        return;
+      }
+      // Ownership check: only the client who made the appointment can cancel
+      if (apt[0].clientTelegramId && apt[0].clientTelegramId !== callerTgId) {
+        await ctx.editMessageText("⛔ Это не ваша запись.", Markup.inlineKeyboard([[Markup.button.callback("← Главное меню", "menu")]]));
         return;
       }
       // Check 2-hour rule

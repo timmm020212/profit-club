@@ -3,11 +3,16 @@ import { db } from "@/db";
 import { clients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rl = rateLimit(`login:${ip}`, 5, 60 * 1000); // 5 attempts per minute
+    if (!rl.ok) return rateLimitResponse();
+
     const body = await request.json();
     const phone = String(body?.phone || "").trim();
     const password = String(body?.password || "");
