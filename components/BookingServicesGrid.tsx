@@ -141,7 +141,7 @@ export default function BookingServicesGrid({
       {categories.length > 1 && (
         <div
           ref={tabsRef}
-          className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none"
+          className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none"
         >
           {categories.map((cat) => {
             const active = cat.id === selectedCategoryId;
