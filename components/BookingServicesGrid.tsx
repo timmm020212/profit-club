@@ -143,39 +143,44 @@ export default function BookingServicesGrid({
           ref={tabsRef}
           className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none"
         >
-          {[...categories]
-            .sort((a, b) => {
-              if (a.id === selectedCategoryId) return -1;
-              if (b.id === selectedCategoryId) return 1;
-              return 0;
-            })
-            .map((cat) => {
-              const active = cat.id === selectedCategoryId;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategoryId(active ? null : cat.id)}
-                  className="flex-shrink-0 rounded-full text-xs font-medium transition-all duration-300 flex items-center gap-1.5"
-                  style={{
-                    fontFamily: "var(--font-montserrat)",
-                    fontWeight: active ? 500 : 400,
-                    padding: "6px 16px",
-                    background: active ? "#B2223C" : "rgba(255,255,255,0.04)",
-                    border: active ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
-                    color: active ? "#fff" : "rgba(255,255,255,0.45)",
-                    boxShadow: active ? "0 2px 10px rgba(178,34,60,0.25)" : undefined,
-                  }}
-                >
-                  {cat.name}
-                  {active && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          {categories.map((cat, idx) => {
+            const active = cat.id === selectedCategoryId;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setSelectedCategoryId(active ? null : cat.id);
+                  if (tabsRef.current) tabsRef.current.scrollTo({ left: 0, behavior: "smooth" });
+                }}
+                className="flex-shrink-0 rounded-full text-xs font-medium flex items-center gap-1.5"
+                style={{
+                  fontFamily: "var(--font-montserrat)",
+                  fontWeight: active ? 500 : 400,
+                  padding: "6px 16px",
+                  background: active ? "#B2223C" : "rgba(255,255,255,0.04)",
+                  border: active ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
+                  color: active ? "#fff" : "rgba(255,255,255,0.45)",
+                  boxShadow: active ? "0 2px 10px rgba(178,34,60,0.25)" : undefined,
+                  order: active ? -1 : idx,
+                  transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1), order 0s",
+                }}
+              >
+                {cat.name}
+                {active && (
+                  <span
+                    className="flex items-center justify-center rounded-full bg-white/20 ml-0.5"
+                    style={{ width: 16, height: 16 }}
+                    onClick={(e) => { e.stopPropagation(); setSelectedCategoryId(null); }}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
-                  )}
-                </button>
-              );
-            })}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
