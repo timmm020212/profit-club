@@ -29,9 +29,9 @@ export default function ServiceVariantModal({ isOpen, onClose, onSelect, service
   };
 
   const modal = (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-[#111115] border-t border-white/[0.08] overflow-hidden"
+        className="w-full max-w-md rounded-2xl bg-[#111115] border border-white/[0.08] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 pt-5 pb-3">
