@@ -15,12 +15,23 @@ export default function TariffPage() {
 
   async function handleSelect() {
     setLoading(true);
-    await fetch("/api/partner/tariff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tariff: selected }),
-    });
-    router.push("/partner/dashboard");
+    try {
+      const res = await fetch("/api/partner/tariff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tariff: selected }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Ошибка при обновлении тарифа");
+        setLoading(false);
+        return;
+      }
+      router.push("/partner/dashboard");
+    } catch {
+      alert("Ошибка соединения");
+      setLoading(false);
+    }
   }
 
   return (

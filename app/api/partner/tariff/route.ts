@@ -8,11 +8,15 @@ export async function POST(request: NextRequest) {
   const { session, response } = await requirePartnerSession();
   if (!session) return response;
 
-  const { tariff } = await request.json();
-  if (!["basic", "advanced", "pro"].includes(tariff)) {
-    return NextResponse.json({ error: "Invalid tariff" }, { status: 400 });
+  try {
+    const { tariff } = await request.json();
+    if (!["basic", "advanced", "pro"].includes(tariff)) {
+      return NextResponse.json({ error: "Invalid tariff" }, { status: 400 });
+    }
+    await db.update(salons).set({ tariff }).where(eq(salons.id, session.salonId));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Tariff update error:", error);
+    return NextResponse.json({ error: "Failed to update tariff" }, { status: 500 });
   }
-
-  await db.update(salons).set({ tariff }).where(eq(salons.id, session.salonId));
-  return NextResponse.json({ ok: true });
 }

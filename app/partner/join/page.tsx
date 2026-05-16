@@ -21,6 +21,7 @@ function JoinForm() {
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error || "Ошибка"); setLoading(false); return; }
+    setLoading(false);
     router.push("/partner/tariff");
   }
 
