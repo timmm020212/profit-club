@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import dynamic from "next/dynamic";
 import BookingServiceCard from "./BookingServiceCard";
 import ServiceVariantModal from "./ServiceVariantModal";
@@ -70,7 +70,9 @@ export default function BookingServicesGrid({
 
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const tabsRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const pillRects = useRef<Map<number, DOMRect>>(new Map());
+  const isAnimating = useRef(false);
 
   /* Fetch nested data */
   useEffect(() => {
@@ -85,8 +87,62 @@ export default function BookingServicesGrid({
       .finally(() => setLoading(false));
   }, []);
 
+  /* Sorted categories: active first for FLIP animation */
+  const sortedCategories = selectedCategoryId === null
+    ? categories
+    : [
+        ...categories.filter((c) => c.id === selectedCategoryId),
+        ...categories.filter((c) => c.id !== selectedCategoryId),
+      ];
+
   /* Active categories — all if none selected */
   const activeCategories = selectedCategoryId === null ? categories : categories.filter((c) => c.id === selectedCategoryId);
+
+  /* FLIP: after re-render, animate each pill from saved position to new position */
+  useLayoutEffect(() => {
+    if (!stripRef.current || pillRects.current.size === 0) return;
+    const pills = stripRef.current.querySelectorAll<HTMLButtonElement>("[data-cat-id]");
+    pills.forEach((pill) => {
+      const id = Number(pill.dataset.catId);
+      const oldRect = pillRects.current.get(id);
+      if (!oldRect) return;
+      const newRect = pill.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      if (Math.abs(dx) < 2) return;
+      pill.style.setProperty("--tx", `${dx}px`);
+      const cls = id === selectedCategoryId ? "pill-spring-land" : "pill-flip-travel";
+      pill.classList.add(cls);
+      pill.addEventListener("animationend", () => pill.classList.remove(cls), { once: true });
+    });
+    pillRects.current = new Map();
+  }, [selectedCategoryId]);
+
+  /* Category click: ripple → capture positions → update state */
+  function handleCategoryClick(catId: number, e: React.MouseEvent<HTMLButtonElement>) {
+    if (isAnimating.current) return;
+
+    // Ripple effect at click point
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const ripple = document.createElement("span");
+    ripple.style.cssText = `position:absolute;border-radius:50%;background:rgba(232,85,110,0.45);width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px;transform:scale(0);animation:pillRipple 0.4s ease-out forwards;pointer-events:none;`;
+    btn.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+
+    // Capture current pill positions for FLIP
+    if (stripRef.current) {
+      const pills = stripRef.current.querySelectorAll<HTMLButtonElement>("[data-cat-id]");
+      pillRects.current = new Map();
+      pills.forEach((p) => pillRects.current.set(Number(p.dataset.catId), p.getBoundingClientRect()));
+    }
+
+    isAnimating.current = true;
+    setTimeout(() => {
+      setSelectedCategoryId((prev) => (prev === catId ? null : catId));
+      setTimeout(() => { isAnimating.current = false; }, 520);
+    }, 80);
+  }
 
   /* Handle card tap */
   function handleCardBook(service: NestedService) {
@@ -140,44 +196,33 @@ export default function BookingServicesGrid({
       {/* ── Category tabs ───────────────────────────────────── */}
       {categories.length > 1 && (
         <div
-          ref={tabsRef}
+          ref={stripRef}
           className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none"
         >
-          {categories.map((cat, idx) => {
-            const active = cat.id === selectedCategoryId;
+          {sortedCategories.map((cat) => {
+            const isActive = cat.id === selectedCategoryId;
             return (
               <button
                 key={cat.id}
+                data-cat-id={cat.id}
                 type="button"
-                onClick={() => {
-                  setSelectedCategoryId(active ? null : cat.id);
-                  if (tabsRef.current) tabsRef.current.scrollTo({ left: 0, behavior: "smooth" });
-                }}
-                className="flex-shrink-0 rounded-full text-xs font-medium flex items-center gap-1.5"
+                onClick={(e) => handleCategoryClick(cat.id, e)}
+                className="flex-shrink-0 rounded-full text-xs font-medium"
                 style={{
                   fontFamily: "var(--font-montserrat)",
-                  fontWeight: active ? 500 : 400,
+                  fontWeight: isActive ? 500 : 400,
                   padding: "6px 16px",
-                  background: active ? "#B2223C" : "rgba(255,255,255,0.04)",
-                  border: active ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
-                  color: active ? "#fff" : "rgba(255,255,255,0.45)",
-                  boxShadow: active ? "0 2px 10px rgba(178,34,60,0.25)" : undefined,
-                  order: active ? -1 : idx,
-                  transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1), order 0s",
+                  background: isActive ? "#B2223C" : "rgba(255,255,255,0.04)",
+                  border: isActive ? "1.5px solid #B2223C" : "1.5px solid rgba(255,255,255,0.08)",
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.45)",
+                  boxShadow: isActive ? "0 2px 14px rgba(178,34,60,0.35)" : undefined,
+                  transition: "background 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s",
+                  position: "relative",
+                  overflow: "hidden",
                 }}
               >
                 {cat.name}
-                {active && (
-                  <span
-                    className="flex items-center justify-center rounded-full bg-white/20 ml-0.5"
-                    style={{ width: 16, height: 16 }}
-                    onClick={(e) => { e.stopPropagation(); setSelectedCategoryId(null); }}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </span>
-                )}
+                {isActive && <span className="pill-shimmer" />}
               </button>
             );
           })}
@@ -255,6 +300,42 @@ export default function BookingServicesGrid({
       <style jsx global>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes pillRipple {
+          to { transform: scale(3); opacity: 0; }
+        }
+
+        @keyframes pillSpringLand {
+          0%   { transform: translateX(var(--tx)) scale(0.88); }
+          50%  { transform: translateX(0) scale(1.08) translateY(-2px); box-shadow: 0 8px 24px rgba(178,34,60,0.5); }
+          100% { transform: scale(1) translateY(0); }
+        }
+        .pill-spring-land {
+          animation: pillSpringLand 0.5s cubic-bezier(0.34,1.56,0.64,1) both !important;
+        }
+
+        @keyframes pillFlipTravel {
+          0%   { transform: translateX(var(--tx)) scale(0.93); opacity: 0.65; }
+          70%  { transform: translateX(calc(var(--tx) * 0.03)) scale(1.01); }
+          100% { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        .pill-flip-travel {
+          animation: pillFlipTravel 0.42s cubic-bezier(0.34,1.3,0.64,1) both !important;
+        }
+
+        .pill-shimmer {
+          position: absolute;
+          top: 0; left: -80%;
+          width: 50%; height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+          animation: pillShimmerPass 0.55s 0.28s ease both;
+          pointer-events: none;
+        }
+        @keyframes pillShimmerPass {
+          0%   { left: -80%; opacity: 0; }
+          20%  { opacity: 1; }
+          100% { left: 140%; opacity: 0; }
+        }
       `}</style>
 
       {/* ── ServiceVariantModal ──────────────────────────────── */}
