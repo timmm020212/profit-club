@@ -5,6 +5,47 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://nudnkpazetugfwykcxfw.s
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const BUCKET = "cms-media";
 
+export async function uploadFile(
+  bucket: string,
+  filePath: string,
+  buffer: Buffer,
+  mimeType: string
+): Promise<string | null> {
+  if (!SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_KEY,
+        "Content-Type": mimeType,
+        "x-upsert": "true",
+      },
+      body: buffer,
+    });
+    if (!res.ok) {
+      console.error("[supabase-storage] uploadFile failed:", await res.text());
+      return null;
+    }
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`;
+  } catch (e) {
+    console.error("[supabase-storage] uploadFile error:", e);
+    return null;
+  }
+}
+
+export async function deleteFile(bucket: string, filePath: string): Promise<void> {
+  if (!SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${SUPABASE_KEY}`, apikey: SUPABASE_KEY },
+    });
+  } catch (e) {
+    console.error("[supabase-storage] deleteFile error:", e);
+  }
+}
+
 export const supabaseUploadHook = async ({ doc, req }: any) => {
   if (!doc?.filename || !SUPABASE_KEY) return doc;
 
