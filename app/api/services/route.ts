@@ -1,18 +1,28 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { services, serviceCategories, serviceSubgroups, serviceVariants } from "@/db/schema";
+import { services, serviceCategories, serviceSubgroups, serviceVariants, salons } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const nested = searchParams.get("nested") === "true";
+  const salonSlug = searchParams.get("salon");
+
+  // Resolve salonId: if ?salon=slug provided, look up the salon; otherwise default to 1
+  let salonId = 1;
+  if (salonSlug) {
+    const salonRow = await db.select({ id: salons.id }).from(salons).where(eq(salons.slug, salonSlug)).limit(1);
+    if (salonRow.length > 0) {
+      salonId = salonRow[0].id;
+    }
+  }
 
   if (nested) {
     try {
-      const allCategories = await db.select().from(serviceCategories).orderBy(serviceCategories.order);
-      const allSubgroups = await db.select().from(serviceSubgroups).orderBy(serviceSubgroups.order);
-      const allServices = await db.select().from(services).orderBy(services.orderDesktop);
+      const allCategories = await db.select().from(serviceCategories).where(eq(serviceCategories.salonId, salonId)).orderBy(serviceCategories.order);
+      const allSubgroups = await db.select().from(serviceSubgroups).where(eq(serviceSubgroups.salonId, salonId)).orderBy(serviceSubgroups.order);
+      const allServices = await db.select().from(services).where(eq(services.salonId, salonId)).orderBy(services.orderDesktop);
       const allVariants = await db.select().from(serviceVariants).orderBy(serviceVariants.order);
 
       const result = allCategories
@@ -46,7 +56,7 @@ export async function GET(request: Request) {
 
   try {
     console.log("Fetching services...");
-    const allServices = await db.select().from(services).orderBy(asc(services.orderDesktop));
+    const allServices = await db.select().from(services).where(eq(services.salonId, salonId)).orderBy(asc(services.orderDesktop));
     
     // Преобразуем в нужный формат
     const formattedServices = allServices.map((service: any) => ({
