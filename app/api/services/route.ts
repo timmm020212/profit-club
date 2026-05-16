@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       const allCategories = await db.select().from(serviceCategories).where(eq(serviceCategories.salonId, salonId)).orderBy(serviceCategories.order);
       const allSubgroups = await db.select().from(serviceSubgroups).where(eq(serviceSubgroups.salonId, salonId)).orderBy(serviceSubgroups.order);
       const allServices = await db.select().from(services).where(eq(services.salonId, salonId)).orderBy(services.orderDesktop);
-      const allVariants = await db.select().from(serviceVariants).orderBy(serviceVariants.order);
+      const allVariants = await db.select().from(serviceVariants).where(eq(serviceVariants.salonId, salonId)).orderBy(serviceVariants.order);
 
       const result = allCategories
         .filter(c => c.isActive)
