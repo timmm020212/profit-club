@@ -10,7 +10,6 @@ const LINKS = {
   ],
   info: [
     { label: "О нас", href: "#philosophy" },
-    { label: "Команда", href: "#masters" },
     { label: "Отзывы", href: "#testimonials" },
     { label: "Как записаться", href: "#process" },
   ],
