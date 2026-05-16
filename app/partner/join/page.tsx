@@ -2,127 +2,103 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+const gold = "#C8A96E", crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
+const txtPri = "#EDE8DF", txtSec = "#8888A0", border = "rgba(255,255,255,0.10)";
+
+const inputBase: React.CSSProperties = {
+  width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${border}`,
+  borderRadius: 10, padding: "11px 14px", fontSize: 13, color: txtPri, outline: "none",
+  fontFamily: "var(--font-montserrat)", boxSizing: "border-box",
+};
 
 export default function PartnerJoinPage() {
   const router = useRouter();
   const [form, setForm] = useState({ salonName: "", city: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    // 1. Register
+    setLoading(true); setError("");
     const res = await fetch("/api/partner/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
     const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Ошибка регистрации");
-      setLoading(false);
-      return;
-    }
-
-    // 2. Sign in via NextAuth
-    const result = await signIn("partner", {
-      email: form.email,
-      password: form.password,
-      redirect: false,
-    });
-
-    if (result?.error) {
-      setError("Регистрация прошла, но войти не удалось. Попробуйте войти.");
-      setLoading(false);
-      return;
-    }
-
+    if (!res.ok) { setError(data.error || "Ошибка регистрации"); setLoading(false); return; }
+    const result = await signIn("partner", { email: form.email, password: form.password, redirect: false });
+    if (result?.error) { setError("Регистрация прошла, но войти не удалось."); setLoading(false); return; }
     router.push("/partner/dashboard");
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", background: "#f7f7fa", border: "1.5px solid #ececf0",
-    borderRadius: 10, padding: "10px 12px", fontSize: 13, color: "#111", outline: "none",
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: 10, fontWeight: 700, color: "#aaa", textTransform: "uppercase",
-    letterSpacing: "0.05em", display: "block", marginBottom: 4,
-  };
+  const inp = (key: string): React.CSSProperties => ({
+    ...inputBase,
+    borderColor: focused === key ? "rgba(200,169,110,0.5)" : border,
+    transition: "border-color 0.2s",
+  });
+
+  const fields = [
+    { key: "salonName", label: "Название салона", placeholder: "Студия красоты Анны", type: "text", required: true },
+    { key: "city",      label: "Город",            placeholder: "Москва",               type: "text", required: false },
+    { key: "email",     label: "Email",             placeholder: "you@salon.ru",         type: "email", required: true },
+    { key: "password",  label: "Пароль (мин. 8 символов)", placeholder: "••••••••",    type: "password", required: true },
+  ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f7f7fa", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 8px 32px rgba(0,0,0,0.08)", border: "1px solid #ececf0" }}>
-        <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "0.15em", color: "#1a1a2e", marginBottom: 24 }}>BEAUTYBOOK</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111", marginBottom: 4 }}>Регистрация салона</h1>
-        <p style={{ fontSize: 13, color: "#999", marginBottom: 24 }}>Создайте аккаунт и начните принимать онлайн-записи</p>
+    <div style={{
+      minHeight: "100vh", background: "#08080D",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div style={{ position: "fixed", width: 600, height: 600, borderRadius: "50%", pointerEvents: "none",
+        background: "radial-gradient(circle, rgba(200,169,110,0.04) 0%, transparent 70%)",
+        top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />
+
+      <div style={{
+        width: "100%", maxWidth: 400, background: "#111120",
+        borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)",
+        padding: "36px 32px", boxShadow: "0 32px 80px rgba(0,0,0,0.5)", position: "relative",
+      }}>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 12, letterSpacing: "0.22em", color: gold, textTransform: "uppercase", marginBottom: 18 }}>BeautyBook</div>
+          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 24, fontWeight: 700, color: txtPri, margin: 0, lineHeight: 1.2 }}>Регистрация салона</h1>
+          <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, margin: "8px 0 0" }}>Создайте аккаунт и начните принимать онлайн-записи</p>
+        </div>
+
         {error && (
-          <div style={{ background: "#fff0f2", border: "1px solid #ffc0c8", borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: "#c0392b" }}>
-            {error}
-          </div>
+          <div style={{ background: "rgba(178,34,60,0.10)", border: "1px solid rgba(178,34,60,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 12, color: "#E8556E", fontFamily: "var(--font-montserrat)" }}>{error}</div>
         )}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Название салона *</label>
-            <input
-              type="text"
-              placeholder="Студия красоты Анны"
-              value={form.salonName}
-              onChange={e => setForm(p => ({ ...p, salonName: e.target.value }))}
-              required
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Город</label>
-            <input
-              type="text"
-              placeholder="Москва"
-              value={form.city}
-              onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Email *</label>
-            <input
-              type="email"
-              placeholder="you@salon.ru"
-              value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              required
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Пароль * (мин. 8 символов)</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-              required
-              minLength={8}
-              style={inputStyle}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              background: "#1a1a2e", color: "#fff", border: "none", borderRadius: 12,
-              padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer",
-              marginTop: 8, opacity: loading ? 0.6 : 1,
-            }}
-          >
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {fields.map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: 9, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 6 }}>{f.label}</label>
+              <input
+                type={f.type} required={f.required}
+                placeholder={f.placeholder}
+                value={form[f.key as keyof typeof form]}
+                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                onFocus={() => setFocused(f.key)} onBlur={() => setFocused(null)}
+                minLength={f.key === "password" ? 8 : undefined}
+                style={inp(f.key)}
+              />
+            </div>
+          ))}
+          <button type="submit" disabled={loading} style={{
+            background: crimGrd, color: "#fff", border: "none", borderRadius: 10,
+            padding: "13px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: "var(--font-montserrat)", letterSpacing: "0.04em",
+            opacity: loading ? 0.65 : 1, marginTop: 4, transition: "opacity 0.2s",
+          }}>
             {loading ? "Создаём аккаунт..." : "Зарегистрироваться →"}
           </button>
         </form>
-        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#aaa" }}>
+
+        <p style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: txtSec, fontFamily: "var(--font-montserrat)" }}>
           Уже есть аккаунт?{" "}
-          <a href="/partner/login" style={{ color: "#1a1a2e", fontWeight: 600, textDecoration: "none" }}>Войти</a>
+          <Link href="/partner/login" style={{ color: gold, fontWeight: 600, textDecoration: "none" }}>Войти</Link>
         </p>
       </div>
     </div>

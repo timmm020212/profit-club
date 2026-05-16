@@ -14,7 +14,10 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   }
 
   const salonId = session.user.salonId!;
-  const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+  const [salon] = await db
+    .select({ name: salons.name, tariff: salons.tariff })
+    .from(salons)
+    .where(eq(salons.id, salonId));
 
   return (
     <PartnerShell

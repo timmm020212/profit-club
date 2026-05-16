@@ -2,10 +2,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const card = "#111120", border = "rgba(255,255,255,0.07)";
+const gold = "#C8A96E";
+const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
+const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+
 const TARIFFS = [
-  { id: "basic", name: "Базовый", price: "2 990", features: ["Страница салона", "Онлайн-запись", "Управление услугами и мастерами", "Расписание"] },
-  { id: "advanced", name: "Продвинутый", price: "4 990", features: ["Всё из базового", "Telegram-бот для клиентов", "Уведомления клиентам"] },
-  { id: "pro", name: "Профессиональный", price: "7 990", features: ["Всё из продвинутого", "Бот для мастеров", "Перенос записей", "Аналитика"] },
+  { id: "basic",    name: "Базовый",          price: "2 990", features: ["Страница салона", "Онлайн-запись", "Управление услугами и мастерами", "Расписание"] },
+  { id: "advanced", name: "Продвинутый",      price: "4 990", features: ["Всё из базового", "Telegram-бот для клиентов", "Уведомления клиентам"] },
+  { id: "pro",      name: "Профессиональный", price: "7 990", features: ["Всё из продвинутого", "Бот для мастеров", "Перенос записей", "Аналитика"] },
 ];
 
 export default function TariffPage() {
@@ -35,35 +40,96 @@ export default function TariffPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f7f7fa", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 480, background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 8px 32px rgba(0,0,0,0.08)", border: "1px solid #ececf0" }}>
-        <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "0.15em", color: "#1a1a2e", marginBottom: 24 }}>BEAUTYBOOK</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111", marginBottom: 4 }}>Выберите тариф</h1>
-        <p style={{ fontSize: 13, color: "#999", marginBottom: 24 }}>Можно изменить в любой момент</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          {TARIFFS.map(t => (
-            <div
-              key={t.id}
-              onClick={() => setSelected(t.id)}
-              style={{
-                border: selected === t.id ? "2px solid #1a1a2e" : "1.5px solid #ececf0",
-                borderRadius: 14, padding: "14px 16px", cursor: "pointer",
-                background: selected === t.id ? "#f5f5f8" : "#fafafa",
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: selected === t.id ? "#1a1a2e" : "#333" }}>{t.name}</span>
-                <span style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e" }}>{t.price} <span style={{ fontSize: 11, fontWeight: 400, color: "#aaa" }}>₽/мес</span></span>
-              </div>
-              <div style={{ fontSize: 11, color: "#999", lineHeight: 1.6 }}>{t.features.join(" · ")}</div>
-            </div>
-          ))}
+    <div style={{
+      minHeight: "100vh", background: "#08080D",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div style={{ position: "fixed", width: 700, height: 700, borderRadius: "50%", pointerEvents: "none",
+        background: "radial-gradient(circle, rgba(200,169,110,0.05) 0%, transparent 70%)",
+        top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />
+
+      <div style={{
+        width: "100%", maxWidth: 500, position: "relative",
+        background: card, borderRadius: 20,
+        border: `1px solid ${border}`,
+        padding: "36px 32px", boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
+      }}>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 12, letterSpacing: "0.22em", color: gold, textTransform: "uppercase", marginBottom: 18 }}>BeautyBook</div>
+          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 26, fontWeight: 700, color: txtPri, margin: 0, lineHeight: 1.2 }}>Выберите тариф</h1>
+          <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, margin: "8px 0 0" }}>Можно изменить в любой момент</p>
         </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+          {TARIFFS.map(t => {
+            const active = selected === t.id;
+            const isPro = t.id === "pro";
+            return (
+              <div
+                key={t.id}
+                onClick={() => setSelected(t.id)}
+                style={{
+                  border: active
+                    ? "1px solid rgba(200,169,110,0.5)"
+                    : isPro
+                      ? "1px solid rgba(200,169,110,0.25)"
+                      : `1px solid ${border}`,
+                  borderRadius: 14,
+                  padding: "16px 18px",
+                  cursor: "pointer",
+                  background: active ? "rgba(200,169,110,0.08)" : "rgba(255,255,255,0.02)",
+                  transition: "all 0.15s",
+                  position: "relative",
+                }}
+              >
+                {isPro && (
+                  <span style={{
+                    position: "absolute", top: -8, right: 14,
+                    background: "linear-gradient(135deg, #C8A96E, #E8D4A0)",
+                    color: "#08080D", fontSize: 9, fontWeight: 700,
+                    padding: "3px 10px", borderRadius: 10,
+                    letterSpacing: "0.12em", textTransform: "uppercase",
+                    fontFamily: "var(--font-montserrat)",
+                  }}>Лучший</span>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <span style={{
+                    fontFamily: "var(--font-playfair)", fontWeight: 700, fontSize: 16,
+                    color: active ? gold : txtPri,
+                  }}>{t.name}</span>
+                  <span style={{
+                    fontFamily: "var(--font-playfair)", fontWeight: 700, fontSize: 20,
+                    backgroundImage: active ? "linear-gradient(135deg, #C8A96E, #E8D4A0)" : "none",
+                    backgroundClip: active ? "text" : "unset",
+                    WebkitBackgroundClip: active ? "text" : "unset",
+                    color: active ? "transparent" : txtPri,
+                  }}>
+                    {t.price}
+                    <span style={{
+                      fontSize: 11, fontWeight: 400, color: txtMut,
+                      fontFamily: "var(--font-montserrat)", marginLeft: 4,
+                      backgroundImage: "none", WebkitBackgroundClip: "unset",
+                    }}>₽/мес</span>
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: txtSec, fontFamily: "var(--font-montserrat)", lineHeight: 1.6 }}>
+                  {t.features.join(" · ")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         <button
           onClick={handleSelect}
           disabled={loading}
-          style={{ width: "100%", background: "#1a1a2e", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: loading ? 0.6 : 1 }}
+          style={{
+            width: "100%", background: crimGrd, color: "#fff",
+            border: "none", borderRadius: 10, padding: 13,
+            fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: "var(--font-montserrat)", letterSpacing: "0.04em",
+            opacity: loading ? 0.65 : 1, transition: "opacity 0.2s",
+          }}
         >
           {loading ? "Сохраняем..." : "Начать работу →"}
         </button>

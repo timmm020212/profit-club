@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 
+const card = "#111120", border = "rgba(255,255,255,0.07)";
+const gold = "#C8A96E";
+const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
+const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+
 export default function MyPagePage() {
   const [url, setUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -22,41 +27,78 @@ export default function MyPagePage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111", marginBottom: 4 }}>Моя страница</h1>
-      <p style={{ fontSize: 13, color: "#999", marginBottom: 24 }}>Поделитесь ссылкой с клиентами</p>
-      <div style={{ background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #ececf0" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Аккаунт</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Моя страница</h1>
+        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, marginTop: 6 }}>Поделитесь ссылкой с клиентами</p>
+      </div>
+
+      <div style={{
+        background: card, borderRadius: 16, padding: 28,
+        border: `1px solid ${border}`,
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 14 }}>
           Ссылка на страницу салона
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{
-            flex: 1, background: "#f7f7fa", borderRadius: 10, padding: "10px 14px",
-            fontSize: 13, color: "#333", wordBreak: "break-all", border: "1px solid #ececf0",
-          }}>
-            {url || "Загрузка..."}
-          </div>
+
+        <div style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(200,169,110,0.25)",
+          borderRadius: 12, padding: "14px 18px",
+          fontSize: 14, color: gold, fontFamily: "var(--font-montserrat)",
+          fontWeight: 600, wordBreak: "break-all", marginBottom: 16,
+          letterSpacing: "0.01em",
+        }}>
+          {url || "Загрузка..."}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
             onClick={copy}
             disabled={!url}
             style={{
-              background: copied ? "#1a7a4a" : "#1a1a2e", color: "#fff", border: "none",
-              borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600,
-              cursor: "pointer", flexShrink: 0, transition: "background 0.2s",
+              background: copied ? "rgba(74,222,128,0.2)" : crimGrd,
+              color: copied ? "#4ADE80" : "#fff",
+              border: copied ? "1px solid rgba(74,222,128,0.4)" : "none",
+              borderRadius: 10, padding: "11px 22px",
+              fontSize: 13, fontWeight: 700,
+              cursor: url ? "pointer" : "not-allowed",
+              fontFamily: "var(--font-montserrat)",
+              opacity: url ? 1 : 0.5, transition: "all 0.2s",
             }}
           >
             {copied ? "✓ Скопировано" : "Скопировать"}
           </button>
+          {url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "transparent",
+                border: `1px solid ${border}`,
+                color: txtSec,
+                borderRadius: 10, padding: "11px 22px",
+                fontSize: 13, fontWeight: 600,
+                fontFamily: "var(--font-montserrat)",
+                textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                transition: "border-color 0.15s, color 0.15s",
+              }}
+            >
+              Открыть →
+            </a>
+          )}
         </div>
-        {url && (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block", marginTop: 14, fontSize: 12, color: "#1a1a2e", fontWeight: 600, textDecoration: "underline" }}
-          >
-            Открыть страницу →
-          </a>
-        )}
+
+        <div style={{
+          marginTop: 24, paddingTop: 20,
+          borderTop: `1px solid ${border}`,
+          fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)", lineHeight: 1.6,
+        }}>
+          Эта ссылка ведёт на публичную страницу вашего салона.
+          Клиенты могут просматривать услуги, мастеров и записываться онлайн.
+        </div>
       </div>
     </div>
   );
