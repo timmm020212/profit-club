@@ -48,6 +48,10 @@ export default function PartnerLoginPage() {
             {loading ? "Входим..." : "Войти →"}
           </button>
         </form>
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#aaa" }}>
+          Нет аккаунта?{" "}
+          <a href="/partner/join" style={{ color: "#1a1a2e", fontWeight: 600, textDecoration: "none" }}>Зарегистрироваться</a>
+        </p>
       </div>
     </div>
   );
