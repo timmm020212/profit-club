@@ -15,6 +15,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-all": "tsx db/seed-all-services.ts",
     "db:seed-masters": "tsx scripts/seed-masters.ts",
+    "admin:reset-passwords": "tsx scripts/reset-admin-passwords.ts",
     "db:view": "tsx scripts/view-services.ts",
     "bot:masters": "tsx telegram-bot/masters-bot-full.ts",
     "bot:client": "tsx telegram-bot/client-simple.ts",
@@ -22,7 +23,8 @@
     "add-master-telegram-ids": "tsx scripts/add-master-telegram-ids.ts",
     "reminders:send": "tsx scripts/send-reminders.ts",
     "test:appointment": "tsx scripts/add-test-appointment.ts",
-    "admin": "tsx adminjs/server.ts"
+    "admin": "tsx adminjs/server.ts",
+    "db:seed-salon": "tsx scripts/seed-default-salon.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.80.0",

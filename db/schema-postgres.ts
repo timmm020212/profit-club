@@ -6,6 +6,7 @@ export const serviceCategories = pgTable("serviceCategories", {
   icon: varchar("icon", { length: 10 }),
   order: integer("order").notNull().default(0),
   isActive: boolean("isActive").default(true).notNull(),
+  salonId: integer("salon_id").default(1),
 });
 
 export const serviceSubgroups = pgTable("serviceSubgroups", {
@@ -13,6 +14,7 @@ export const serviceSubgroups = pgTable("serviceSubgroups", {
   categoryId: integer("categoryId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   order: integer("order").notNull().default(0),
+  salonId: integer("salon_id").default(1),
 });
 
 export const services = pgTable("services", {
@@ -29,6 +31,7 @@ export const services = pgTable("services", {
   executorRole: varchar("executor_role", { length: 255 }),
   category: varchar("category", { length: 255 }),
   subgroupId: integer("subgroup_id"),
+  salonId: integer("salon_id").default(1),
 });
 
 export const serviceVariants = pgTable("serviceVariants", {
@@ -38,6 +41,7 @@ export const serviceVariants = pgTable("serviceVariants", {
   price: integer("price").notNull(),
   duration: integer("duration").notNull(),
   order: integer("order").notNull().default(0),
+  salonId: integer("salon_id").default(1),
 });
 
 export const admins = pgTable("admins", {
@@ -63,6 +67,7 @@ export const masters = pgTable("masters", {
   notificationSettings: text("notification_settings"),
   commissionPercent: integer("commission_percent").default(50).notNull(),
   createdAt: text("created_at").notNull(),
+  salonId: integer("salon_id").default(1),
 });
 
 export const appointments = pgTable("appointments", {
@@ -81,6 +86,7 @@ export const appointments = pgTable("appointments", {
   autoCompleted: boolean("autoCompleted").default(false).notNull(),
   source: varchar("source", { length: 20 }).default("site").notNull(),
   variantId: integer("variantId"),
+  salonId: integer("salon_id").default(1),
 });
 
 export const workSlots = pgTable("workSlots", {
@@ -93,6 +99,7 @@ export const workSlots = pgTable("workSlots", {
   createdBy: varchar("createdBy", { length: 255 }),
   isConfirmed: boolean("isConfirmed").default(false).notNull(),
   adminUpdateStatus: varchar("adminUpdateStatus", { length: 20 }),
+  salonId: integer("salon_id").default(1),
 });
 
 export const workSlotChangeRequests = pgTable("workSlotChangeRequests", {
@@ -281,6 +288,36 @@ export const scheduleBlocks = pgTable("scheduleBlocks", {
   comment: text("comment"),
   createdAt: text("createdAt").notNull(),
 });
+
+export const salons = pgTable("salons", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  city: varchar("city", { length: 100 }),
+  address: text("address"),
+  phone: varchar("phone", { length: 30 }),
+  logoUrl: text("logo_url"),
+  ownerName: varchar("owner_name", { length: 200 }),
+  inn: varchar("inn", { length: 20 }),
+  tariff: varchar("tariff", { length: 20 }).notNull().default("basic"),
+  isActive: boolean("is_active").notNull().default(false),
+  inviteToken: varchar("invite_token", { length: 100 }).unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const partnerUsers = pgTable("partner_users", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull().references(() => salons.id),
+  email: varchar("email", { length: 200 }).notNull().unique(),
+  passwordHash: varchar("password_hash", { length: 200 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Salon = typeof salons.$inferSelect;
+export type NewSalon = typeof salons.$inferInsert;
+export type PartnerUser = typeof partnerUsers.$inferSelect;
+export type NewPartnerUser = typeof partnerUsers.$inferInsert;
 
 // Types
 export type Service = typeof services.$inferSelect;
