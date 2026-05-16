@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filter Animation Options</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #09090D;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; color: #fff; }
+  .subtitle { color: rgba(255,255,255,0.45); font-size: 13px; margin-bottom: 40px; }
+
+  .option-block {
+    background: rgba(255,255,255,0.03);
+    border: 1.5px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    position: relative;
+  }
+  .option-block:hover { border-color: rgba(178,34,60,0.3); }
+  .option-block.selected { border-color: #B2223C; background: rgba(178,34,60,0.06); }
+  .option-block.selected::after {
+    content: '✓ Выбрано';
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: 11px;
+    color: #e8556e;
+    font-weight: 600;
+  }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 8px;
+  }
+  .option-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .option-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  /* ── FILTER STRIP ── */
+  .filter-strip {
+    display: flex;
+    gap: 8px;
+    overflow: hidden;
+    padding: 2px 0 8px;
+  }
+
+  .pill {
+    flex-shrink: 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.45);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+  }
+  .pill.active {
+    background: #B2223C;
+    border-color: #B2223C;
+    color: #fff;
+    box-shadow: 0 2px 14px rgba(178,34,60,0.35);
+  }
+
+  /* ─── VARIANT A: FLIP (physical slide) ─── */
+  #strip-a { position: relative; }
+  #strip-a .pill {
+    transition: background 0.3s, border-color 0.3s, color 0.3s, box-shadow 0.3s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #strip-a .pill.landing {
+    animation: flipLand 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes flipLand {
+    0% { transform: translateX(var(--flip-x)) scale(0.92); opacity: 0.6; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+
+  /* ─── VARIANT B: GLOW BLOOM ─── */
+  #strip-b .pill {
+    transition: background 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s;
+  }
+  #strip-b .pill.active {
+    animation: glowBloom 0.5s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes glowBloom {
+    0%   { box-shadow: 0 0 0 0 rgba(178,34,60,0); transform: scale(0.88); opacity: 0.5; }
+    50%  { box-shadow: 0 0 28px 6px rgba(178,34,60,0.5); transform: scale(1.06); }
+    100% { box-shadow: 0 2px 14px rgba(178,34,60,0.35); transform: scale(1); opacity: 1; }
+  }
+  #strip-b .pill:not(.active) {
+    transition: all 0.3s ease;
+  }
+  #strip-b .pill.slide-in {
+    animation: slideRight 0.32s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes slideRight {
+    0% { transform: translateX(-8px); opacity: 0.6; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+
+  /* ─── VARIANT C: MAGNETIC SPRING ─── */
+  #strip-c .pill {
+    transition: background 0.25s, border-color 0.25s, color 0.25s;
+  }
+  #strip-c .pill.active {
+    animation: magnetSnap 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes magnetSnap {
+    0%   { transform: scale(1) translateY(0); box-shadow: 0 0 0 rgba(178,34,60,0); }
+    25%  { transform: scale(1.12) translateY(-3px); box-shadow: 0 8px 24px rgba(178,34,60,0.5); }
+    60%  { transform: scale(0.96) translateY(1px); }
+    100% { transform: scale(1) translateY(0); box-shadow: 0 2px 14px rgba(178,34,60,0.35); }
+  }
+  /* shimmer on active pill */
+  #strip-c .pill.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    animation: shimmerPass 0.6s 0.2s ease both;
+  }
+  @keyframes shimmerPass {
+    0% { left: -60%; opacity: 0; }
+    30% { opacity: 1; }
+    100% { left: 130%; opacity: 0; }
+  }
+  #strip-c .pill.ripple::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(178,34,60,0.4);
+    animation: rippleOut 0.4s ease-out both;
+  }
+  @keyframes rippleOut {
+    0% { transform: scale(0.6); opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+
+  .hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 10px;
+  }
+
+  .footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Анимация фильтров — выберите вариант</h1>
+<p class="subtitle">Нажмите на любой фильтр в каждом варианте, чтобы увидеть анимацию. Потом кликните на карточку, чтобы выбрать.</p>
+
+<!-- ═══ VARIANT A ═══ -->
+<div class="option-block" id="block-a" onclick="selectOption('a')">
+  <div class="option-label">Вариант A</div>
+  <div class="option-title">FLIP — физическое перемещение</div>
+  <div class="option-desc">Пилл плавно «съезжает» со своего места на первую позицию. Пружинистый отскок при посадке. Наиболее физически правдоподобный эффект.</div>
+  <div class="filter-strip" id="strip-a" onclick="event.stopPropagation()"></div>
+  <div class="hint">↑ Нажмите на фильтр выше, чтобы увидеть анимацию</div>
+</div>
+
+<!-- ═══ VARIANT B ═══ -->
+<div class="option-block" id="block-b" onclick="selectOption('b')">
+  <div class="option-label">Вариант B</div>
+  <div class="option-title">Glow Bloom — свечение + появление</div>
+  <div class="option-desc">Пилл вспыхивает красным свечением, «исчезает» и появляется на первой позиции с красивым bloom-эффектом. Остальные фильтры мягко сдвигаются.</div>
+  <div class="filter-strip" id="strip-b" onclick="event.stopPropagation()"></div>
+  <div class="hint">↑ Нажмите на фильтр выше, чтобы увидеть анимацию</div>
+</div>
+
+<!-- ═══ VARIANT C ═══ -->
+<div class="option-block" id="block-c" onclick="selectOption('c')">
+  <div class="option-label">Вариант C ⭐ Рекомендую</div>
+  <div class="option-title">Magnetic Snap — рипл + пружина + блик</div>
+  <div class="option-desc">Клик создаёт ripple-волну, пилл «притягивается» к первой позиции с пружинистым подъёмом вверх и посадкой. Блик пробегает по активному пиллу. Самое «вкусное» ощущение.</div>
+  <div class="filter-strip" id="strip-c" onclick="event.stopPropagation()"></div>
+  <div class="hint">↑ Нажмите на фильтр выше, чтобы увидеть анимацию</div>
+</div>
+
+<div class="footer">Крестик (×) убран во всех вариантах — повторный клик снимает выбор</div>
+
+<script>
+const CATS = ['Стрижки', 'Окрашивание', 'Укладки', 'Маникюр', 'Педикюр', 'Макияж'];
+const state = { a: null, b: null, c: null };
+
+/* ── Build strips ── */
+function buildStrip(id) {
+  const strip = document.getElementById('strip-' + id);
+  strip.innerHTML = '';
+  const active = state[id];
+  const sorted = active !== null
+    ? [CATS[active], ...CATS.filter((_, i) => i !== active)]
+    : CATS;
+
+  sorted.forEach((name, pos) => {
+    const origIdx = CATS.indexOf(name);
+    const pill = document.createElement('button');
+    pill.className = 'pill' + (origIdx === active ? ' active' : '');
+    pill.textContent = name;
+    pill.dataset.idx = origIdx;
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleClick(id, origIdx);
+    });
+    strip.appendChild(pill);
+  });
+}
+
+/* ── VARIANT A: FLIP ── */
+function handleClickA(idx) {
+  const strip = document.getElementById('strip-a');
+  const pills = [...strip.querySelectorAll('.pill')];
+
+  if (state.a === idx) { state.a = null; buildStrip('a'); return; }
+
+  // Record positions BEFORE reorder
+  const rects = {};
+  pills.forEach(p => { rects[p.dataset.idx] = p.getBoundingClientRect(); });
+
+  state.a = idx;
+  buildStrip('a');
+
+  // After reorder: compute delta and animate
+  const newPills = [...strip.querySelectorAll('.pill')];
+  newPills.forEach(p => {
+    const oldRect = rects[p.dataset.idx];
+    const newRect = p.getBoundingClientRect();
+    if (!oldRect) return;
+    const dx = oldRect.left - newRect.left;
+    if (Math.abs(dx) > 2) {
+      p.style.setProperty('--flip-x', dx + 'px');
+      p.classList.add('landing');
+      p.addEventListener('animationend', () => p.classList.remove('landing'), { once: true });
+    }
+  });
+}
+
+/* ── VARIANT B: GLOW BLOOM ── */
+function handleClickB(idx) {
+  if (state.b === idx) { state.b = null; buildStrip('b'); return; }
+  state.b = idx;
+  buildStrip('b');
+  // Add slide-in to non-active pills
+  const strip = document.getElementById('strip-b');
+  strip.querySelectorAll('.pill:not(.active)').forEach((p, i) => {
+    setTimeout(() => {
+      p.classList.add('slide-in');
+      p.addEventListener('animationend', () => p.classList.remove('slide-in'), { once: true });
+    }, i * 20);
+  });
+}
+
+/* ── VARIANT C: MAGNETIC SPRING ── */
+function handleClickC(idx) {
+  if (state.c === idx) { state.c = null; buildStrip('c'); return; }
+
+  // Show ripple on clicked pill first
+  const strip = document.getElementById('strip-c');
+  const target = [...strip.querySelectorAll('.pill')].find(p => +p.dataset.idx === idx);
+  if (target) {
+    target.classList.add('ripple');
+    setTimeout(() => {
+      state.c = idx;
+      buildStrip('c');
+    }, 150);
+  } else {
+    state.c = idx;
+    buildStrip('c');
+  }
+}
+
+function handleClick(id, idx) {
+  if (id === 'a') handleClickA(idx);
+  else if (id === 'b') handleClickB(idx);
+  else handleClickC(idx);
+}
+
+/* ── Option selection ── */
+let chosen = null;
+function selectOption(letter) {
+  chosen = letter;
+  document.querySelectorAll('.option-block').forEach(b => b.classList.remove('selected'));
+  document.getElementById('block-' + letter).classList.add('selected');
+  // Post to parent if in iframe context
+  try { window.parent.postMessage({ type: 'choice', choice: letter }, '*'); } catch(e) {}
+}
+
+/* ── Init ── */
+['a','b','c'].forEach(buildStrip);
+</script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partner Dashboard — Light</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #f0f0f5;
+  color: #111;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 28px 24px;
+  min-height: 100vh;
+}
+h1 { font-size: 17px; font-weight: 700; margin-bottom: 4px; color: #111; }
+.subtitle { color: #888; font-size: 12px; margin-bottom: 28px; }
+
+.phone-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.phone-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; }
+
+.phone {
+  width: 230px; height: 480px;
+  background: #fff;
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.06);
+  position: relative;
+}
+
+/* ── REG SCREEN ── */
+.reg { padding: 24px 18px; flex:1; display:flex; flex-direction:column; }
+.reg-logo { font-size: 11px; font-weight: 800; letter-spacing: 0.15em; color: #B2223C; margin-bottom: 20px; }
+.reg-title { font-size: 18px; font-weight: 700; color: #111; margin-bottom: 2px; }
+.reg-sub { font-size: 11px; color: #999; margin-bottom: 18px; }
+.field {
+  background: #f7f7fa; border: 1.5px solid #ececf0;
+  border-radius: 10px; padding: 9px 12px; margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.field.focused { border-color: #B2223C; background: #fff; }
+.field-label { font-size: 9px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.field-val { font-size: 12px; color: #222; }
+.field-val.placeholder { color: #bbb; }
+.btn {
+  margin-top: auto; background: #B2223C;
+  border-radius: 12px; padding: 13px; text-align: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  box-shadow: 0 4px 16px rgba(178,34,60,0.25);
+  letter-spacing: 0.02em;
+}
+
+/* ── TARIFF SCREEN ── */
+.tariff { padding: 20px 14px; flex:1; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+.tariff-logo { font-size: 10px; font-weight: 800; letter-spacing: 0.15em; color: #B2223C; margin-bottom: 8px; }
+.tariff-title { font-size: 16px; font-weight: 700; color: #111; margin-bottom: 2px; }
+.tariff-sub { font-size: 10px; color: #999; margin-bottom: 6px; }
+.tcard {
+  border-radius: 12px; padding: 11px 12px;
+  border: 1.5px solid #ececf0; background: #fafafa;
+  cursor: pointer; transition: all 0.2s;
+}
+.tcard.sel {
+  border-color: #B2223C; background: #fff8f8;
+  box-shadow: 0 2px 12px rgba(178,34,60,0.1);
+}
+.tcard-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; }
+.tcard-name { font-size: 11px; font-weight: 700; color: #333; }
+.tcard-price { font-size: 14px; font-weight: 800; color: #B2223C; }
+.tcard-price span { font-size: 9px; color: #bbb; font-weight: 400; }
+.tcard-feat { font-size: 9px; color: #aaa; line-height: 1.5; }
+.tcard.sel .tcard-name { color: #B2223C; }
+.sel-dot { width:8px;height:8px;border-radius:50%;background:#B2223C;flex-shrink:0; }
+.tcard:not(.sel) .sel-dot { background:#e0e0e0; }
+.tbtn {
+  margin-top: auto; background: #111;
+  border-radius: 12px; padding: 12px; text-align: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+
+/* ── DASHBOARD ── */
+.dash { flex:1; display:flex; flex-direction:column; background:#f7f7fa; }
+.dash-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 14px 16px 12px;
+  background: #fff;
+  border-bottom: 1px solid #ececf0;
+}
+.dash-brand { }
+.dash-name { font-size: 13px; font-weight: 800; color: #111; letter-spacing: -0.02em; }
+.dash-tag { font-size: 9px; color: #bbb; font-weight: 400; margin-top: 1px; }
+.hamburger { display:flex; flex-direction:column; gap:4px; }
+.hamburger div { width:18px; height:2px; background:#333; border-radius:2px; }
+.hamburger div:last-child { width:12px; }
+
+.dash-body { flex:1; padding:14px; }
+.dash-card {
+  background:#fff; border-radius:14px; padding:14px;
+  border:1px solid #ececf0; margin-bottom:10px;
+}
+.dash-card-title { font-size:10px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+.dash-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.stat { background:#f7f7fa; border-radius:10px; padding:10px; }
+.stat-val { font-size:20px; font-weight:800; color:#111; }
+.stat-label { font-size:9px; color:#aaa; margin-top:1px; }
+.dash-hint { font-size:11px; color:#bbb; text-align:center; margin-top:20px; }
+
+/* side panel */
+.side-panel {
+  position:absolute; top:0; right:0; bottom:0; width:82%;
+  background:#fff; border-left:1px solid #ececf0;
+  display:flex; flex-direction:column;
+  box-shadow: -8px 0 24px rgba(0,0,0,0.08);
+}
+.dim { position:absolute; top:0;left:0;right:82%;bottom:0; background:rgba(0,0,0,0.15); }
+.panel-top { padding:16px 16px 12px; border-bottom:1px solid #f0f0f0; }
+.panel-salon { font-size:14px; font-weight:800; color:#111; }
+.panel-tariff-badge {
+  display:inline-block; margin-top:4px; font-size:9px; font-weight:700;
+  background:#fff0f2; color:#B2223C; border:1px solid #f5c0c8;
+  border-radius:6px; padding:2px 7px;
+}
+.nav-sec { font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#ccc; padding:10px 16px 4px; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:10px 16px;
+  font-size:12px; color:#555; cursor:pointer; transition:all 0.15s;
+  border-left: 2px solid transparent;
+}
+.nav-item.active { background:#fff8f8; color:#B2223C; border-left-color:#B2223C; font-weight:600; }
+.nav-item svg { flex-shrink:0; opacity:0.5; }
+.nav-item.active svg { opacity:1; }
+.nav-badge { margin-left:auto; background:#B2223C; color:#fff; border-radius:8px; padding:1px 6px; font-size:9px; font-weight:700; }
+.nav-div { height:1px; background:#f5f5f5; margin:4px 0; }
+.panel-bottom { margin-top:auto; padding:12px 16px; border-top:1px solid #f5f5f5; }
+.panel-link { font-size:11px; color:#aaa; display:flex; align-items:center; gap:6px; }
+</style>
+</head>
+<body>
+
+<h1>Партнёрский кабинет — светлый стиль</h1>
+<p class="subtitle">Три шага: регистрация → тариф → кабинет с боковым меню</p>
+
+<div class="phone-row">
+
+  <!-- 1. Регистрация -->
+  <div class="phone-wrap">
+    <div class="phone-label">Регистрация</div>
+    <div class="phone">
+      <div class="reg">
+        <div class="reg-logo">BEAUTYBOOK</div>
+        <div class="reg-title">Стать партнёром</div>
+        <div class="reg-sub">Заполните данные о салоне</div>
+        <div class="field">
+          <div class="field-label">Название салона</div>
+          <div class="field-val">Студия красоты Анны</div>
+        </div>
+        <div class="field focused">
+          <div class="field-label">ИНН</div>
+          <div class="field-val">7712345678</div>
+        </div>
+        <div class="field">
+          <div class="field-label">ФИО владельца</div>
+          <div class="field-val placeholder">Иванова Анна Сергеевна</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Телефон</div>
+          <div class="field-val placeholder">+7 (___) ___-__-__</div>
+        </div>
+        <div class="btn">Продолжить →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Тариф -->
+  <div class="phone-wrap">
+    <div class="phone-label">Выбор тарифа</div>
+    <div class="phone">
+      <div class="tariff">
+        <div class="tariff-logo">BEAUTYBOOK</div>
+        <div class="tariff-title">Выберите тариф</div>
+        <div class="tariff-sub">Можно изменить в любой момент</div>
+        <div class="tcard">
+          <div class="tcard-head">
+            <div class="tcard-name">🌐 Базовый</div>
+            <div class="sel-dot"></div>
+          </div>
+          <div class="tcard-price">2 990 ₽<span> /мес</span></div>
+          <div class="tcard-feat">Страница салона · Онлайн-запись · Услуги и мастера</div>
+        </div>
+        <div class="tcard sel">
+          <div class="tcard-head">
+            <div class="tcard-name">⚡ Продвинутый</div>
+            <div class="sel-dot"></div>
+          </div>
+          <div class="tcard-price">4 990 ₽<span> /мес</span></div>
+          <div class="tcard-feat">+ Telegram-бот для клиентов · Уведомления</div>
+        </div>
+        <div class="tcard">
+          <div class="tcard-head">
+            <div class="tcard-name">🏆 Профессиональный</div>
+            <div class="sel-dot"></div>
+          </div>
+          <div class="tcard-price">7 990 ₽<span> /мес</span></div>
+          <div class="tcard-feat">+ Бот для мастеров · Перенос записей · Аналитика</div>
+        </div>
+        <div class="tbtn">Выбрать →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Кабинет -->
+  <div class="phone-wrap">
+    <div class="phone-label">Кабинет (меню открыто)</div>
+    <div class="phone">
+      <div class="dash">
+        <div class="dash-header">
+          <div class="dash-brand">
+            <div class="dash-name">Студия Анны</div>
+            <div class="dash-tag">салон красоты · Москва</div>
+          </div>
+          <div class="hamburger"><div></div><div></div><div></div></div>
+        </div>
+        <div class="dash-body">
+          <div class="dash-card">
+            <div class="dash-card-title">Сегодня</div>
+            <div class="dash-stats">
+              <div class="stat"><div class="stat-val">3</div><div class="stat-label">Записи</div></div>
+              <div class="stat"><div class="stat-val">0</div><div class="stat-label">Отмены</div></div>
+            </div>
+          </div>
+          <div class="dash-hint">Начните с добавления услуг →</div>
+        </div>
+        <div class="dim"></div>
+        <div class="side-panel">
+          <div class="panel-top">
+            <div class="panel-salon">Студия Анны</div>
+            <div class="panel-tariff-badge">Базовый тариф</div>
+          </div>
+          <div class="nav-sec">Главное</div>
+          <div class="nav-item active">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Главная
+          </div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Записи
+            <div class="nav-badge">3</div>
+          </div>
+          <div class="nav-div"></div>
+          <div class="nav-sec">Управление</div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Услуги
+          </div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Мастера
+          </div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Расписание
+          </div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Моя страница
+          </div>
+          <div class="nav-div"></div>
+          <div class="nav-sec">Аккаунт</div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Профиль салона
+          </div>
+          <div class="nav-item">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Тариф и оплата
+          </div>
+          <div class="panel-bottom">
+            <div class="panel-link">
+              <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              Выйти
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

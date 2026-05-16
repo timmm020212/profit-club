@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Options</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #f0f0f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 24px;
+}
+h1 { font-size: 17px; font-weight: 700; color: #111; margin-bottom: 4px; }
+.sub { color: #999; font-size: 12px; margin-bottom: 28px; }
+
+.row { display: flex; gap: 20px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; }
+
+.phone {
+  width: 220px; height: 440px;
+  background: #fff;
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.06);
+  position: relative;
+}
+
+/* shared layout */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 12px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+.brand-name { font-size: 13px; font-weight: 800; color: #111; }
+.brand-tag { font-size: 9px; color: #bbb; margin-top: 1px; }
+.hamburger { display: flex; flex-direction: column; gap: 4px; }
+.hamburger div { width: 18px; height: 2px; background: #333; border-radius: 2px; }
+.hamburger div:last-child { width: 12px; }
+
+.body { flex: 1; padding: 14px; background: #f8f8fb; }
+.card { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid #eeeeef; margin-bottom: 10px; }
+.card-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #ccc; margin-bottom: 8px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat { border-radius: 10px; padding: 10px; }
+.stat-val { font-size: 22px; font-weight: 800; color: #111; }
+.stat-label { font-size: 9px; color: #aaa; margin-top: 1px; }
+
+.dim { position: absolute; top:0; left:0; right:78%; bottom:0; background: rgba(0,0,0,0.12); }
+.panel {
+  position: absolute; top:0; right:0; bottom:0; width:78%;
+  background: #fff; border-left: 1px solid #f0f0f0;
+  display: flex; flex-direction: column;
+  box-shadow: -6px 0 20px rgba(0,0,0,0.07);
+}
+.panel-top { padding: 14px 14px 10px; border-bottom: 1px solid #f5f5f5; }
+.panel-name { font-size: 13px; font-weight: 800; color: #111; }
+.nav-sec { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #ddd; padding: 8px 14px 3px; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 14px; font-size: 11px; color: #777; border-left: 2px solid transparent; }
+.nav-div { height: 1px; background: #f5f5f5; margin: 3px 0; }
+.badge { margin-left: auto; border-radius: 8px; padding: 1px 6px; font-size: 9px; font-weight: 700; color: #fff; }
+.exit { margin-top: auto; padding: 10px 14px; border-top: 1px solid #f5f5f5; font-size: 10px; color: #bbb; }
+
+/* ── THEME A: Indigo ── */
+.a .pill { background: #EEF0FF; color: #4F46E5; border: 1px solid #C7D0F8; }
+.a .stat { background: #F5F6FF; }
+.a .nav-item.on { background: #F0F1FF; color: #4F46E5; font-weight: 600; border-left-color: #4F46E5; }
+.a .badge { background: #4F46E5; }
+.a .nav-item.on svg { color: #4F46E5; }
+.a .btn-main { background: #4F46E5; }
+
+/* ── THEME B: Slate/Charcoal ── */
+.b .pill { background: #F2F2F4; color: #1a1a2e; border: 1px solid #E0E0E8; }
+.b .stat { background: #F5F5F8; }
+.b .nav-item.on { background: #F2F2F6; color: #1a1a2e; font-weight: 700; border-left-color: #1a1a2e; }
+.b .badge { background: #1a1a2e; }
+.b .btn-main { background: #1a1a2e; }
+
+/* ── THEME C: Sage/Forest ── */
+.c .pill { background: #EDFAF3; color: #1A7A4A; border: 1px solid #C0E8D0; }
+.c .stat { background: #F2FBF6; }
+.c .nav-item.on { background: #EDF9F3; color: #1A7A4A; font-weight: 600; border-left-color: #1A7A4A; }
+.c .badge { background: #1A7A4A; }
+.c .btn-main { background: #1A7A4A; }
+
+/* ── THEME D: Warm Plum ── */
+.d .pill { background: #F7F0FF; color: #7C3AED; border: 1px solid #DEC8F8; }
+.d .stat { background: #FBF7FF; }
+.d .nav-item.on { background: #F5EEFF; color: #7C3AED; font-weight: 600; border-left-color: #7C3AED; }
+.d .badge { background: #7C3AED; }
+.d .btn-main { background: #7C3AED; }
+</style>
+</head>
+<body>
+
+<h1>Выберите цветовую схему</h1>
+<p class="sub">Красный убран. Какой акцент нравится больше?</p>
+
+<div class="row">
+
+  <!-- A: Indigo -->
+  <div class="col">
+    <div class="label">A — Индиго</div>
+    <div class="phone a">
+      <div class="header">
+        <div><div class="brand-name">Студия Анны</div><div class="brand-tag">салон красоты</div></div>
+        <div class="hamburger"><div></div><div></div><div></div></div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="card-title">Сегодня</div>
+          <div class="stats">
+            <div class="stat"><div class="stat-val">3</div><div class="stat-label">Записи</div></div>
+            <div class="stat"><div class="stat-val">0</div><div class="stat-label">Отмены</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="panel a">
+        <div class="panel-top"><div class="panel-name">Студия Анны</div><br><span class="pill a" style="display:inline-block;border-radius:6px;padding:2px 8px;font-size:9px;font-weight:700;">Базовый</span></div>
+        <div class="nav-sec">Главное</div>
+        <div class="nav-item on a">🏠 Главная</div>
+        <div class="nav-item">📅 Записи <span class="badge a">3</span></div>
+        <div class="nav-div"></div>
+        <div class="nav-sec">Управление</div>
+        <div class="nav-item">✂️ Услуги</div>
+        <div class="nav-item">👩‍💼 Мастера</div>
+        <div class="nav-item">🕐 Расписание</div>
+        <div class="nav-div"></div>
+        <div class="nav-item">👤 Профиль</div>
+        <div class="nav-item">💳 Тариф</div>
+        <div class="exit">Выйти</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: Charcoal -->
+  <div class="col">
+    <div class="label">B — Графит</div>
+    <div class="phone b">
+      <div class="header">
+        <div><div class="brand-name">Студия Анны</div><div class="brand-tag">салон красоты</div></div>
+        <div class="hamburger"><div></div><div></div><div></div></div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="card-title">Сегодня</div>
+          <div class="stats">
+            <div class="stat b"><div class="stat-val">3</div><div class="stat-label">Записи</div></div>
+            <div class="stat b"><div class="stat-val">0</div><div class="stat-label">Отмены</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="panel b">
+        <div class="panel-top"><div class="panel-name">Студия Анны</div><br><span class="pill b" style="display:inline-block;border-radius:6px;padding:2px 8px;font-size:9px;font-weight:700;">Базовый</span></div>
+        <div class="nav-sec">Главное</div>
+        <div class="nav-item on b">🏠 Главная</div>
+        <div class="nav-item">📅 Записи <span class="badge b">3</span></div>
+        <div class="nav-div"></div>
+        <div class="nav-sec">Управление</div>
+        <div class="nav-item">✂️ Услуги</div>
+        <div class="nav-item">👩‍💼 Мастера</div>
+        <div class="nav-item">🕐 Расписание</div>
+        <div class="nav-div"></div>
+        <div class="nav-item">👤 Профиль</div>
+        <div class="nav-item">💳 Тариф</div>
+        <div class="exit">Выйти</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: Sage -->
+  <div class="col">
+    <div class="label">C — Зелёный</div>
+    <div class="phone c">
+      <div class="header">
+        <div><div class="brand-name">Студия Анны</div><div class="brand-tag">салон красоты</div></div>
+        <div class="hamburger"><div></div><div></div><div></div></div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="card-title">Сегодня</div>
+          <div class="stats">
+            <div class="stat c"><div class="stat-val">3</div><div class="stat-label">Записи</div></div>
+            <div class="stat c"><div class="stat-val">0</div><div class="stat-label">Отмены</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="panel c">
+        <div class="panel-top"><div class="panel-name">Студия Анны</div><br><span class="pill c" style="display:inline-block;border-radius:6px;padding:2px 8px;font-size:9px;font-weight:700;">Базовый</span></div>
+        <div class="nav-sec">Главное</div>
+        <div class="nav-item on c">🏠 Главная</div>
+        <div class="nav-item">📅 Записи <span class="badge c">3</span></div>
+        <div class="nav-div"></div>
+        <div class="nav-sec">Управление</div>
+        <div class="nav-item">✂️ Услуги</div>
+        <div class="nav-item">👩‍💼 Мастера</div>
+        <div class="nav-item">🕐 Расписание</div>
+        <div class="nav-div"></div>
+        <div class="nav-item">👤 Профиль</div>
+        <div class="nav-item">💳 Тариф</div>
+        <div class="exit">Выйти</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D: Plum -->
+  <div class="col">
+    <div class="label">D — Фиолетовый</div>
+    <div class="phone d">
+      <div class="header">
+        <div><div class="brand-name">Студия Анны</div><div class="brand-tag">салон красоты</div></div>
+        <div class="hamburger"><div></div><div></div><div></div></div>
+      </div>
+      <div class="body">
+        <div class="card">
+          <div class="card-title">Сегодня</div>
+          <div class="stats">
+            <div class="stat d"><div class="stat-val">3</div><div class="stat-label">Записи</div></div>
+            <div class="stat d"><div class="stat-val">0</div><div class="stat-label">Отмены</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="panel d">
+        <div class="panel-top"><div class="panel-name">Студия Анны</div><br><span class="pill d" style="display:inline-block;border-radius:6px;padding:2px 8px;font-size:9px;font-weight:700;">Базовый</span></div>
+        <div class="nav-sec">Главное</div>
+        <div class="nav-item on d">🏠 Главная</div>
+        <div class="nav-item">📅 Записи <span class="badge d">3</span></div>
+        <div class="nav-div"></div>
+        <div class="nav-sec">Управление</div>
+        <div class="nav-item">✂️ Услуги</div>
+        <div class="nav-item">👩‍💼 Мастера</div>
+        <div class="nav-item">🕐 Расписание</div>
+        <div class="nav-div"></div>
+        <div class="nav-item">👤 Профиль</div>
+        <div class="nav-item">💳 Тариф</div>
+        <div class="exit">Выйти</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

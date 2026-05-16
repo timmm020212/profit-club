@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partner Dashboard Mockup</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0a0a0f;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 24px;
+}
+h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { color: rgba(255,255,255,0.4); font-size: 13px; margin-bottom: 32px; }
+
+/* ── FLOW STEPS ── */
+.flow { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+.step-badge {
+  background: rgba(178,34,60,0.15); border: 1px solid rgba(178,34,60,0.3);
+  border-radius: 20px; padding: 4px 12px; font-size: 11px; color: #e8556e; font-weight: 600;
+}
+.arrow { color: rgba(255,255,255,0.2); font-size: 14px; }
+
+/* ── PHONE MOCKUP ── */
+.phone-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; }
+.phone {
+  width: 240px; height: 480px; flex-shrink: 0;
+  background: #111118; border: 1.5px solid rgba(255,255,255,0.08);
+  border-radius: 24px; overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
+}
+.phone-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(255,255,255,0.3);
+  margin-bottom: 8px; text-align: center;
+}
+
+/* Screen 1 — Registration */
+.reg-screen { padding: 20px 16px; flex: 1; display: flex; flex-direction: column; }
+.reg-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.reg-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-bottom: 20px; }
+.field {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+}
+.field-label { font-size: 9px; color: rgba(255,255,255,0.3); margin-bottom: 2px; }
+.field-val { font-size: 12px; color: rgba(255,255,255,0.7); }
+.btn-primary {
+  margin-top: auto; background: linear-gradient(135deg, #B2223C, #d4395a);
+  border-radius: 12px; padding: 12px; text-align: center;
+  font-size: 13px; font-weight: 600; color: #fff;
+  box-shadow: 0 4px 16px rgba(178,34,60,0.3);
+}
+
+/* Screen 2 — Tariff */
+.tariff-screen { padding: 16px 12px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.tariff-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.tariff-card {
+  border-radius: 12px; padding: 12px; border: 1.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+}
+.tariff-card.active {
+  border-color: #B2223C; background: rgba(178,34,60,0.08);
+}
+.tariff-name { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.tariff-price { font-size: 16px; font-weight: 700; color: #e8556e; }
+.tariff-price span { font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 400; }
+.tariff-feat { font-size: 9px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+.tariff-btn {
+  margin-top: 8px; background: #B2223C; border-radius: 10px;
+  padding: 10px; text-align: center; font-size: 12px; font-weight: 600;
+}
+
+/* Screen 3 — Dashboard with side panel */
+.dash-screen { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.dash-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dash-logo { font-size: 13px; font-weight: 700; }
+.dash-logo span { color: rgba(255,255,255,0.3); font-size: 10px; font-weight: 400; display: block; }
+.hamburger { display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.hamburger div { width: 18px; height: 1.5px; background: rgba(255,255,255,0.6); border-radius: 2px; }
+.dash-content { flex: 1; padding: 16px; }
+.dash-welcome { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.dash-hint { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+/* Side panel */
+.side-panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 80%; background: #18181f;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 0; display: flex; flex-direction: column;
+}
+.panel-salon { padding: 0 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 8px; }
+.panel-salon-name { font-size: 14px; font-weight: 700; }
+.panel-salon-tag { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; cursor: pointer; transition: background 0.15s;
+  font-size: 13px; color: rgba(255,255,255,0.65);
+}
+.nav-item.active { background: rgba(178,34,60,0.12); color: #fff; border-right: 2px solid #B2223C; }
+.nav-item svg { opacity: 0.5; flex-shrink: 0; }
+.nav-item.active svg { opacity: 1; }
+.nav-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 6px 0; }
+.nav-section-label {
+  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.2); padding: 4px 16px;
+}
+.nav-badge {
+  margin-left: auto; background: #B2223C; border-radius: 10px;
+  padding: 1px 6px; font-size: 10px; font-weight: 600;
+}
+.panel-footer { margin-top: auto; padding: 12px 16px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+.panel-tariff { font-size: 10px; color: rgba(255,255,255,0.3); }
+.panel-tariff strong { color: #e8556e; }
+
+/* Overlay dim */
+.dim { position: absolute; top:0; left:0; right:80%; bottom:0; background: rgba(0,0,0,0.5); }
+
+/* ── MENU PROPOSAL ── */
+.menu-proposal {
+  background: rgba(255,255,255,0.03); border: 1.5px solid rgba(255,255,255,0.07);
+  border-radius: 16px; padding: 20px; margin-bottom: 20px;
+}
+.menu-proposal h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.menu-proposal p { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px; }
+.menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.menu-item {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 10px 12px;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.menu-icon { font-size: 16px; margin-top: 1px; }
+.menu-item-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.menu-item-desc { font-size: 10px; color: rgba(255,255,255,0.3); line-height: 1.4; }
+.tag { display: inline-block; font-size: 9px; font-weight: 700;
+  border-radius: 4px; padding: 1px 5px; margin-top: 4px; }
+.tag.basic { background: rgba(99,179,90,0.15); color: #6ab56a; }
+.tag.adv { background: rgba(178,34,60,0.15); color: #e8556e; }
+
+.note { font-size: 12px; color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.02);
+  border-left: 2px solid rgba(178,34,60,0.4); padding: 10px 14px; border-radius: 0 8px 8px 0;
+  margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Партнёрский кабинет — структура и навигация</h1>
+<p class="subtitle">Флоу онбординга + предложение по пунктам меню. Скажите что убрать / добавить.</p>
+
+<!-- FLOW -->
+<div class="flow">
+  <div class="step-badge">1. Инвайт-ссылка</div>
+  <div class="arrow">→</div>
+  <div class="step-badge">2. Регистрация</div>
+  <div class="arrow">→</div>
+  <div class="step-badge">3. Выбор тарифа</div>
+  <div class="arrow">→</div>
+  <div class="step-badge">4. Кабинет партнёра</div>
+</div>
+
+<!-- PHONE MOCKUPS -->
+<div class="phone-row">
+
+  <!-- Screen 1: Registration -->
+  <div>
+    <div class="phone-label">Шаг 2 — Регистрация</div>
+    <div class="phone">
+      <div class="reg-screen">
+        <div class="reg-title">Добро пожаловать</div>
+        <div class="reg-sub">Заполните данные о салоне</div>
+        <div class="field"><div class="field-label">Название салона</div><div class="field-val">Студия красоты...</div></div>
+        <div class="field"><div class="field-label">ИНН / Статус</div><div class="field-val">ИП / ООО</div></div>
+        <div class="field"><div class="field-label">ФИО владельца</div><div class="field-val">Иванова Анна...</div></div>
+        <div class="field"><div class="field-label">Номер телефона</div><div class="field-val">+7 (___) ___-__-__</div></div>
+        <div class="field"><div class="field-label">Город</div><div class="field-val">Москва</div></div>
+        <div class="btn-primary">Продолжить →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 2: Tariff -->
+  <div>
+    <div class="phone-label">Шаг 3 — Тариф</div>
+    <div class="phone">
+      <div class="tariff-screen">
+        <div class="tariff-title">Выберите тариф</div>
+        <div class="tariff-card">
+          <div class="tariff-name">🌐 Базовый</div>
+          <div class="tariff-price">2 990 ₽ <span>/мес</span></div>
+          <div class="tariff-feat">• Страница салона<br>• Онлайн-запись<br>• Управление услугами</div>
+        </div>
+        <div class="tariff-card active">
+          <div class="tariff-name">⚡ Продвинутый</div>
+          <div class="tariff-price">4 990 ₽ <span>/мес</span></div>
+          <div class="tariff-feat">• Всё из базового<br>• Telegram-бот для клиентов<br>• Уведомления</div>
+        </div>
+        <div class="tariff-card">
+          <div class="tariff-name">🏆 Профессиональный</div>
+          <div class="tariff-price">7 990 ₽ <span>/мес</span></div>
+          <div class="tariff-feat">• Всё из продвинутого<br>• Бот для мастеров<br>• Аналитика</div>
+        </div>
+        <div class="tariff-btn">Выбрать →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 3: Dashboard + side panel open -->
+  <div>
+    <div class="phone-label">Шаг 4 — Кабинет (меню открыто)</div>
+    <div class="phone">
+      <div class="dash-screen">
+        <div class="dash-header">
+          <div class="dash-logo">Студия Анны<span>салон красоты</span></div>
+          <div class="hamburger"><div></div><div></div><div></div></div>
+        </div>
+        <div class="dash-content">
+          <div class="dash-welcome">Добро пожаловать 👋</div>
+          <div class="dash-hint">Начните с добавления услуг</div>
+        </div>
+        <!-- Dim overlay -->
+        <div class="dim"></div>
+        <!-- Side panel -->
+        <div class="side-panel">
+          <div class="panel-salon">
+            <div class="panel-salon-name">Студия Анны</div>
+            <div class="panel-salon-tag">Базовый тариф · активен</div>
+          </div>
+          <div class="nav-section-label">Основное</div>
+          <div class="nav-item active">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Главная
+          </div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Записи
+            <div class="nav-badge">3</div>
+          </div>
+          <div class="nav-divider"></div>
+          <div class="nav-section-label">Управление</div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Услуги
+          </div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Мастера
+          </div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Расписание
+          </div>
+          <div class="nav-divider"></div>
+          <div class="nav-section-label">Аккаунт</div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Профиль салона
+          </div>
+          <div class="nav-item">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Тариф и оплата
+          </div>
+          <div class="panel-footer">
+            <div class="panel-tariff">Тариф: <strong>Базовый</strong> · до 16 июня</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MENU ITEMS PROPOSAL -->
+<div class="menu-proposal">
+  <h3>Предлагаемые пункты меню — обсудим?</h3>
+  <p>Что оставить, что убрать, что добавить?</p>
+  <div class="menu-grid">
+    <div class="menu-item">
+      <div class="menu-icon">🏠</div>
+      <div><div class="menu-item-name">Главная</div><div class="menu-item-desc">Дашборд с краткой статистикой: записи сегодня, выручка</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">📅</div>
+      <div><div class="menu-item-name">Записи</div><div class="menu-item-desc">Список всех записей, статусы, отмена</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">✂️</div>
+      <div><div class="menu-item-name">Услуги</div><div class="menu-item-desc">Добавить/редактировать услуги, цены, фото</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">👩‍💼</div>
+      <div><div class="menu-item-name">Мастера</div><div class="menu-item-desc">Список мастеров, специализации, фото</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">🕐</div>
+      <div><div class="menu-item-name">Расписание</div><div class="menu-item-desc">Рабочие слоты мастеров, выходные</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">🔗</div>
+      <div><div class="menu-item-name">Моя страница</div><div class="menu-item-desc">Ссылка и QR-код страницы салона для клиентов</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">👤</div>
+      <div><div class="menu-item-name">Профиль салона</div><div class="menu-item-desc">Название, адрес, фото, контакты</div><div class="tag basic">Базовый</div></div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-icon">💳</div>
+      <div><div class="menu-item-name">Тариф и оплата</div><div class="menu-item-desc">Текущий тариф, дата продления, смена плана</div><div class="tag basic">Базовый</div></div>
+    </div>
+  </div>
+  <div class="note">💡 Всё выше — для Базового тарифа. В Продвинутом и Профессиональном добавятся пункты: Telegram-бот, Аналитика, Отзывы, Уведомления.</div>
+</div>
+
+</body>
+</html>

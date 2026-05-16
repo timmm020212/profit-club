@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filter Animation — Combined</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #09090D;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .subtitle { color: rgba(255,255,255,0.45); font-size: 13px; margin-bottom: 36px; line-height: 1.5; }
+
+  .block {
+    background: rgba(255,255,255,0.03);
+    border: 1.5px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .block-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 6px;
+  }
+  .block-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .block-desc { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 18px; line-height: 1.5; }
+
+  .filter-strip {
+    display: flex;
+    gap: 8px;
+    overflow: hidden;
+    padding: 4px 2px 8px;
+  }
+
+  .pill {
+    flex-shrink: 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.45);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    outline: none;
+  }
+  .pill.active {
+    background: #B2223C;
+    border-color: #B2223C;
+    color: #fff;
+    box-shadow: 0 2px 14px rgba(178,34,60,0.35);
+  }
+
+  /* ── Ripple on click ── */
+  .pill .ripple-el {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(232,85,110,0.5);
+    transform: scale(0);
+    animation: rippleAnim 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(3); opacity: 0; }
+  }
+
+  /* ── FLIP travel ── */
+  .pill.flip-travel {
+    animation: flipTravel 0.45s cubic-bezier(0.34,1.3,0.64,1) both;
+  }
+  @keyframes flipTravel {
+    0%   { transform: translateX(var(--tx)) scale(0.9); opacity: 0.55; }
+    65%  { transform: translateX(calc(var(--tx) * 0.04)) scale(1.05); opacity: 1; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+
+  /* ── Spring bounce landing (active pill) ── */
+  .pill.active.spring-land {
+    animation: springLand 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes springLand {
+    0%   { transform: translateX(var(--tx)) scale(0.88); box-shadow: 0 0 0 rgba(178,34,60,0); }
+    50%  { transform: translateX(0) scale(1.08) translateY(-2px); box-shadow: 0 8px 24px rgba(178,34,60,0.5); }
+    100% { transform: scale(1) translateY(0); box-shadow: 0 2px 14px rgba(178,34,60,0.35); }
+  }
+
+  /* ── Shimmer after landing ── */
+  .pill.active .shimmer {
+    position: absolute;
+    top: 0; left: -80%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmerPass 0.55s 0.3s ease both;
+    pointer-events: none;
+  }
+  @keyframes shimmerPass {
+    0%   { left: -80%; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { left: 140%; opacity: 0; }
+  }
+
+  /* ── Non-active pills slide out of the way ── */
+  .pill.nudge {
+    animation: nudgeRight 0.38s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes nudgeRight {
+    0%   { transform: translateX(-6px); opacity: 0.7; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+
+  .hint { font-size: 11px; color: rgba(255,255,255,0.22); margin-top: 8px; }
+
+  .step-list {
+    display: flex; flex-direction: column; gap: 6px; margin-top: 20px;
+  }
+  .step {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.4;
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(178,34,60,0.2); border: 1px solid rgba(178,34,60,0.4);
+    color: #e8556e; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Вариант C + физическое перемещение</h1>
+<p class="subtitle">Нажимайте на разные фильтры — пилл видимо «едет» на первую позицию с пружинным отскоком и бликом.</p>
+
+<div class="block">
+  <div class="block-label">Финальный вариант</div>
+  <div class="block-title">Magnetic FLIP — ripple → полёт → пружина → блик</div>
+  <div class="block-desc">Повторный клик снимает выбор. Крестика нет.</div>
+  <div class="filter-strip" id="main-strip"></div>
+  <div class="hint">↑ Нажмите любой фильтр — потом другой — потом тот же, чтобы снять</div>
+
+  <div class="step-list">
+    <div class="step"><div class="step-num">1</div><span><b>Ripple</b> — волна расходится от точки касания (мгновенно)</span></div>
+    <div class="step"><div class="step-num">2</div><span><b>Полёт</b> — пилл физически съезжает на первое место за 450ms (видно «откуда»)</span></div>
+    <div class="step"><div class="step-num">3</div><span><b>Пружина</b> — мягкий отскок вверх и обратно при «посадке»</span></div>
+    <div class="step"><div class="step-num">4</div><span><b>Блик</b> — световая полоска пробегает по активному пиллу</span></div>
+    <div class="step"><div class="step-num">5</div><span><b>Остальные</b> — плавно сдвигаются вправо без рывков</span></div>
+  </div>
+</div>
+
+<script>
+const CATS = ['Стрижки', 'Окрашивание', 'Укладки', 'Маникюр', 'Педикюр', 'Макияж'];
+let active = null;
+let animating = false;
+
+function buildStrip(targetIdx, animate) {
+  const strip = document.getElementById('main-strip');
+
+  if (!animate) {
+    strip.innerHTML = renderPills(targetIdx);
+    return;
+  }
+
+  // 1. Record current pill positions
+  const pills = [...strip.querySelectorAll('.pill')];
+  const oldRects = {};
+  pills.forEach(p => { oldRects[+p.dataset.idx] = p.getBoundingClientRect(); });
+
+  // 2. Re-render (DOM reorders)
+  strip.innerHTML = renderPills(targetIdx);
+
+  // 3. FLIP: animate each pill from old position to new
+  const newPills = [...strip.querySelectorAll('.pill')];
+  newPills.forEach(p => {
+    const idx = +p.dataset.idx;
+    const oldRect = oldRects[idx];
+    const newRect = p.getBoundingClientRect();
+    if (!oldRect) return;
+
+    const dx = oldRect.left - newRect.left;
+
+    if (idx === targetIdx) {
+      // Active pill: spring-land from old position
+      p.style.setProperty('--tx', dx + 'px');
+      p.classList.add('spring-land');
+      p.addEventListener('animationend', () => p.classList.remove('spring-land'), { once: true });
+    } else if (Math.abs(dx) > 2) {
+      // Other pills: smooth nudge
+      p.style.setProperty('--tx', dx + 'px');
+      p.classList.add('flip-travel');
+      p.addEventListener('animationend', () => p.classList.remove('flip-travel'), { once: true });
+    }
+  });
+}
+
+function renderPills(activeIdx) {
+  const sorted = activeIdx !== null
+    ? [CATS[activeIdx], ...CATS.filter((_, i) => i !== activeIdx)]
+    : [...CATS];
+
+  return sorted.map(name => {
+    const idx = CATS.indexOf(name);
+    const isActive = idx === activeIdx;
+    return `<button class="pill${isActive ? ' active' : ''}" data-idx="${idx}" onclick="handleClick(${idx}, event)">
+      ${name}
+      ${isActive ? '<span class="shimmer"></span>' : ''}
+    </button>`;
+  }).join('');
+}
+
+function handleClick(idx, e) {
+  if (animating) return;
+
+  // Ripple at click point
+  const pill = e.currentTarget;
+  const rect = pill.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = e.clientX - rect.left - size / 2;
+  const y = e.clientY - rect.top - size / 2;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple-el';
+  ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+  pill.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+
+  const newActive = active === idx ? null : idx;
+
+  animating = true;
+  setTimeout(() => {
+    active = newActive;
+    buildStrip(newActive, true);
+    setTimeout(() => { animating = false; }, 500);
+  }, 80); // small delay after ripple
+}
+
+// Init
+buildStrip(null, false);
+</script>
+</body>
+</html>
