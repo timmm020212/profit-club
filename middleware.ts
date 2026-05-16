@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const session = await getPartnerSessionFromRequest(request);
     if (!session) {
-      return NextResponse.redirect(new URL("/partner/login", request.url));
+      return NextResponse.redirect(new URL("/partner/join", request.url));
     }
   }
 

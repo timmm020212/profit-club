@@ -69,6 +69,10 @@ function JoinForm() {
             {loading ? "Регистрация..." : "Создать аккаунт →"}
           </button>
         </form>
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#aaa" }}>
+          Уже есть аккаунт?{" "}
+          <a href="/partner/login" style={{ color: "#1a1a2e", fontWeight: 600, textDecoration: "none" }}>Войти</a>
+        </p>
       </div>
     </div>
   );
