@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
-import { getPartnerSessionFromRequest } from "./lib/partner-auth";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Admin page protection via NextAuth
+  // Admin protection
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
     const token = await getToken({ req: request });
-    if (!token) {
+    if (!token || token.role === "partner") {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
   }
@@ -21,8 +20,8 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith("/partner/join") &&
     !pathname.startsWith("/partner/tariff")
   ) {
-    const session = await getPartnerSessionFromRequest(request);
-    if (!session) {
+    const token = await getToken({ req: request });
+    if (!token || token.role !== "partner") {
       return NextResponse.redirect(new URL("/partner/join", request.url));
     }
   }

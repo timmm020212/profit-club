@@ -1,5 +1,6 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 const NAV = [
   { section: "Главное", items: [
@@ -35,9 +36,7 @@ export default function PartnerSidebar({ salonName, tariff, onClose }: Props) {
   const router = useRouter();
 
   async function handleLogout() {
-    await fetch("/api/partner/auth/logout", { method: "POST" });
-    router.push("/partner/login");
-    router.refresh();
+    await signOut({ callbackUrl: "/partner/join" });
   }
 
   function navigate(href: string) {
