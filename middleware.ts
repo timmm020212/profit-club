@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
+import { getPartnerSessionFromRequest } from "./lib/partner-auth";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,7 +14,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Add security headers to all responses
+  // Partner dashboard protection
+  if (
+    pathname.startsWith("/partner") &&
+    !pathname.startsWith("/partner/login") &&
+    !pathname.startsWith("/partner/join") &&
+    !pathname.startsWith("/partner/tariff")
+  ) {
+    const session = await getPartnerSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.redirect(new URL("/partner/login", request.url));
+    }
+  }
+
   const response = NextResponse.next();
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -26,6 +39,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/admin/((?!login).*)",
+    "/partner/((?!login|join|tariff).*)",
     "/api/:path*",
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
