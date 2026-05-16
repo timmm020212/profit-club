@@ -1,22 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120";
-const border = "rgba(255,255,255,0.07)";
-const gold = "#C8A96E";
-const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
 const inputSt: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10,
-  padding: "10px 14px", fontSize: 13, color: txtPri, outline: "none",
-  fontFamily: "var(--font-montserrat)", boxSizing: "border-box",
+  width: "100%", background: "#fff", border: "1px solid #E0DDD7",
+  borderRadius: 8, padding: "10px 14px", fontSize: 13, color: txtDark,
+  fontFamily: "var(--font-montserrat)", outline: "none",
+  boxSizing: "border-box",
 };
 const labelSt: React.CSSProperties = {
-  display: "block", fontSize: 9, fontWeight: 700, color: gold,
-  letterSpacing: "0.14em", textTransform: "uppercase",
-  fontFamily: "var(--font-montserrat)", marginBottom: 6,
+  display: "block", fontSize: 9, color: txtSoft,
+  letterSpacing: "0.18em", textTransform: "uppercase",
+  fontFamily: "var(--font-montserrat)", marginBottom: 7,
 };
 
 interface Service { id: number; name: string; price: string | null; duration: number; description?: string | null; }
@@ -60,30 +58,34 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      {/* Page header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Управление</div>
-          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Услуги</h1>
+          <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Управление</div>
+          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Услуги</h1>
         </div>
         <button
           onClick={() => setShowForm(p => !p)}
           style={{
-            background: showForm ? "rgba(255,255,255,0.06)" : crimGrd,
-            color: "#fff", border: "none", borderRadius: 10,
-            padding: "10px 18px", fontSize: 13, fontWeight: 600,
+            background: showForm ? "transparent" : crimson,
+            color: showForm ? txtMid : "#fff",
+            border: showForm ? "1px solid #E0DDD7" : "none",
+            borderRadius: 8, padding: "11px 22px", fontSize: 13, fontWeight: 600,
             cursor: "pointer", fontFamily: "var(--font-montserrat)",
-            marginTop: 20, flexShrink: 0,
+            letterSpacing: "0.03em", flexShrink: 0,
+            transition: "background 0.2s",
           }}
-        >{showForm ? "✕ Отмена" : "+ Добавить"}</button>
+        >{showForm ? "Отмена" : "+ Добавить"}</button>
       </div>
 
       {showForm && (
         <form onSubmit={addService} style={{
-          background: card, borderRadius: 16, padding: "24px",
-          border: `1px solid rgba(200,169,110,0.2)`,
-          marginBottom: 20, display: "flex", flexDirection: "column", gap: 14,
+          background: "#fff", borderRadius: 10,
+          border: "1px solid rgba(178,34,60,0.2)",
+          padding: 24, marginBottom: 20,
+          display: "flex", flexDirection: "column", gap: 14,
         }}>
-          <div style={{ fontSize: 13, fontFamily: "var(--font-playfair)", color: gold, marginBottom: 4 }}>Новая услуга</div>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 16, fontWeight: 700, color: txtDark, marginBottom: 4 }}>Новая услуга</div>
           {fields.map(f => (
             <div key={f.key}>
               <label style={labelSt}>{f.label}</label>
@@ -93,36 +95,36 @@ export default function ServicesPage() {
             </div>
           ))}
           <button type="submit" disabled={adding} style={{
-            background: crimGrd, color: "#fff", border: "none", borderRadius: 10,
-            padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--font-montserrat)", opacity: adding ? 0.65 : 1,
+            background: adding ? "#ccc" : crimson, color: "#fff", border: "none",
+            borderRadius: 8, padding: "12px 22px", fontSize: 13, fontWeight: 600,
+            cursor: adding ? "not-allowed" : "pointer", fontFamily: "var(--font-montserrat)",
+            letterSpacing: "0.03em", marginTop: 4,
           }}>{adding ? "Сохраняем..." : "Сохранить услугу"}</button>
         </form>
       )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: txtMut, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
+        <div style={{ padding: 40, textAlign: "center", color: txtSoft, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
       ) : services.length === 0 ? (
-        <div style={{ background: card, borderRadius: 16, padding: "40px 24px", border: `1px solid ${border}`, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>✂️</div>
-          <div style={{ fontSize: 15, fontFamily: "var(--font-playfair)", color: txtPri, marginBottom: 6 }}>Добавьте первую услугу</div>
-          <div style={{ fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)" }}>Нажмите «+ Добавить» чтобы создать услугу</div>
+        <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, padding: "40px 24px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: txtDark, marginBottom: 6 }}>Добавьте первую услугу</div>
+          <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft }}>Нажмите «+ Добавить» чтобы создать услугу</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {services.map(s => (
+        <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, overflow: "hidden" }}>
+          {services.map((s, i) => (
             <div key={s.id} style={{
-              background: card, borderRadius: 14, padding: "16px 20px",
-              border: `1px solid ${border}`,
               display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+              padding: "16px 20px",
+              borderBottom: i < services.length - 1 ? `1px solid #F5F3EF` : "none",
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: txtPri, fontFamily: "var(--font-montserrat)", marginBottom: 3 }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: txtSec, fontFamily: "var(--font-montserrat)" }}>
-                  {s.duration ? `${s.duration} мин` : ""}{s.duration && s.price ? " · " : ""}{s.price ? `${s.price} ₽` : ""}
+                <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, fontWeight: 600, color: txtDark, marginBottom: 3 }}>{s.name}</div>
+                <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtSoft }}>
+                  {s.duration ? `${s.duration} мин` : ""}{s.duration && s.description ? " · " : ""}{s.description || ""}
                 </div>
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: gold, fontFamily: "var(--font-playfair)", flexShrink: 0 }}>
+              <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, fontWeight: 700, color: crimson, flexShrink: 0 }}>
                 {s.price ? `${s.price} ₽` : "—"}
               </div>
             </div>

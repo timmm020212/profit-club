@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)";
-const gold = "#C8A96E";
-const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
 const TARIFFS = [
   { id: "basic",    name: "Базовый",          price: "2 990", features: ["Страница салона", "Онлайн-запись", "Управление услугами и мастерами", "Расписание"] },
@@ -41,99 +40,80 @@ export default function TariffPage() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#08080D",
+      minHeight: "100vh", background: "#F8F6F2",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
-      <div style={{ position: "fixed", width: 700, height: 700, borderRadius: "50%", pointerEvents: "none",
-        background: "radial-gradient(circle, rgba(200,169,110,0.05) 0%, transparent 70%)",
-        top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />
-
-      <div style={{
-        width: "100%", maxWidth: 500, position: "relative",
-        background: card, borderRadius: 20,
-        border: `1px solid ${border}`,
-        padding: "36px 32px", boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
-      }}>
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 12, letterSpacing: "0.22em", color: gold, textTransform: "uppercase", marginBottom: 18 }}>BeautyBook</div>
-          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 26, fontWeight: 700, color: txtPri, margin: 0, lineHeight: 1.2 }}>Выберите тариф</h1>
-          <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, margin: "8px 0 0" }}>Можно изменить в любой момент</p>
+      <div style={{ width: "100%", maxWidth: 980 }}>
+        {/* Brand */}
+        <div style={{ marginBottom: 40, textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 22, fontWeight: 700, color: txtDark, letterSpacing: "0.04em" }}>BeautyBook</div>
+          <div style={{ width: 32, height: 2, background: crimson, margin: "12px auto 0" }} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 32, fontWeight: 700, color: txtDark, margin: "0 0 8px", lineHeight: 1.1 }}>Выберите тариф</h1>
+          <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, color: txtSoft, margin: 0 }}>Можно изменить в любой момент</p>
+        </div>
+
+        <div className="tariff-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 28 }}>
           {TARIFFS.map(t => {
             const active = selected === t.id;
-            const isPro = t.id === "pro";
             return (
               <div
                 key={t.id}
                 onClick={() => setSelected(t.id)}
                 style={{
-                  border: active
-                    ? "1px solid rgba(200,169,110,0.5)"
-                    : isPro
-                      ? "1px solid rgba(200,169,110,0.25)"
-                      : `1px solid ${border}`,
-                  borderRadius: 14,
-                  padding: "16px 18px",
+                  background: "#fff",
+                  border: active ? `2px solid ${crimson}` : `1px solid ${border}`,
+                  borderRadius: 12,
+                  padding: active ? "27px 23px" : "28px 24px",
                   cursor: "pointer",
-                  background: active ? "rgba(200,169,110,0.08)" : "rgba(255,255,255,0.02)",
-                  transition: "all 0.15s",
-                  position: "relative",
+                  transition: "border-color 0.15s",
+                  display: "flex", flexDirection: "column",
                 }}
               >
-                {isPro && (
-                  <span style={{
-                    position: "absolute", top: -8, right: 14,
-                    background: "linear-gradient(135deg, #C8A96E, #E8D4A0)",
-                    color: "#08080D", fontSize: 9, fontWeight: 700,
-                    padding: "3px 10px", borderRadius: 10,
-                    letterSpacing: "0.12em", textTransform: "uppercase",
-                    fontFamily: "var(--font-montserrat)",
-                  }}>Лучший</span>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                  <span style={{
-                    fontFamily: "var(--font-playfair)", fontWeight: 700, fontSize: 16,
-                    color: active ? gold : txtPri,
-                  }}>{t.name}</span>
-                  <span style={{
-                    fontFamily: "var(--font-playfair)", fontWeight: 700, fontSize: 20,
-                    backgroundImage: active ? "linear-gradient(135deg, #C8A96E, #E8D4A0)" : "none",
-                    backgroundClip: active ? "text" : "unset",
-                    WebkitBackgroundClip: active ? "text" : "unset",
-                    color: active ? "transparent" : txtPri,
-                  }}>
-                    {t.price}
-                    <span style={{
-                      fontSize: 11, fontWeight: 400, color: txtMut,
-                      fontFamily: "var(--font-montserrat)", marginLeft: 4,
-                      backgroundImage: "none", WebkitBackgroundClip: "unset",
-                    }}>₽/мес</span>
-                  </span>
+                <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 12 }}>
+                  {t.id === "pro" ? "Лучший" : t.id === "advanced" ? "Популярный" : "Старт"}
                 </div>
-                <div style={{ fontSize: 11, color: txtSec, fontFamily: "var(--font-montserrat)", lineHeight: 1.6 }}>
-                  {t.features.join(" · ")}
+                <div style={{ fontFamily: "var(--font-playfair)", fontSize: 20, fontWeight: 700, color: txtDark, marginBottom: 8 }}>{t.name}</div>
+                <div style={{ marginBottom: 18 }}>
+                  <span style={{ fontFamily: "var(--font-playfair)", fontSize: 32, fontWeight: 700, color: active ? crimson : txtDark }}>{t.price}</span>
+                  <span style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, marginLeft: 6 }}>₽/мес</span>
                 </div>
+                <ul style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, margin: 0, flex: 1 }}>
+                  {t.features.map(f => (
+                    <li key={f} style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtMid, display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5 }}>
+                      <span style={{ color: crimson, fontWeight: 700, marginTop: 1 }}>✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
               </div>
             );
           })}
         </div>
 
-        <button
-          onClick={handleSelect}
-          disabled={loading}
-          style={{
-            width: "100%", background: crimGrd, color: "#fff",
-            border: "none", borderRadius: 10, padding: 13,
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--font-montserrat)", letterSpacing: "0.04em",
-            opacity: loading ? 0.65 : 1, transition: "opacity 0.2s",
-          }}
-        >
-          {loading ? "Сохраняем..." : "Начать работу →"}
-        </button>
+        <div style={{ textAlign: "center" }}>
+          <button
+            onClick={handleSelect}
+            disabled={loading}
+            style={{
+              background: loading ? "#ccc" : crimson, color: "#fff",
+              border: "none", borderRadius: 8, padding: "13px 36px",
+              fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-montserrat)", letterSpacing: "0.04em",
+              transition: "background 0.2s",
+            }}
+          >
+            {loading ? "Сохраняем..." : "Начать работу"}
+          </button>
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .tariff-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

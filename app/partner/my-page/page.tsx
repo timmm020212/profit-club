@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)";
-const gold = "#C8A96E";
-const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
 export default function MyPagePage() {
   const [url, setUrl] = useState("");
@@ -27,26 +26,27 @@ export default function MyPagePage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Аккаунт</div>
-        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Моя страница</h1>
-        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, marginTop: 6 }}>Поделитесь ссылкой с клиентами</p>
+      {/* Page header */}
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Аккаунт</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Моя страница</h1>
+        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, margin: "8px 0 0" }}>Поделитесь ссылкой с клиентами</p>
       </div>
 
       <div style={{
-        background: card, borderRadius: 16, padding: 28,
+        background: "#fff", borderRadius: 10, padding: 28,
         border: `1px solid ${border}`,
       }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 14 }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 12 }}>
           Ссылка на страницу салона
         </div>
 
         <div style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(200,169,110,0.25)",
-          borderRadius: 12, padding: "14px 18px",
-          fontSize: 14, color: gold, fontFamily: "var(--font-montserrat)",
-          fontWeight: 600, wordBreak: "break-all", marginBottom: 16,
+          background: "#F8F6F2",
+          border: `1px solid ${border}`,
+          borderRadius: 8, padding: "14px 18px",
+          fontFamily: "var(--font-montserrat)", fontSize: 14, color: crimson,
+          fontWeight: 600, wordBreak: "break-all", marginBottom: 18,
           letterSpacing: "0.01em",
         }}>
           {url || "Загрузка..."}
@@ -57,14 +57,13 @@ export default function MyPagePage() {
             onClick={copy}
             disabled={!url}
             style={{
-              background: copied ? "rgba(74,222,128,0.2)" : crimGrd,
-              color: copied ? "#4ADE80" : "#fff",
-              border: copied ? "1px solid rgba(74,222,128,0.4)" : "none",
-              borderRadius: 10, padding: "11px 22px",
-              fontSize: 13, fontWeight: 700,
+              background: copied ? "#1A7A4A" : (url ? crimson : "#ccc"),
+              color: "#fff", border: "none",
+              borderRadius: 8, padding: "11px 22px",
+              fontSize: 13, fontWeight: 600,
               cursor: url ? "pointer" : "not-allowed",
               fontFamily: "var(--font-montserrat)",
-              opacity: url ? 1 : 0.5, transition: "all 0.2s",
+              letterSpacing: "0.03em", transition: "background 0.2s",
             }}
           >
             {copied ? "✓ Скопировано" : "Скопировать"}
@@ -76,14 +75,14 @@ export default function MyPagePage() {
               rel="noopener noreferrer"
               style={{
                 background: "transparent",
-                border: `1px solid ${border}`,
-                color: txtSec,
-                borderRadius: 10, padding: "11px 22px",
+                border: "1px solid #E0DDD7",
+                color: txtMid,
+                borderRadius: 8, padding: "11px 22px",
                 fontSize: 13, fontWeight: 600,
                 fontFamily: "var(--font-montserrat)",
                 textDecoration: "none",
                 display: "inline-flex", alignItems: "center", gap: 6,
-                transition: "border-color 0.15s, color 0.15s",
+                letterSpacing: "0.03em",
               }}
             >
               Открыть →
@@ -94,7 +93,7 @@ export default function MyPagePage() {
         <div style={{
           marginTop: 24, paddingTop: 20,
           borderTop: `1px solid ${border}`,
-          fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)", lineHeight: 1.6,
+          fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, lineHeight: 1.6,
         }}>
           Эта ссылка ведёт на публичную страницу вашего салона.
           Клиенты могут просматривать услуги, мастеров и записываться онлайн.

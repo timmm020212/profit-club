@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)";
-const gold = "#C8A96E";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
 const TARIFF_INFO: Record<string, { name: string; price: string; features: string[] }> = {
   basic:    { name: "Базовый",          price: "2 990 ₽/мес", features: ["Страница салона", "Онлайн-запись", "Услуги и мастера"] },
@@ -25,51 +25,49 @@ export default function BillingPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Аккаунт</div>
-        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Тарифы</h1>
-        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, marginTop: 6 }}>Текущий план и опции</p>
+      {/* Page header */}
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Аккаунт</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Тарифы</h1>
+        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, margin: "8px 0 0" }}>Текущий план и опции</p>
       </div>
 
       <div style={{
-        background: card, borderRadius: 16, padding: "28px 28px",
-        border: `1px solid ${isPro ? "rgba(200,169,110,0.35)" : border}`,
+        background: "#fff", borderRadius: 10, padding: "28px 28px",
+        border: `${isPro ? "2px" : "1px"} solid ${isPro ? crimson : border}`,
         marginBottom: 16, position: "relative", overflow: "hidden",
       }}>
         {isPro && (
           <div style={{
-            position: "absolute", top: 0, right: 0,
-            background: "rgba(200,169,110,0.12)",
-            borderBottomLeftRadius: 12,
-            padding: "5px 12px",
-            fontSize: 9, fontWeight: 700, color: gold,
+            display: "inline-block", marginBottom: 14,
+            padding: "3px 10px", borderRadius: 20,
+            border: `1px solid ${crimson}`,
+            fontSize: 9, fontWeight: 700, color: crimson,
             letterSpacing: "0.14em", textTransform: "uppercase",
             fontFamily: "var(--font-montserrat)",
           }}>PRO</div>
         )}
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 12 }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>
           Текущий тариф
         </div>
-        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-playfair)", color: txtPri, marginBottom: 6 }}>{info.name}</div>
+        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 22, fontWeight: 700, color: txtDark, marginBottom: 6 }}>{info.name}</div>
         <div style={{
-          fontSize: 32, fontWeight: 700, fontFamily: "var(--font-playfair)",
-          backgroundImage: "linear-gradient(135deg, #C8A96E, #E8D4A0)",
-          backgroundClip: "text", WebkitBackgroundClip: "text", color: "transparent",
-          marginBottom: 20,
+          fontFamily: "var(--font-playfair)", fontSize: 32, fontWeight: 700, color: crimson,
+          marginBottom: 22,
         }}>{info.price}</div>
-        <ul style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, margin: 0 }}>
+        <ul style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10, margin: 0 }}>
           {info.features.map(f => (
-            <li key={f} style={{ fontSize: 13, color: txtSec, fontFamily: "var(--font-montserrat)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ color: gold, fontSize: 12 }}>✓</span>{f}
+            <li key={f} style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, color: txtMid, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: crimson, fontSize: 12, fontWeight: 700 }}>✓</span>{f}
             </li>
           ))}
         </ul>
       </div>
 
       <div style={{
-        background: "rgba(255,255,255,0.02)", borderRadius: 14,
+        background: "#fff", borderRadius: 10,
         padding: 18, border: `1px solid ${border}`,
-        fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)", lineHeight: 1.6,
+        fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtMid, lineHeight: 1.6,
       }}>
         Для изменения тарифа или вопросов по оплате — свяжитесь с менеджером платформы.
       </div>

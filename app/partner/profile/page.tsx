@@ -1,21 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)";
-const gold = "#C8A96E";
-const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
-const inputSt: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10,
-  padding: "10px 14px", fontSize: 13, color: txtPri, outline: "none",
-  fontFamily: "var(--font-montserrat)", boxSizing: "border-box",
-};
+const inputSt = (focused: boolean): React.CSSProperties => ({
+  width: "100%", background: "#fff",
+  border: `1px solid ${focused ? crimson : "#E0DDD7"}`,
+  borderRadius: 8, padding: "10px 14px", fontSize: 13, color: txtDark,
+  fontFamily: "var(--font-montserrat)", outline: "none",
+  boxSizing: "border-box", transition: "border-color 0.2s",
+});
 const labelSt: React.CSSProperties = {
-  display: "block", fontSize: 9, fontWeight: 700, color: gold,
-  letterSpacing: "0.14em", textTransform: "uppercase",
-  fontFamily: "var(--font-montserrat)", marginBottom: 6,
+  display: "block", fontSize: 9, color: txtSoft,
+  letterSpacing: "0.18em", textTransform: "uppercase",
+  fontFamily: "var(--font-montserrat)", marginBottom: 7,
 };
 
 export default function ProfilePage() {
@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [focused, setFocused] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/partner/profile")
@@ -65,19 +66,20 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Аккаунт</div>
-        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Профиль</h1>
-        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, marginTop: 6 }}>Информация о вашем салоне</p>
+      {/* Page header */}
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Аккаунт</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Профиль</h1>
+        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, margin: "8px 0 0" }}>Информация о вашем салоне</p>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: txtMut, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
+        <div style={{ padding: 40, textAlign: "center", color: txtSoft, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
       ) : (
         <form onSubmit={save} style={{
-          background: card, borderRadius: 16, padding: 24,
+          background: "#fff", borderRadius: 10, padding: 24,
           border: `1px solid ${border}`,
-          display: "flex", flexDirection: "column", gap: 14,
+          display: "flex", flexDirection: "column", gap: 16,
         }}>
           {fields.map(f => (
             <div key={f.key}>
@@ -85,19 +87,19 @@ export default function ProfilePage() {
               <input
                 value={form[f.key as keyof typeof form]}
                 onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                onFocus={() => setFocused(f.key)} onBlur={() => setFocused(null)}
                 placeholder={f.placeholder}
                 required={f.key === "name"}
-                style={inputSt}
+                style={inputSt(focused === f.key)}
               />
             </div>
           ))}
           <button type="submit" disabled={saving} style={{
-            background: saved ? "rgba(74,222,128,0.2)" : crimGrd,
-            color: saved ? "#4ADE80" : "#fff",
-            border: saved ? "1px solid rgba(74,222,128,0.4)" : "none",
-            borderRadius: 10, padding: "13px", fontSize: 13, fontWeight: 700,
-            cursor: "pointer", fontFamily: "var(--font-montserrat)",
-            opacity: saving ? 0.65 : 1, marginTop: 6, transition: "all 0.2s",
+            background: saved ? "#1A7A4A" : (saving ? "#ccc" : crimson),
+            color: "#fff", border: "none",
+            borderRadius: 8, padding: "12px 22px", fontSize: 13, fontWeight: 600,
+            cursor: saving ? "not-allowed" : "pointer", fontFamily: "var(--font-montserrat)",
+            letterSpacing: "0.03em", marginTop: 6, transition: "background 0.2s",
           }}>
             {saved ? "✓ Сохранено" : saving ? "Сохраняем..." : "Сохранить"}
           </button>

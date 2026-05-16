@@ -1,20 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)", gold = "#C8A96E";
-const crimGrd = "linear-gradient(135deg, #B2223C, #E8556E)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
 const inputSt: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10,
-  padding: "10px 14px", fontSize: 13, color: txtPri, outline: "none",
-  fontFamily: "var(--font-montserrat)", boxSizing: "border-box",
+  width: "100%", background: "#fff", border: "1px solid #E0DDD7",
+  borderRadius: 8, padding: "10px 14px", fontSize: 13, color: txtDark,
+  fontFamily: "var(--font-montserrat)", outline: "none",
+  boxSizing: "border-box",
 };
 const labelSt: React.CSSProperties = {
-  display: "block", fontSize: 9, fontWeight: 700, color: gold,
-  letterSpacing: "0.14em", textTransform: "uppercase",
-  fontFamily: "var(--font-montserrat)", marginBottom: 6,
+  display: "block", fontSize: 9, color: txtSoft,
+  letterSpacing: "0.18em", textTransform: "uppercase",
+  fontFamily: "var(--font-montserrat)", marginBottom: 7,
 };
 
 interface Master { id: number; fullName: string; specialization: string; phone: string | null; }
@@ -45,40 +45,33 @@ export default function MastersPage() {
     } finally { setAdding(false); }
   }
 
-  // Avatar colour from name hash
-  function avatarBg(name: string) {
-    const colors = ["rgba(200,169,110,0.2)", "rgba(178,34,60,0.2)", "rgba(74,222,128,0.15)", "rgba(96,165,250,0.15)"];
-    let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
-  }
-  function avatarColor(name: string) {
-    const colors = [gold, "#E8556E", "#4ADE80", "#60A5FA"];
-    let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
-  }
-
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      {/* Page header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Управление</div>
-          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Мастера</h1>
+          <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Управление</div>
+          <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Мастера</h1>
         </div>
         <button onClick={() => setShowForm(p => !p)} style={{
-          background: showForm ? "rgba(255,255,255,0.06)" : crimGrd,
-          color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px",
-          fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-montserrat)",
-          marginTop: 20, flexShrink: 0,
-        }}>{showForm ? "✕ Отмена" : "+ Добавить"}</button>
+          background: showForm ? "transparent" : crimson,
+          color: showForm ? txtMid : "#fff",
+          border: showForm ? "1px solid #E0DDD7" : "none",
+          borderRadius: 8, padding: "11px 22px", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", fontFamily: "var(--font-montserrat)",
+          letterSpacing: "0.03em", flexShrink: 0,
+          transition: "background 0.2s",
+        }}>{showForm ? "Отмена" : "+ Добавить"}</button>
       </div>
 
       {showForm && (
         <form onSubmit={addMaster} style={{
-          background: card, borderRadius: 16, padding: 24,
-          border: "1px solid rgba(200,169,110,0.2)",
-          marginBottom: 20, display: "flex", flexDirection: "column", gap: 14,
+          background: "#fff", borderRadius: 10,
+          border: "1px solid rgba(178,34,60,0.2)",
+          padding: 24, marginBottom: 20,
+          display: "flex", flexDirection: "column", gap: 14,
         }}>
-          <div style={{ fontSize: 13, fontFamily: "var(--font-playfair)", color: gold, marginBottom: 4 }}>Новый мастер</div>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 16, fontWeight: 700, color: txtDark, marginBottom: 4 }}>Новый мастер</div>
           {[
             { key: "name", label: "Имя *", placeholder: "Анна Иванова", required: true },
             { key: "specialization", label: "Специализация", placeholder: "Парикмахер, колорист", required: false },
@@ -92,42 +85,42 @@ export default function MastersPage() {
             </div>
           ))}
           <button type="submit" disabled={adding} style={{
-            background: crimGrd, color: "#fff", border: "none", borderRadius: 10,
-            padding: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--font-montserrat)", opacity: adding ? 0.65 : 1,
+            background: adding ? "#ccc" : crimson, color: "#fff", border: "none",
+            borderRadius: 8, padding: "12px 22px", fontSize: 13, fontWeight: 600,
+            cursor: adding ? "not-allowed" : "pointer", fontFamily: "var(--font-montserrat)",
+            letterSpacing: "0.03em", marginTop: 4,
           }}>{adding ? "Сохраняем..." : "Добавить мастера"}</button>
         </form>
       )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: txtMut, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
+        <div style={{ padding: 40, textAlign: "center", color: txtSoft, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
       ) : masters.length === 0 ? (
-        <div style={{ background: card, borderRadius: 16, padding: "40px 24px", border: `1px solid ${border}`, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
-          <div style={{ fontSize: 15, fontFamily: "var(--font-playfair)", color: txtPri, marginBottom: 6 }}>Добавьте мастеров</div>
-          <div style={{ fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)" }}>Нажмите «+ Добавить» чтобы добавить первого мастера</div>
+        <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, padding: "40px 24px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: txtDark, marginBottom: 6 }}>Добавьте мастеров</div>
+          <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft }}>Нажмите «+ Добавить» чтобы добавить первого мастера</div>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {masters.map(m => (
             <div key={m.id} style={{
-              background: card, borderRadius: 16, padding: "20px",
+              background: "#fff", borderRadius: 10, padding: 20,
               border: `1px solid ${border}`,
               display: "flex", alignItems: "center", gap: 14,
             }}>
               <div style={{
                 width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-                background: avatarBg(m.fullName), display: "flex",
+                background: "#F0EDE8", display: "flex",
                 alignItems: "center", justifyContent: "center",
-                fontSize: 18, fontFamily: "var(--font-playfair)", fontWeight: 700,
-                color: avatarColor(m.fullName),
+                fontFamily: "var(--font-playfair)", fontSize: 18, fontWeight: 700,
+                color: txtDark,
               }}>
                 {m.fullName.charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: txtPri, fontFamily: "var(--font-montserrat)", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.fullName}</div>
-                {m.specialization && <div style={{ fontSize: 11, color: txtSec, fontFamily: "var(--font-montserrat)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.specialization}</div>}
-                {m.phone && <div style={{ fontSize: 11, color: txtMut, fontFamily: "var(--font-montserrat)", marginTop: 2 }}>{m.phone}</div>}
+                <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, fontWeight: 600, color: txtDark, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.fullName}</div>
+                {m.specialization && <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.specialization}</div>}
+                {m.phone && <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtSoft, marginTop: 2 }}>{m.phone}</div>}
               </div>
             </div>
           ))}

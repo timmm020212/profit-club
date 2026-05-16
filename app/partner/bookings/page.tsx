@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const card = "#111120", border = "rgba(255,255,255,0.07)", gold = "#C8A96E";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtMid = "#666666", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
-const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: "Ожидает",     color: "#C8A96E",  bg: "rgba(200,169,110,0.12)" },
-  confirmed: { label: "Подтверждено", color: "#4ADE80", bg: "rgba(74,222,128,0.10)" },
-  cancelled: { label: "Отменено",    color: "#E8556E",  bg: "rgba(232,85,110,0.10)" },
-  completed: { label: "Завершено",   color: txtSec,     bg: "rgba(255,255,255,0.05)" },
+const STATUS: Record<string, { label: string; color: string }> = {
+  pending:   { label: "Ожидает",      color: "#B08800" },
+  confirmed: { label: "Подтверждено", color: "#1A7A4A" },
+  cancelled: { label: "Отменено",     color: "#B2223C" },
+  completed: { label: "Завершено",    color: "#666666" },
 };
 
 interface Booking {
@@ -58,55 +59,60 @@ export default function BookingsPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>Управление</div>
-        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Записи</h1>
+      {/* Page header */}
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Управление</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Записи</h1>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setFilter(t.key)} style={{
-            padding: "7px 16px", borderRadius: 20, border: `1px solid ${filter === t.key ? gold : border}`,
-            background: filter === t.key ? "rgba(200,169,110,0.12)" : "transparent",
-            color: filter === t.key ? gold : txtSec,
-            fontSize: 12, fontFamily: "var(--font-montserrat)", fontWeight: filter === t.key ? 600 : 400,
-            cursor: "pointer", transition: "all 0.15s",
-          }}>{t.label}</button>
-        ))}
+      {/* Filter pills */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
+        {tabs.map(t => {
+          const active = filter === t.key;
+          return (
+            <button key={t.key} onClick={() => setFilter(t.key)} style={{
+              padding: "7px 16px", borderRadius: 20,
+              border: `1px solid ${active ? crimson : "#E0DDD7"}`,
+              background: active ? crimson : "transparent",
+              color: active ? "#fff" : txtMid,
+              fontSize: 12, fontFamily: "var(--font-montserrat)", fontWeight: active ? 600 : 400,
+              cursor: "pointer", transition: "all 0.15s",
+              letterSpacing: "0.02em",
+            }}>{t.label}</button>
+          );
+        })}
       </div>
 
-      {error && <div style={{ background: "rgba(178,34,60,0.10)", border: "1px solid rgba(178,34,60,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "#E8556E", fontFamily: "var(--font-montserrat)" }}>{error}</div>}
+      {error && (
+        <div style={{ border: `1px solid ${crimson}`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 12, color: crimson, fontFamily: "var(--font-montserrat)" }}>{error}</div>
+      )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: txtMut, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
+        <div style={{ padding: 40, textAlign: "center", color: txtSoft, fontFamily: "var(--font-montserrat)", fontSize: 13 }}>Загрузка...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ background: card, borderRadius: 16, padding: "40px 24px", border: `1px solid ${border}`, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📅</div>
-          <div style={{ fontSize: 15, fontFamily: "var(--font-playfair)", color: txtPri, marginBottom: 4 }}>Записей нет</div>
-          <div style={{ fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)" }}>Здесь появятся записи ваших клиентов</div>
+        <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, padding: "40px 24px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: txtDark, marginBottom: 6 }}>Записей нет</div>
+          <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft }}>Здесь появятся записи ваших клиентов</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {filtered.map(b => {
+        <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, overflow: "hidden" }}>
+          {filtered.map((b, i) => {
             const s = STATUS[b.status] || STATUS.pending;
             return (
               <div key={b.id} style={{
-                background: card, borderRadius: 14, padding: "16px 20px",
-                border: `1px solid ${border}`,
                 display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12,
+                padding: "16px 20px",
+                borderBottom: i < filtered.length - 1 ? `1px solid #F5F3EF` : "none",
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: txtPri, fontFamily: "var(--font-montserrat)", marginBottom: 4 }}>{b.clientName}</div>
-                  <div style={{ fontSize: 12, color: txtSec, fontFamily: "var(--font-montserrat)" }}>
+                  <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, fontWeight: 600, color: txtDark, marginBottom: 3 }}>{b.clientName}</div>
+                  <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtMid }}>
                     {b.appointmentDate} · {b.startTime}
                   </div>
-                  {b.clientPhone && <div style={{ fontSize: 11, color: txtMut, fontFamily: "var(--font-montserrat)", marginTop: 2 }}>{b.clientPhone}</div>}
+                  {b.clientPhone && <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtSoft, marginTop: 2 }}>{b.clientPhone}</div>}
                 </div>
                 <span style={{
-                  fontSize: 11, fontWeight: 600, color: s.color, background: s.bg,
-                  borderRadius: 8, padding: "4px 10px", flexShrink: 0,
-                  fontFamily: "var(--font-montserrat)",
+                  fontFamily: "var(--font-montserrat)", fontSize: 11, color: s.color, fontWeight: 500, flexShrink: 0,
                 }}>{s.label}</span>
               </div>
             );

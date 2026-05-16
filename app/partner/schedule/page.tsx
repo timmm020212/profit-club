@@ -1,12 +1,13 @@
 export default function SchedulePage() {
   return (
     <div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111", marginBottom: 8 }}>Расписание</h1>
-      <p style={{ fontSize: 13, color: "#999", marginBottom: 20 }}>Управление рабочими слотами мастеров</p>
-      <div style={{ background: "#fff", borderRadius: 14, padding: 32, border: "1px solid #ececf0", textAlign: "center" }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>🕐</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#333", marginBottom: 4 }}>Скоро</div>
-        <div style={{ fontSize: 12, color: "#aaa" }}>Управление расписанием будет доступно в следующем обновлении</div>
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid #E8E5DF" }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: "#AAAAAA", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>Управление</div>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: "#111111", margin: 0, lineHeight: 1.1 }}>Расписание</h1>
+      </div>
+      <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #E8E5DF", padding: "48px 32px", textAlign: "center" }}>
+        <div style={{ fontFamily: "var(--font-playfair)", fontSize: 20, fontWeight: 700, color: "#111", marginBottom: 8 }}>Скоро</div>
+        <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, color: "#AAAAAA" }}>Раздел расписания в разработке</div>
       </div>
     </div>
   );

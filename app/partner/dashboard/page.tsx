@@ -1,39 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const gold = "#C8A96E";
-const card = "#111120", border = "rgba(255,255,255,0.07)";
-const txtPri = "#EDE8DF", txtSec = "#8888A0", txtMut = "#4A4A60";
+const crimson = "#B2223C";
+const txtDark = "#111111", txtSoft = "#AAAAAA";
+const border = "#E8E5DF";
 
-const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: "Ожидает",     color: "#C8A96E",  bg: "rgba(200,169,110,0.10)" },
-  confirmed: { label: "Подтверждено", color: "#4ADE80", bg: "rgba(74,222,128,0.10)" },
-  cancelled: { label: "Отменено",    color: "#E8556E",  bg: "rgba(232,85,110,0.10)" },
-  completed: { label: "Завершено",   color: txtSec,     bg: "rgba(255,255,255,0.05)" },
+const STATUS: Record<string, { label: string; color: string }> = {
+  pending:   { label: "Ожидает",      color: "#B08800" },
+  confirmed: { label: "Подтверждено", color: "#1A7A4A" },
+  cancelled: { label: "Отменено",     color: "#B2223C" },
+  completed: { label: "Завершено",    color: "#666666" },
 };
 
 interface Stats { todayTotal: number; confirmed: number; cancelled: number; date: string; }
-interface Booking { id: number; clientName: string; startTime: string; status: string; }
-
-function StatCard({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
-  return (
-    <div style={{
-      background: card, borderRadius: 16, padding: "22px 24px",
-      border: `1px solid ${accent ? "rgba(200,169,110,0.25)" : border}`,
-      flex: 1, minWidth: 0,
-    }}>
-      <div style={{
-        fontSize: 42, fontWeight: 700, fontFamily: "var(--font-playfair)",
-        backgroundImage: accent ? "linear-gradient(135deg, #C8A96E, #E8D4A0)" : "none",
-        backgroundClip: accent ? "text" : "unset",
-        WebkitBackgroundClip: accent ? "text" : "unset",
-        color: accent ? "transparent" : txtPri,
-        lineHeight: 1, marginBottom: 8,
-      }}>{value}</div>
-      <div style={{ fontSize: 11, fontFamily: "var(--font-montserrat)", color: txtSec, letterSpacing: "0.04em" }}>{label}</div>
-    </div>
-  );
-}
+interface Booking { id: number; clientName: string; startTime: string; status: string; appointmentDate: string; }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -43,73 +23,71 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch("/api/partner/dashboard")
       .then(r => r.json())
-      .then(data => { if (data.error) setError(data.error); else setStats(data); });
-    fetch("/api/partner/bookings?limit=5")
+      .then(d => { if (d.error) setError(d.error); else setStats(d); });
+    fetch("/api/partner/bookings")
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setBookings(data.slice(0, 5)); });
+      .then(d => { if (Array.isArray(d)) setBookings(d.slice(0, 6)); });
   }, []);
 
-  const dayNames = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
   const today = new Date();
-  const todayStr = `${today.getDate()} ${["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"][today.getMonth()]}`;
+  const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+  const days = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 8 }}>
-          Обзор
+      {/* Page header */}
+      <div style={{ marginBottom: 32, paddingBottom: 24, borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>
+          {days[today.getDay()]}, {today.getDate()} {months[today.getMonth()]}
         </div>
-        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 28, fontWeight: 700, color: txtPri, margin: 0 }}>Главная</h1>
-        <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSec, marginTop: 6 }}>
-          {dayNames[today.getDay()]}, {todayStr}
-        </p>
+        <h1 style={{ fontFamily: "var(--font-playfair)", fontSize: 36, fontWeight: 700, color: txtDark, margin: 0, lineHeight: 1.1 }}>Главная</h1>
       </div>
 
       {error && (
-        <div style={{ background: "rgba(178,34,60,0.10)", border: "1px solid rgba(178,34,60,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 24, fontSize: 13, color: "#E8556E", fontFamily: "var(--font-montserrat)" }}>{error}</div>
+        <div style={{ border: `1px solid ${crimson}`, borderRadius: 8, padding: "10px 14px", marginBottom: 24, fontSize: 12, color: crimson, fontFamily: "var(--font-montserrat)" }}>{error}</div>
       )}
 
-      {/* Stats */}
+      {/* Stats row */}
       {stats && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 32, flexWrap: "wrap" }}>
-          <StatCard label="Записей сегодня" value={stats.todayTotal} accent />
-          <StatCard label="Подтверждено" value={stats.confirmed} />
-          <StatCard label="Отменено" value={stats.cancelled} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: border, border: `1px solid ${border}`, borderRadius: 10, overflow: "hidden", marginBottom: 36 }}>
+          {[
+            { label: "Записей сегодня", value: stats.todayTotal },
+            { label: "Подтверждено",    value: stats.confirmed  },
+            { label: "Отменено",        value: stats.cancelled  },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#fff", padding: "24px 20px" }}>
+              <div style={{ fontFamily: "var(--font-playfair)", fontSize: 40, fontWeight: 700, color: i === 0 ? crimson : txtDark, lineHeight: 1, marginBottom: 8 }}>{s.value}</div>
+              <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtSoft, letterSpacing: "0.06em" }}>{s.label}</div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Recent bookings */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: gold, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-montserrat)", marginBottom: 14 }}>
+      <div>
+        <div style={{ fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 14 }}>
           Последние записи
         </div>
         {bookings.length === 0 ? (
-          <div style={{
-            background: card, borderRadius: 16, padding: "36px 24px",
-            border: `1px solid ${border}`, textAlign: "center",
-          }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: txtPri, fontFamily: "var(--font-playfair)", marginBottom: 4 }}>Записей пока нет</div>
-            <div style={{ fontSize: 12, color: txtMut, fontFamily: "var(--font-montserrat)" }}>Добавьте услуги и мастеров, чтобы начать принимать записи</div>
+          <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, padding: "32px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-playfair)", fontSize: 18, color: txtDark, marginBottom: 6 }}>Записей пока нет</div>
+            <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft }}>Добавьте услуги и мастеров</div>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {bookings.map(b => {
+          <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${border}`, overflow: "hidden" }}>
+            {bookings.map((b, i) => {
               const s = STATUS[b.status] || STATUS.pending;
               return (
                 <div key={b.id} style={{
-                  background: card, borderRadius: 12, padding: "14px 18px",
-                  border: `1px solid ${border}`,
                   display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "14px 20px",
+                  borderBottom: i < bookings.length - 1 ? `1px solid #F5F3EF` : "none",
                 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: txtPri, fontFamily: "var(--font-montserrat)", marginBottom: 2 }}>{b.clientName}</div>
-                    <div style={{ fontSize: 11, color: txtMut, fontFamily: "var(--font-montserrat)" }}>{b.startTime}</div>
+                    <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 13, fontWeight: 600, color: txtDark, marginBottom: 2 }}>{b.clientName}</div>
+                    <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: txtSoft }}>{b.appointmentDate} · {b.startTime}</div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: s.color, background: s.bg, borderRadius: 8, padding: "3px 10px", fontFamily: "var(--font-montserrat)" }}>
-                    {s.label}
-                  </span>
+                  <span style={{ fontFamily: "var(--font-montserrat)", fontSize: 11, color: s.color, fontWeight: 500 }}>{s.label}</span>
                 </div>
               );
             })}
