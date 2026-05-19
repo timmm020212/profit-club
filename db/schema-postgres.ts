@@ -314,10 +314,30 @@ export const partnerUsers = pgTable("partner_users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  appointmentId: integer("appointment_id"),
+  masterId: integer("master_id"),
+  serviceId: integer("service_id"),
+  clientName: varchar("client_name", { length: 255 }).notNull(),
+  clientPhone: varchar("client_phone", { length: 50 }),
+  clientTelegramId: varchar("client_telegram_id", { length: 50 }),
+  rating: integer("rating").notNull(), // 1–5
+  text: text("text"),
+  status: varchar("status", { length: 20 }).notNull().default("published"), // pending / published / hidden
+  partnerReply: text("partner_reply"),
+  createdAt: timestamp("created_at").defaultNow(),
+  publishedAt: timestamp("published_at"),
+  repliedAt: timestamp("replied_at"),
+});
+
 export type Salon = typeof salons.$inferSelect;
 export type NewSalon = typeof salons.$inferInsert;
 export type PartnerUser = typeof partnerUsers.$inferSelect;
 export type NewPartnerUser = typeof partnerUsers.$inferInsert;
+export type Review = typeof reviews.$inferSelect;
+export type NewReview = typeof reviews.$inferInsert;
 
 // Types
 export type Service = typeof services.$inferSelect;
