@@ -34,6 +34,7 @@ const I = {
   search:  "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35",
   eye:     "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z",
   eyeOff:  "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24M1 1l22 22",
+  chev:    "M9 18l6-6-6-6",
 };
 
 const ROLE_ICONS: Record<string, string> = {
@@ -87,7 +88,7 @@ function rolesList(spec: string): string[] {
 
 function MasterCard({ master, onEdit }: { master: Master; onEdit: () => void }) {
   const roles = rolesList(master.specialization);
-  const visibleRoles = roles.slice(0, 3);
+  const visibleRoles = roles.slice(0, 2);
   const hiddenCount = roles.length - visibleRoles.length;
 
   return (
@@ -96,116 +97,88 @@ function MasterCard({ master, onEdit }: { master: Master; onEdit: () => void }) 
       onClick={onEdit}
       onKeyDown={e => { if (e.key === "Enter") onEdit(); }}
       style={{
-        background: c.bg, border: `1px solid ${c.border}`,
-        borderRadius: 20, padding: "20px 18px 16px",
+        background: c.bg,
+        padding: "12px 14px",
         cursor: "pointer",
-        display: "flex", flexDirection: "column", alignItems: "center",
-        textAlign: "center",
-        transition: "transform 0.15s ease, box-shadow 0.18s ease, border-color 0.15s ease",
-        position: "relative",
+        display: "flex", alignItems: "center", gap: 12,
+        minHeight: 72,
+        transition: "background 0.15s",
+        opacity: !master.showOnSite ? 0.7 : 1,
       }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 12px 28px rgba(22,22,32,0.08)";
-        e.currentTarget.style.borderColor = "rgba(123, 97, 255, 0.35)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = c.border;
-      }}
+      onMouseEnter={e => { e.currentTarget.style.background = c.bgSoft; }}
+      onMouseLeave={e => { e.currentTarget.style.background = c.bg; }}
     >
-      {/* Hidden indicator */}
-      {!master.showOnSite && (
-        <div style={{
-          position: "absolute", top: 12, right: 12,
-          width: 26, height: 26, borderRadius: 9,
-          background: c.bgSoft, color: c.txtMute,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          border: `1px solid ${c.border}`,
-        }} title="Скрыт со страницы записи">
-          <Ic d={I.eyeOff} size={13} />
-        </div>
-      )}
-
       {/* Avatar */}
       <div style={{
-        width: 84, height: 84, borderRadius: "50%",
+        width: 48, height: 48, borderRadius: "50%",
         background: master.photoUrl
           ? `url(${master.photoUrl}) center/cover`
           : gradientFor(master.fullName),
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", fontSize: 26, fontWeight: 800,
+        color: "#fff", fontSize: 15, fontWeight: 800,
         fontFamily: "var(--font-montserrat)", letterSpacing: "-0.02em",
-        marginBottom: 14, flexShrink: 0,
-        boxShadow: "0 6px 18px rgba(22,22,32,0.10)",
+        flexShrink: 0,
+        boxShadow: "0 4px 12px -3px rgba(22,22,32,0.15)",
         userSelect: "none",
       }}>
         {!master.photoUrl && initialsOf(master.fullName)}
       </div>
 
-      {/* Name */}
-      <div style={{
-        fontSize: 15, fontWeight: 700, color: c.txtDark,
-        letterSpacing: "-0.01em", lineHeight: 1.25,
-        marginBottom: 8,
-        fontFamily: "var(--font-montserrat)",
-        overflow: "hidden", textOverflow: "ellipsis",
-        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-        maxWidth: "100%",
-      }}>{master.fullName}</div>
-
-      {/* Specialization chips */}
-      {visibleRoles.length > 0 && (
-        <div style={{
-          display: "flex", flexWrap: "wrap", gap: 4,
-          justifyContent: "center", marginBottom: 12,
-        }}>
-          {visibleRoles.map(role => (
-            <span key={role} style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
-              padding: "3px 9px", borderRadius: 12,
-              background: c.primarySft, color: c.primary,
-              fontSize: 11, fontWeight: 600,
-              fontFamily: "var(--font-montserrat)",
-            }}>
-              {ROLE_ICONS[role] && <span aria-hidden style={{ fontSize: 12 }}>{ROLE_ICONS[role]}</span>}
-              {role}
-            </span>
-          ))}
-          {hiddenCount > 0 && (
+      {/* Body */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            fontSize: 14, fontWeight: 800, color: c.txtDark, letterSpacing: "-0.01em",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            fontFamily: "var(--font-montserrat)",
+          }}>{master.fullName}</span>
+          {!master.showOnSite && (
             <span style={{
-              padding: "3px 9px", borderRadius: 12,
-              background: c.bgSoft, color: c.txtMute,
-              fontSize: 11, fontWeight: 600,
+              flexShrink: 0,
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "2px 7px", borderRadius: 7,
+              background: c.bgSoft, border: `1px solid ${c.border}`,
+              color: c.txtMute,
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
               fontFamily: "var(--font-montserrat)",
-            }}>+{hiddenCount}</span>
+            }} title="Скрыт со страницы записи">
+              <Ic d={I.eyeOff} size={10} sw={1.8} />
+              скрыт
+            </span>
           )}
         </div>
-      )}
 
-      {/* Phone */}
-      {master.phone && (
-        <a
-          href={`tel:${master.phone}`}
-          onClick={e => e.stopPropagation()}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 12, color: c.txtBody, textDecoration: "none",
-            padding: "5px 10px", borderRadius: 10,
-            background: c.bgSoft,
-            border: `1px solid ${c.borderSoft}`,
-            marginTop: "auto",
-            fontFamily: "var(--font-montserrat)",
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = c.border)}
-          onMouseLeave={e => (e.currentTarget.style.background = c.bgSoft)}
-        >
-          <Ic d={I.phone} size={11} />
-          {master.phone}
-        </a>
-      )}
+        {/* Roles + phone in one line, truncate cleanly */}
+        <div style={{
+          fontSize: 12, color: c.txtBody,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          fontFamily: "var(--font-montserrat)",
+        }}>
+          {visibleRoles.length > 0 && (
+            <span style={{ color: c.primary, fontWeight: 600 }}>
+              {visibleRoles.map(r => (ROLE_ICONS[r] ? `${ROLE_ICONS[r]} ${r}` : r)).join(" · ")}
+              {hiddenCount > 0 && <span style={{ color: c.txtMute }}> +{hiddenCount}</span>}
+            </span>
+          )}
+          {master.phone && (
+            <>
+              {visibleRoles.length > 0 && <span style={{ color: c.txtMute, margin: "0 6px" }}>·</span>}
+              <a
+                href={`tel:${master.phone}`}
+                onClick={e => e.stopPropagation()}
+                style={{
+                  color: c.txtBody, textDecoration: "none", fontWeight: 600,
+                  fontFeatureSettings: '"tnum" 1',
+                }}
+              >{master.phone}</a>
+            </>
+          )}
+        </div>
+      </div>
+
+      <span style={{ color: c.txtMute, flexShrink: 0 }}>
+        <Ic d={I.chev} size={16} />
+      </span>
     </div>
   );
 }
@@ -457,12 +430,15 @@ export default function MastersPage() {
         </div>
       ) : (
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-          gap: 14,
+          background: c.bg, border: `1px solid ${c.border}`, borderRadius: 16,
+          overflow: "hidden",
         }}>
-          {filtered.map(m => (
-            <MasterCard key={m.id} master={m} onEdit={() => openEdit(m)} />
+          {filtered.map((m, i) => (
+            <div key={m.id} style={{
+              borderBottom: i < filtered.length - 1 ? `1px solid ${c.borderSoft}` : "none",
+            }}>
+              <MasterCard master={m} onEdit={() => openEdit(m)} />
+            </div>
           ))}
         </div>
       )}
