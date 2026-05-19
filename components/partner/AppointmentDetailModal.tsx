@@ -585,14 +585,13 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
         </div>
         )}
 
-        {/* Footer */}
+        {/* Footer — single row that fills the width */}
         <footer style={{
-          padding: "14px 24px",
-          display: "flex", gap: 8,
+          padding: "12px 24px",
+          display: "flex", gap: 8, alignItems: "stretch",
           borderTop: `1px solid ${c.border}`,
           background: c.bgSoft,
           flexShrink: 0,
-          flexWrap: "wrap",
         }}>
           {view === "details" ? (
             <>
@@ -602,56 +601,60 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
                     type="button"
                     onClick={handleCancel}
                     disabled={cancelling}
+                    aria-label={cancelling ? "Отменяем" : confirmCancel ? "Подтвердите отмену" : "Отменить запись"}
+                    title={confirmCancel ? "Подтвердите отмену" : "Отменить запись"}
                     style={{
-                      padding: "12px 14px",
+                      flexShrink: 0,
+                      height: 44,
+                      width: (confirmCancel || cancelling) ? "auto" : 52,
+                      padding: (confirmCancel || cancelling) ? "0 14px" : 0,
                       background: confirmCancel ? c.red : c.bg,
                       border: `1px solid ${confirmCancel ? c.red : c.border}`,
                       borderRadius: 11,
                       color: confirmCancel ? "#fff" : c.red,
-                      fontSize: 13, fontWeight: 600,
+                      fontSize: 13, fontWeight: 700,
                       cursor: cancelling ? "not-allowed" : "pointer",
                       fontFamily: "var(--font-montserrat)",
-                      display: "inline-flex", alignItems: "center", gap: 7,
-                      transition: "all 0.18s",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+                      transition: "background 0.18s, color 0.18s, border-color 0.18s, width 0.18s",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    <Ic d={I.ban} size={14} />
-                    {cancelling ? "Отменяем..." : confirmCancel ? "Точно отменить?" : "Отменить"}
+                    <Ic d={I.ban} size={16} />
+                    {cancelling ? "Отменяем..." : confirmCancel ? "Точно?" : null}
                   </button>
                   <button
                     type="button"
                     onClick={() => setView("reschedule")}
+                    aria-label="Перенести запись"
+                    title="Перенести запись"
                     style={{
-                      padding: "12px 14px",
+                      flexShrink: 0,
+                      width: 52, height: 44,
                       background: c.primarySft,
-                      border: `1px solid transparent`,
+                      border: "1px solid transparent",
                       borderRadius: 11,
                       color: c.primaryDk,
-                      fontSize: 13, fontWeight: 700,
                       cursor: "pointer",
                       fontFamily: "var(--font-montserrat)",
-                      display: "inline-flex", alignItems: "center", gap: 7,
-                      transition: "all 0.18s",
-                      whiteSpace: "nowrap",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      transition: "background 0.18s",
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = "#E5DEFE"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = c.primarySft; }}
                   >
-                    <Ic d={I.swap} size={14} />
-                    Перенести
+                    <Ic d={I.swap} size={16} />
                   </button>
                 </>
               )}
-              <div style={{ flex: 1 }} />
               <button
                 type="button"
                 onClick={onClose}
                 style={{
-                  padding: "12px 22px",
+                  flex: 1, height: 44,
                   background: c.bg, border: `1px solid ${c.border}`,
                   borderRadius: 11, color: c.txtBody,
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: 13, fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: "var(--font-montserrat)",
                 }}
@@ -663,27 +666,26 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
                 type="button"
                 onClick={() => { setView("details"); setRescheduleError(""); }}
                 disabled={rescheduling}
+                aria-label="Назад к деталям"
+                title="Назад"
                 style={{
-                  padding: "12px 14px",
+                  flexShrink: 0,
+                  width: 52, height: 44,
                   background: c.bg, border: `1px solid ${c.border}`,
                   borderRadius: 11, color: c.txtBody,
-                  fontSize: 13, fontWeight: 600,
                   cursor: rescheduling ? "not-allowed" : "pointer",
                   fontFamily: "var(--font-montserrat)",
-                  display: "inline-flex", alignItems: "center", gap: 7,
-                  whiteSpace: "nowrap",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Ic d={I.arrowL} size={14} />
-                Назад
+                <Ic d={I.arrowL} size={16} />
               </button>
-              <div style={{ flex: 1 }} />
               <button
                 type="button"
                 onClick={handleReschedule}
                 disabled={!canSaveReschedule}
                 style={{
-                  padding: "12px 22px",
+                  flex: 1, height: 44,
                   background: canSaveReschedule ? c.primary : c.borderSoft,
                   border: "none",
                   borderRadius: 11,
@@ -691,15 +693,15 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
                   fontSize: 13, fontWeight: 700,
                   cursor: canSaveReschedule ? "pointer" : "not-allowed",
                   fontFamily: "var(--font-montserrat)",
-                  display: "inline-flex", alignItems: "center", gap: 7,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
                   boxShadow: canSaveReschedule ? "0 8px 22px -6px rgba(123, 97, 255, 0.50)" : "none",
-                  transition: "all 0.18s",
+                  transition: "background 0.18s, color 0.18s",
                   whiteSpace: "nowrap",
                 }}
                 onMouseEnter={e => { if (canSaveReschedule) e.currentTarget.style.background = c.primaryDk; }}
                 onMouseLeave={e => { if (canSaveReschedule) e.currentTarget.style.background = c.primary; }}
               >
-                <Ic d={I.check} size={14} />
+                <Ic d={I.check} size={16} />
                 {rescheduling ? "Переносим..." : "Сохранить"}
               </button>
             </>
