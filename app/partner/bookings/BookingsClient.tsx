@@ -113,6 +113,10 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
       msOverflowStyle: "none",
       padding: "2px 0 6px",
       WebkitOverflowScrolling: "touch",
+      scrollSnapType: "x mandatory",
+      scrollPaddingLeft: 12,
+      scrollPaddingRight: 12,
+      overscrollBehaviorX: "contain",
     } as React.CSSProperties} className="bb-no-scrollbar">
       <button type="button" onClick={() => onChange(null)}
         style={{
@@ -126,6 +130,8 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
           fontFamily: "var(--font-montserrat)", fontWeight: 700,
           transition: "background 0.18s, border-color 0.18s, color 0.18s",
           boxShadow: selectedIso === null ? "0 6px 18px -4px rgba(123,97,255,0.45)" : "none",
+          scrollSnapAlign: "center",
+          scrollSnapStop: "always",
         }}>
         <Ic d={PATHS.cal} size={16} />
         <span style={{ fontSize: 11, letterSpacing: "0.02em" }}>Все</span>
@@ -149,6 +155,8 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
               fontFamily: "var(--font-montserrat)",
               transition: "background 0.18s, border-color 0.18s, color 0.18s",
               boxShadow: sel ? "0 6px 18px -4px rgba(123,97,255,0.45)" : "none",
+              scrollSnapAlign: "center",
+              scrollSnapStop: "always",
             }}
             onMouseEnter={e => { if (!sel) e.currentTarget.style.background = c.bgSoft; }}
             onMouseLeave={e => { if (!sel) e.currentTarget.style.background = c.bg; }}
@@ -275,6 +283,7 @@ function BookingCard({ b, service, master, onClick }: {
         background: c.bg, padding: 0, cursor: "pointer",
         fontFamily: "var(--font-montserrat)",
         display: "flex", alignItems: "stretch", gap: 0,
+        minHeight: 72,
         transition: "background 0.15s",
         opacity: cancelled ? 0.6 : 1,
       }}
@@ -283,34 +292,40 @@ function BookingCard({ b, service, master, onClick }: {
     >
       <div style={{
         flexShrink: 0, width: 72,
-        padding: "16px 0 14px", textAlign: "center",
+        padding: "14px 0",
         borderRight: `1px solid ${c.borderSoft}`,
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        alignItems: "center", textAlign: "center", gap: 2,
       }}>
         <div style={{
           fontSize: 18, fontWeight: 800, color: c.txtDark,
           letterSpacing: "-0.02em", fontFeatureSettings: '"tnum" 1',
+          lineHeight: 1.15,
           textDecoration: cancelled ? "line-through" : "none",
         }}>{b.startTime}</div>
         {b.endTime && (
           <div style={{
-            fontSize: 11, color: c.txtMute, marginTop: 1,
+            fontSize: 11, color: c.txtMute,
+            lineHeight: 1.15,
             fontFeatureSettings: '"tnum" 1',
           }}>до {b.endTime}</div>
         )}
       </div>
 
       <div style={{
-        flex: 1, minWidth: 0, padding: "14px 14px 12px",
-        display: "flex", flexDirection: "column", gap: 4,
+        flex: 1, minWidth: 0, padding: "14px 14px",
+        display: "flex", flexDirection: "column", justifyContent: "center", gap: 4,
       }}>
         <div style={{
           fontSize: 14, fontWeight: 700, color: c.txtDark, letterSpacing: "-0.01em",
+          lineHeight: 1.25,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {service?.name || "Услуга"}
         </div>
         <div style={{
           fontSize: 12, color: c.txtBody,
+          lineHeight: 1.3,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           <span style={{ fontWeight: 600 }}>{b.clientName}</span>
@@ -319,8 +334,9 @@ function BookingCard({ b, service, master, onClick }: {
       </div>
 
       <div style={{
-        flexShrink: 0, padding: "14px 14px 12px",
-        display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
+        flexShrink: 0, padding: "14px 14px",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        alignItems: "flex-end", gap: 6,
       }}>
         <span style={{
           fontSize: 10, fontWeight: 700, color: meta.color, background: meta.bg,
