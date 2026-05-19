@@ -1,6 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { admins, partnerUsers, salons } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -103,21 +103,19 @@ export const authOptions: NextAuthOptions = {
         if (!email || !password) return null;
 
         try {
-          const [user] = await db
-            .select()
-            .from(partnerUsers)
-            .where(eq(partnerUsers.email, email));
-
+          const user = await dbRetry(async () => {
+            const [u] = await db.select().from(partnerUsers).where(eq(partnerUsers.email, email));
+            return u;
+          });
           if (!user) return null;
 
           const valid = await bcrypt.compare(password, user.passwordHash);
           if (!valid) return null;
 
-          const [salon] = await db
-            .select()
-            .from(salons)
-            .where(eq(salons.id, user.salonId));
-
+          const salon = await dbRetry(async () => {
+            const [s] = await db.select().from(salons).where(eq(salons.id, user.salonId));
+            return s;
+          });
           if (!salon || !salon.isActive) return null;
 
           return {

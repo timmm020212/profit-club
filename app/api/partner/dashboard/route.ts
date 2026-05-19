@@ -31,7 +31,8 @@ export async function GET() {
 
     return NextResponse.json({ todayTotal: total, confirmed, cancelled, date: todayStr });
   } catch (error) {
-    console.error("Dashboard error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Dashboard error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

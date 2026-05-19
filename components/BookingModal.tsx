@@ -72,9 +72,10 @@ interface Props {
     phone: string;
   } | null;
   variant?: Variant | null;
+  salon?: string;
 }
 
-export default function BookingModal({ service, onClose, telegramUser, variant }: Props) {
+export default function BookingModal({ service, onClose, telegramUser, variant, salon }: Props) {
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>(1);
 
@@ -115,7 +116,10 @@ export default function BookingModal({ service, onClose, telegramUser, variant }
 
   // Load masters
   useEffect(() => {
-    fetch("/api/masters")
+    const url = salon
+      ? `/api/masters?salon=${encodeURIComponent(salon)}`
+      : "/api/masters";
+    fetch(url)
       .then((r) => r.json())
       .then((data: Master[]) => {
         if (service.executorRole) {
@@ -174,6 +178,7 @@ export default function BookingModal({ service, onClose, telegramUser, variant }
           clientName: clientName.trim(),
           clientPhone: clientPhone.trim(),
           clientTelegramId: telegramUser?.telegramId || (typeof window !== "undefined" ? localStorage.getItem("profit_club_telegram_id") || undefined : undefined),
+          salon: salon || undefined,
         }),
       });
       const data = await res.json();

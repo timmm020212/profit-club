@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { salons, partnerUsers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -15,11 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Пароль минимум 8 символов" }, { status: 400 });
     }
 
+    const emailNorm = email.toLowerCase().trim();
+
     // Check email not taken
-    const [existing] = await db
-      .select()
-      .from(partnerUsers)
-      .where(eq(partnerUsers.email, email.toLowerCase().trim()));
+    const existing = await dbRetry(async () => {
+      const [u] = await db.select().from(partnerUsers).where(eq(partnerUsers.email, emailNorm));
+      return u;
+    });
     if (existing) {
       return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 400 });
     }
@@ -35,23 +37,27 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const [salon] = await db.insert(salons).values({
-      slug,
-      name: salonName,
-      city: city || null,
-      tariff: "basic",
-      isActive: true,
-    }).returning();
-
-    await db.insert(partnerUsers).values({
-      salonId: salon.id,
-      email: email.toLowerCase().trim(),
-      passwordHash,
+    const salon = await dbRetry(async () => {
+      const [s] = await db.insert(salons).values({
+        slug,
+        name: salonName,
+        city: city || null,
+        tariff: "basic",
+        isActive: true,
+      }).returning();
+      return s;
     });
+
+    await dbRetry(() => db.insert(partnerUsers).values({
+      salonId: salon.id,
+      email: emailNorm,
+      passwordHash,
+    }));
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Register error:", error);
-    return NextResponse.json({ error: "Ошибка регистрации" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Register error:", msg);
+    return NextResponse.json({ error: "Ошибка регистрации. Попробуйте ещё раз." }, { status: 500 });
   }
 }

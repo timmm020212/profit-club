@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { services, serviceCategories, serviceSubgroups, serviceVariants, salons } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
@@ -12,7 +12,9 @@ export async function GET(request: Request) {
   // Resolve salonId: if ?salon=slug provided, look up the salon; otherwise default to 1
   let salonId = 1;
   if (salonSlug) {
-    const salonRow = await db.select({ id: salons.id }).from(salons).where(eq(salons.slug, salonSlug)).limit(1);
+    const salonRow = await dbRetry(() =>
+      db.select({ id: salons.id }).from(salons).where(eq(salons.slug, salonSlug)).limit(1)
+    );
     if (salonRow.length > 0) {
       salonId = salonRow[0].id;
     }
@@ -20,12 +22,16 @@ export async function GET(request: Request) {
 
   if (nested) {
     try {
-      const allCategories = await db.select().from(serviceCategories).where(eq(serviceCategories.salonId, salonId)).orderBy(serviceCategories.order);
-      const allSubgroups = await db.select().from(serviceSubgroups).where(eq(serviceSubgroups.salonId, salonId)).orderBy(serviceSubgroups.order);
-      const allServices = await db.select().from(services).where(eq(services.salonId, salonId)).orderBy(services.orderDesktop);
-      const allVariants = await db.select().from(serviceVariants).where(eq(serviceVariants.salonId, salonId)).orderBy(serviceVariants.order);
+      const [allCategories, allSubgroups, allServices, allVariants] = await Promise.all([
+        dbRetry(() => db.select().from(serviceCategories).where(eq(serviceCategories.salonId, salonId)).orderBy(serviceCategories.order)),
+        dbRetry(() => db.select().from(serviceSubgroups).where(eq(serviceSubgroups.salonId, salonId)).orderBy(serviceSubgroups.order)),
+        dbRetry(() => db.select().from(services).where(eq(services.salonId, salonId)).orderBy(services.orderDesktop)),
+        dbRetry(() => db.select().from(serviceVariants).where(eq(serviceVariants.salonId, salonId)).orderBy(serviceVariants.order)),
+      ]);
 
-      const result = allCategories
+      // 1) Build the "real" category tree (legacy admin-managed structure)
+      const subgroupIds = new Set(allSubgroups.map(sg => sg.id));
+      const realTree = allCategories
         .filter(c => c.isActive)
         .map(cat => ({
           ...cat,
@@ -42,13 +48,81 @@ export async function GET(request: Request) {
             })),
         }));
 
-      return NextResponse.json({ categories: result }, {
+      // 2) Find "orphan" services (no subgroupId or pointing to missing subgroup)
+      //    These are services created via the partner cabinet UI which only sets
+      //    a flat `category` string. Group them by that string.
+      const orphans = allServices.filter(s => !s.subgroupId || !subgroupIds.has(s.subgroupId));
+      const orphansByCategory = new Map<string, typeof orphans>();
+      for (const svc of orphans) {
+        const key = (svc.category || "").trim() || "Другое";
+        if (!orphansByCategory.has(key)) orphansByCategory.set(key, []);
+        orphansByCategory.get(key)!.push(svc);
+      }
+
+      // 3) Index real categories by normalized name for merging
+      type RealCat = (typeof realTree)[number];
+      const realByName = new Map<string, RealCat>();
+      for (const cat of realTree) {
+        realByName.set(cat.name.toLowerCase().trim(), cat);
+      }
+
+      // 4) Distribute orphan groups:
+      //    - If their category string matches an existing real category → append as "Другие" subgroup
+      //    - Otherwise → create a fully synthetic category
+      let pseudoId = -1;
+      const syntheticTree: RealCat[] = [];
+
+      for (const [name, svcs] of orphansByCategory) {
+        const key = name.toLowerCase().trim();
+        const target = realByName.get(key);
+        const builtSvcs = svcs.map(s => ({
+          ...s,
+          variants: allVariants.filter(v => v.serviceId === s.id),
+        }));
+
+        if (target) {
+          // Merge into existing real category as a "Другие" subgroup
+          target.subgroups.push({
+            id: pseudoId--,
+            categoryId: target.id,
+            name: "Другие",
+            order: 9000,
+            salonId,
+            services: builtSvcs,
+          });
+        } else {
+          // Brand-new synthetic category
+          const catId = pseudoId--;
+          syntheticTree.push({
+            id: catId,
+            name,
+            icon: null,
+            order: 9000,
+            isActive: true,
+            salonId,
+            subgroups: [{
+              id: pseudoId--,
+              categoryId: catId,
+              name,
+              order: 0,
+              salonId,
+              services: builtSvcs,
+            }],
+          });
+        }
+      }
+
+      // 5) Combine — real tree first (with merged orphans), brand-new synthetic at the end
+      const combined = [...realTree, ...syntheticTree];
+
+      return NextResponse.json({ categories: combined }, {
         headers: { "Content-Type": "application/json; charset=utf-8" },
       });
     } catch (error) {
-      console.error("Error fetching nested services:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("Error fetching nested services:", msg);
       return NextResponse.json(
-        { error: "Failed to fetch nested services" },
+        { error: "Failed to fetch nested services", detail: msg },
         { status: 500 }
       );
     }

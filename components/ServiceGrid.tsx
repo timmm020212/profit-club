@@ -2,7 +2,7 @@
 
 import BookingServicesGrid from "./BookingServicesGrid";
 
-const ServiceGrid = ({ cms }: { cms?: { overline?: string; title?: string; subtitle?: string } | null }) => {
+const ServiceGrid = ({ cms, salon }: { cms?: { overline?: string; title?: string; subtitle?: string } | null; salon?: string }) => {
   return (
     <section id="services" className="relative w-full bg-[#09090D] overflow-hidden">
       {/* Grid lines */}
@@ -58,7 +58,7 @@ const ServiceGrid = ({ cms }: { cms?: { overline?: string; title?: string; subti
           </div>
         </div>
 
-        <BookingServicesGrid carousel />
+        <BookingServicesGrid carousel salon={salon} />
       </div>
     </section>
   );

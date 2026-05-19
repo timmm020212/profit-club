@@ -5,6 +5,14 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: false,
   devIndicators: false,
+  // Allow Cloudflare quick tunnels + ngrok + local network IPs in dev mode
+  allowedDevOrigins: [
+    '*.trycloudflare.com',
+    '*.ngrok-free.app',
+    '*.ngrok.io',
+    '*.ngrok.app',
+    '192.168.0.18',
+  ],
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { appointments, workSlots, masters, services, clients, scheduleOptimizations, optimizationMoves, serviceVariants } from "@/db/schema";
+import { appointments, workSlots, masters, services, clients, scheduleOptimizations, optimizationMoves, serviceVariants, salons } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 
 
@@ -301,7 +301,16 @@ export async function POST(request: Request) {
       clientName,
       clientPhone,
       clientTelegramId,
+      salon: salonSlug,
     } = body;
+
+    // Resolve salon slug → salonId so the appointment is attributed to the
+    // correct partner. If no slug provided, fall back to master's salonId.
+    let resolvedSalonId: number | null = null;
+    if (salonSlug && typeof salonSlug === "string") {
+      const [sRow] = await db.select({ id: salons.id }).from(salons).where(eq(salons.slug, salonSlug)).limit(1);
+      if (sRow) resolvedSalonId = sRow.id;
+    }
 
     const masterIdNum = Number(masterId);
 
@@ -499,6 +508,13 @@ export async function POST(request: Request) {
       console.log("No Telegram ID provided - user may not be registered/verified");
     }
 
+    // Determine salonId: explicit from request → otherwise from master's own salonId
+    let finalSalonId = resolvedSalonId;
+    if (!finalSalonId) {
+      const [mRow] = await db.select({ salonId: masters.salonId }).from(masters).where(eq(masters.id, masterIdNum)).limit(1);
+      finalSalonId = mRow?.salonId ?? 1;
+    }
+
     // Создаем запись
     const newAppointment = await db
       .insert(appointments)
@@ -514,6 +530,7 @@ export async function POST(request: Request) {
         clientTelegramId: finalTelegramId || null,
         status: "confirmed",
         createdAt: new Date().toISOString(),
+        salonId: finalSalonId,
       })
       .returning();
 

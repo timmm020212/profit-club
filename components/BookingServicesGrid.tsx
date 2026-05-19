@@ -53,9 +53,11 @@ interface TelegramUser {
 export default function BookingServicesGrid({
   carousel = false,
   telegramUser,
+  salon,
 }: {
   carousel?: boolean;
   telegramUser?: TelegramUser | null;
+  salon?: string;
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,10 @@ export default function BookingServicesGrid({
 
   /* Fetch nested data */
   useEffect(() => {
-    fetch("/api/services?nested=true")
+    const url = salon
+      ? `/api/services?nested=true&salon=${encodeURIComponent(salon)}`
+      : "/api/services?nested=true";
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         const cats: Category[] = Array.isArray(data?.categories) ? data.categories : [];
@@ -85,7 +90,7 @@ export default function BookingServicesGrid({
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [salon]);
 
   /* Sorted categories: active first for FLIP animation */
   const sortedCategories = selectedCategoryId === null
@@ -194,7 +199,7 @@ export default function BookingServicesGrid({
   return (
     <>
       {/* ── Category tabs ───────────────────────────────────── */}
-      {categories.length > 1 && (
+      {categories.length >= 1 && (
         <div
           ref={stripRef}
           className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none"
@@ -266,8 +271,13 @@ export default function BookingServicesGrid({
                         description={service.description}
                         price={
                           service.variants && service.variants.length > 0
-                            ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString()} ₽`
-                            : service.price ? `${Number(service.price).toLocaleString()} ₽` : undefined
+                            ? `от ${Math.min(...service.variants.map((v) => v.price)).toLocaleString("ru-RU")} ₽`
+                            : service.price
+                              ? (() => {
+                                  const digits = String(service.price).replace(/\D/g, "");
+                                  return digits ? `${Number(digits).toLocaleString("ru-RU")} ₽` : undefined;
+                                })()
+                              : undefined
                         }
                         imageUrl={service.imageUrl}
                         duration={
@@ -356,6 +366,7 @@ export default function BookingServicesGrid({
           onClose={() => { setActiveService(null); setActiveVariant(null); }}
           telegramUser={telegramUser}
           variant={activeVariant}
+          salon={salon}
         />
       )}
 

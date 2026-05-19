@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePartnerSession } from "@/lib/requirePartnerSession";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { salons } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -10,11 +10,24 @@ export async function GET() {
   const { session, response } = await requirePartnerSession();
   if (!session) return response;
   try {
-    const [salon] = await db.select().from(salons).where(eq(salons.id, session.salonId));
+    // Select all editable columns
+    const [salon] = await dbRetry(() => db.select({
+      id: salons.id,
+      slug: salons.slug,
+      name: salons.name,
+      city: salons.city,
+      address: salons.address,
+      phone: salons.phone,
+      description: salons.description,
+      logoUrl: salons.logoUrl,
+      tariff: salons.tariff,
+      isActive: salons.isActive,
+    }).from(salons).where(eq(salons.id, session.salonId)));
     return NextResponse.json(salon || {});
   } catch (error) {
-    console.error("Profile GET error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Profile GET error:", msg);
+    return NextResponse.json({ error: "Failed", detail: msg }, { status: 500 });
   }
 }
 
@@ -22,14 +35,37 @@ export async function PATCH(request: NextRequest) {
   const { session, response } = await requirePartnerSession();
   if (!session) return response;
   try {
-    const { name, city, address, phone, description } = await request.json();
-    const [updated] = await db.update(salons)
-      .set({ name, city, address, phone, description })
+    const body = await request.json();
+    const { name, city, address, phone, description, logoUrl } = body;
+
+    if (typeof name !== "string" || !name.trim()) {
+      return NextResponse.json({ error: "name обязателен" }, { status: 400 });
+    }
+
+    const [updated] = await dbRetry(() => db.update(salons)
+      .set({
+        name: name.trim(),
+        city: city ?? null,
+        address: address ?? null,
+        phone: phone ?? null,
+        description: description ?? null,
+        logoUrl: logoUrl ?? null,
+      })
       .where(eq(salons.id, session.salonId))
-      .returning();
+      .returning({
+        id: salons.id,
+        name: salons.name,
+        city: salons.city,
+        address: salons.address,
+        phone: salons.phone,
+        description: salons.description,
+        logoUrl: salons.logoUrl,
+      })
+    );
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Profile PATCH error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Profile PATCH error:", msg);
+    return NextResponse.json({ error: "Не удалось сохранить", detail: msg }, { status: 500 });
   }
 }

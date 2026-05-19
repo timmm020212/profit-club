@@ -1,20 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePartnerSession } from "@/lib/requirePartnerSession";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { masters } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, asc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
+
+function clean(s: unknown, max = 255): string | null {
+  if (s === null || s === undefined) return null;
+  const str = String(s).trim();
+  if (!str) return null;
+  return str.slice(0, max);
+}
 
 export async function GET() {
   const { session, response } = await requirePartnerSession();
   if (!session) return response;
   try {
-    const rows = await db.select().from(masters).where(eq(masters.salonId, session.salonId));
+    const rows = await dbRetry(() => db
+      .select({
+        id: masters.id,
+        fullName: masters.fullName,
+        specialization: masters.specialization,
+        phone: masters.phone,
+        telegramId: masters.telegramId,
+        photoUrl: masters.photoUrl,
+        isActive: masters.isActive,
+        showOnSite: masters.showOnSite,
+        createdAt: masters.createdAt,
+      })
+      .from(masters)
+      .where(and(eq(masters.salonId, session.salonId), eq(masters.isActive, true)))
+      .orderBy(asc(masters.id))
+    );
     return NextResponse.json(rows);
   } catch (error) {
-    console.error("Masters GET error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Masters GET error:", msg);
+    return NextResponse.json({ error: "Failed", detail: msg }, { status: 500 });
   }
 }
 
@@ -22,23 +45,35 @@ export async function POST(request: NextRequest) {
   const { session, response } = await requirePartnerSession();
   if (!session) return response;
   try {
-    const { name, specialization, phone } = await request.json();
-    if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
+    const body = await request.json();
+    const { fullName, specialization, phone, telegramId, photoUrl, showOnSite } = body;
 
-    const [row] = await db.insert(masters).values({
-      fullName: name,
-      specialization: specialization || "",
-      phone: phone || null,
-      salonId: session.salonId,
+    const cleanName = clean(fullName);
+    const cleanSpec = clean(specialization);
+    if (!cleanName) {
+      return NextResponse.json({ error: "ФИО обязательно" }, { status: 400 });
+    }
+    if (!cleanSpec) {
+      return NextResponse.json({ error: "Укажите специализацию" }, { status: 400 });
+    }
+
+    const [inserted] = await dbRetry(() => db.insert(masters).values({
+      fullName: cleanName,
+      specialization: cleanSpec,
+      phone: clean(phone, 50),
+      telegramId: clean(telegramId, 50),
+      photoUrl: clean(photoUrl, 500),
+      showOnSite: showOnSite !== false,
       isActive: true,
-      showOnSite: true,
       commissionPercent: 50,
       createdAt: new Date().toISOString(),
-    }).returning();
+      salonId: session.salonId,
+    }).returning());
 
-    return NextResponse.json(row);
+    return NextResponse.json(inserted);
   } catch (error) {
-    console.error("Masters POST error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Masters POST error:", msg);
+    return NextResponse.json({ error: "Не удалось создать мастера", detail: msg }, { status: 500 });
   }
 }

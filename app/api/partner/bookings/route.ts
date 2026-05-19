@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePartnerSession } from "@/lib/requirePartnerSession";
-import { db } from "@/db";
+import { db, dbRetry } from "@/db/index-postgres";
 import { appointments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
@@ -11,16 +11,17 @@ export async function GET() {
   if (!session) return response;
 
   try {
-    const rows = await db
+    const rows = await dbRetry(() => db
       .select()
       .from(appointments)
       .where(eq(appointments.salonId, session.salonId))
       .orderBy(desc(appointments.createdAt))
-      .limit(100);
-
+      .limit(100)
+    );
     return NextResponse.json(rows);
   } catch (error) {
-    console.error("Bookings error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Bookings error:", msg);
+    return NextResponse.json({ error: "Failed", detail: msg }, { status: 500 });
   }
 }
