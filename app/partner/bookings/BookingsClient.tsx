@@ -102,7 +102,9 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
     const btn = todayBtnRef.current;
     const scroller = scrollerRef.current;
     if (!btn || !scroller) return;
-    const offset = btn.offsetLeft - scroller.clientWidth / 2 + btn.clientWidth / 2;
+    // Align today's left edge with the container's scroll-padding-left so the
+    // mandatory snap doesn't yank it to the nearest snap point afterwards.
+    const offset = btn.offsetLeft - 8;
     scroller.scrollTo({ left: Math.max(0, offset), behavior: "auto" });
   }, []);
 
@@ -114,8 +116,7 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
       padding: "2px 0 6px",
       WebkitOverflowScrolling: "touch",
       scrollSnapType: "x mandatory",
-      scrollPaddingLeft: 12,
-      scrollPaddingRight: 12,
+      scrollPaddingLeft: 8,
       overscrollBehaviorX: "contain",
     } as React.CSSProperties} className="bb-no-scrollbar">
       <button type="button" onClick={() => onChange(null)}
@@ -130,15 +131,17 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
           fontFamily: "var(--font-montserrat)", fontWeight: 700,
           transition: "background 0.18s, border-color 0.18s, color 0.18s",
           boxShadow: selectedIso === null ? "0 6px 18px -4px rgba(123,97,255,0.45)" : "none",
-          scrollSnapAlign: "center",
-          scrollSnapStop: "always",
+          scrollSnapAlign: "start",
         }}>
         <Ic d={PATHS.cal} size={16} />
         <span style={{ fontSize: 11, letterSpacing: "0.02em" }}>Все</span>
       </button>
 
-      {days.map(d => {
+      {days.map((d, idx) => {
         const sel = selectedIso === d.iso;
+        // Page through 5 chips at a time: snap only on every 5th day (idx 0, 5, 10, 15, 20).
+        // Today is also a snap point so the initial auto-scroll lands cleanly.
+        const isSnapPoint = idx % 5 === 0 || d.isToday;
         return (
           <button key={d.iso} type="button"
             ref={d.isToday ? todayBtnRef : undefined}
@@ -155,8 +158,7 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
               fontFamily: "var(--font-montserrat)",
               transition: "background 0.18s, border-color 0.18s, color 0.18s",
               boxShadow: sel ? "0 6px 18px -4px rgba(123,97,255,0.45)" : "none",
-              scrollSnapAlign: "center",
-              scrollSnapStop: "always",
+              scrollSnapAlign: isSnapPoint ? "start" : "none",
             }}
             onMouseEnter={e => { if (!sel) e.currentTarget.style.background = c.bgSoft; }}
             onMouseLeave={e => { if (!sel) e.currentTarget.style.background = c.bg; }}
