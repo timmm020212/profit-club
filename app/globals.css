@@ -8,6 +8,17 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* iOS Safari auto-zooms into form fields when their font-size < 16px.
+   Force 16px on mobile to suppress the zoom; many inputs in this codebase
+   use inline styles with 13–15px, so !important is needed to override. */
+@media screen and (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Snap scroll only on mobile */
 @media (max-width: 767px) {
   .snap-y-mobile { scroll-snap-type: y mandatory; }
