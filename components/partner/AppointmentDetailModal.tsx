@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const c = {
   bg:         "#FFFFFF",
@@ -41,7 +41,27 @@ const I = {
   ban:      "M18.36 18.36A10 10 0 005.64 5.64M2 12a10 10 0 1020 0 10 10 0 00-20 0z",
   copy:     "M20 9h-9a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-9a2 2 0 00-2-2zM5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1",
   check:    "M20 6L9 17l-5-5",
+  swap:     "M16 3l5 5-5 5M21 8H8M8 21l-5-5 5-5M3 16h13",
+  arrowL:   "M19 12H5M12 19l-7-7 7-7",
 };
+
+const WD_SHORT_RES = ["вс","пн","вт","ср","чт","пт","сб"];
+function toLocalIsoRes(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function parseIsoDateRes(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// 08:00 → 21:30 in 30-min increments (28 slots)
+const TIME_SLOTS: string[] = (() => {
+  const slots: string[] = [];
+  for (let m = 8 * 60; m <= 21 * 60 + 30; m += 30) {
+    slots.push(`${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`);
+  }
+  return slots;
+})();
 
 const STATUS: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: "Ожидает подтверждения", color: c.orange,  bg: c.orangeSft },
@@ -130,14 +150,38 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [error, setError] = useState("");
 
+  // Reschedule sub-view state
+  const [view, setView] = useState<"details" | "reschedule">("details");
+  const [newDate, setNewDate] = useState<string>("");
+  const [newTime, setNewTime] = useState<string>("");
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState("");
+  const dateScrollerRef = useRef<HTMLDivElement>(null);
+  const todayBtnRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     if (open) {
       setPhoneCopied(false);
       setConfirmCancel(false);
       setCancelling(false);
       setError("");
+      setView("details");
+      setNewDate(appointment?.appointmentDate || "");
+      setNewTime(appointment?.startTime || "");
+      setRescheduling(false);
+      setRescheduleError("");
     }
-  }, [open]);
+  }, [open, appointment]);
+
+  // Scroll selected date into view when entering reschedule
+  useEffect(() => {
+    if (view !== "reschedule") return;
+    const scroller = dateScrollerRef.current;
+    const btn = todayBtnRef.current;
+    if (!scroller || !btn) return;
+    const offset = btn.offsetLeft - scroller.clientWidth / 2 + btn.clientWidth / 2;
+    scroller.scrollTo({ left: Math.max(0, offset), behavior: "auto" });
+  }, [view]);
 
   useEffect(() => {
     if (!open) return;
@@ -194,7 +238,40 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
     }
   }
 
+  async function handleReschedule() {
+    if (!appointment) return;
+    if (!newDate || !newTime) {
+      setRescheduleError("Выберите новую дату и время");
+      return;
+    }
+    setRescheduling(true);
+    setRescheduleError("");
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          masterId: appointment.masterId,
+          appointmentDate: newDate,
+          startTime: newTime,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Не удалось перенести запись");
+      }
+      onChanged?.();
+      onClose();
+    } catch (e) {
+      setRescheduleError(e instanceof Error ? e.message : String(e));
+      setRescheduling(false);
+    }
+  }
+
   const isActive = appointment.status === "confirmed" || appointment.status === "pending";
+  const isUnchanged =
+    newDate === appointment.appointmentDate && newTime === appointment.startTime;
+  const canSaveReschedule = !!newDate && !!newTime && !isUnchanged && !rescheduling;
 
   return (
     <>
@@ -225,20 +302,31 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
       >
         {/* Status bar */}
         <div style={{
-          background: status.bg, padding: "14px 24px",
+          background: view === "reschedule" ? c.primarySft : status.bg,
+          padding: "14px 24px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0,
+          transition: "background 0.2s",
         }}>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 8,
-            color: status.color, fontSize: 13, fontWeight: 700,
-            letterSpacing: "0.02em",
+            color: view === "reschedule" ? c.primaryDk : status.color,
+            fontSize: 13, fontWeight: 700, letterSpacing: "0.02em",
           }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: 4, background: status.color,
-              boxShadow: `0 0 0 4px ${status.bg}`,
-            }} />
-            {status.label}
+            {view === "reschedule" ? (
+              <>
+                <Ic d={I.swap} size={14} />
+                Перенос записи
+              </>
+            ) : (
+              <>
+                <span style={{
+                  width: 8, height: 8, borderRadius: 4, background: status.color,
+                  boxShadow: `0 0 0 4px ${status.bg}`,
+                }} />
+                {status.label}
+              </>
+            )}
           </div>
           <button onClick={onClose} aria-label="Закрыть" style={{
             width: 32, height: 32, borderRadius: 10,
@@ -252,7 +340,16 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
           </button>
         </div>
 
-        {/* Body */}
+        {view === "reschedule" ? (
+          <RescheduleBody
+            current={{ date: appointment.appointmentDate, time: appointment.startTime }}
+            newDate={newDate} newTime={newTime}
+            onPickDate={setNewDate} onPickTime={setNewTime}
+            scrollerRef={dateScrollerRef} todayBtnRef={todayBtnRef}
+            error={rescheduleError}
+          />
+        ) : (
+        /* Body */
         <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Time + Date hero */}
@@ -486,53 +583,352 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
             }}>{error}</div>
           )}
         </div>
+        )}
 
         {/* Footer */}
         <footer style={{
           padding: "14px 24px",
-          display: "flex", gap: 10,
+          display: "flex", gap: 8,
           borderTop: `1px solid ${c.border}`,
           background: c.bgSoft,
           flexShrink: 0,
+          flexWrap: "wrap",
         }}>
-          {isActive && (
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={cancelling}
-              style={{
-                padding: "12px 16px",
-                background: confirmCancel ? c.red : c.bg,
-                border: `1px solid ${confirmCancel ? c.red : c.border}`,
-                borderRadius: 11,
-                color: confirmCancel ? "#fff" : c.red,
-                fontSize: 13, fontWeight: 600,
-                cursor: cancelling ? "not-allowed" : "pointer",
-                fontFamily: "var(--font-montserrat)",
-                display: "inline-flex", alignItems: "center", gap: 7,
-                transition: "all 0.18s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Ic d={I.ban} size={14} />
-              {cancelling ? "Отменяем..." : confirmCancel ? "Точно отменить?" : "Отменить запись"}
-            </button>
+          {view === "details" ? (
+            <>
+              {isActive && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    style={{
+                      padding: "12px 14px",
+                      background: confirmCancel ? c.red : c.bg,
+                      border: `1px solid ${confirmCancel ? c.red : c.border}`,
+                      borderRadius: 11,
+                      color: confirmCancel ? "#fff" : c.red,
+                      fontSize: 13, fontWeight: 600,
+                      cursor: cancelling ? "not-allowed" : "pointer",
+                      fontFamily: "var(--font-montserrat)",
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      transition: "all 0.18s",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <Ic d={I.ban} size={14} />
+                    {cancelling ? "Отменяем..." : confirmCancel ? "Точно отменить?" : "Отменить"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView("reschedule")}
+                    style={{
+                      padding: "12px 14px",
+                      background: c.primarySft,
+                      border: `1px solid transparent`,
+                      borderRadius: 11,
+                      color: c.primaryDk,
+                      fontSize: 13, fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-montserrat)",
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      transition: "all 0.18s",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#E5DEFE"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = c.primarySft; }}
+                  >
+                    <Ic d={I.swap} size={14} />
+                    Перенести
+                  </button>
+                </>
+              )}
+              <div style={{ flex: 1 }} />
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: "12px 22px",
+                  background: c.bg, border: `1px solid ${c.border}`,
+                  borderRadius: 11, color: c.txtBody,
+                  fontSize: 13, fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                }}
+              >Закрыть</button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => { setView("details"); setRescheduleError(""); }}
+                disabled={rescheduling}
+                style={{
+                  padding: "12px 14px",
+                  background: c.bg, border: `1px solid ${c.border}`,
+                  borderRadius: 11, color: c.txtBody,
+                  fontSize: 13, fontWeight: 600,
+                  cursor: rescheduling ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Ic d={I.arrowL} size={14} />
+                Назад
+              </button>
+              <div style={{ flex: 1 }} />
+              <button
+                type="button"
+                onClick={handleReschedule}
+                disabled={!canSaveReschedule}
+                style={{
+                  padding: "12px 22px",
+                  background: canSaveReschedule ? c.primary : c.borderSoft,
+                  border: "none",
+                  borderRadius: 11,
+                  color: canSaveReschedule ? "#fff" : c.txtMute,
+                  fontSize: 13, fontWeight: 700,
+                  cursor: canSaveReschedule ? "pointer" : "not-allowed",
+                  fontFamily: "var(--font-montserrat)",
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  boxShadow: canSaveReschedule ? "0 8px 22px -6px rgba(123, 97, 255, 0.50)" : "none",
+                  transition: "all 0.18s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={e => { if (canSaveReschedule) e.currentTarget.style.background = c.primaryDk; }}
+                onMouseLeave={e => { if (canSaveReschedule) e.currentTarget.style.background = c.primary; }}
+              >
+                <Ic d={I.check} size={14} />
+                {rescheduling ? "Переносим..." : "Сохранить"}
+              </button>
+            </>
           )}
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "12px 22px",
-              background: c.bg, border: `1px solid ${c.border}`,
-              borderRadius: 11, color: c.txtBody,
-              fontSize: 13, fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "var(--font-montserrat)",
-            }}
-          >Закрыть</button>
         </footer>
       </div>
     </>
+  );
+}
+
+function RescheduleBody({
+  current, newDate, newTime, onPickDate, onPickTime, scrollerRef, todayBtnRef, error,
+}: {
+  current: { date: string; time: string };
+  newDate: string;
+  newTime: string;
+  onPickDate: (iso: string) => void;
+  onPickTime: (hhmm: string) => void;
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
+  todayBtnRef: React.RefObject<HTMLButtonElement | null>;
+  error: string;
+}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayIso = toLocalIsoRes(today);
+
+  const days: { iso: string; date: Date; isToday: boolean }[] = [];
+  for (let offset = 0; offset <= 30; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    days.push({ iso: toLocalIsoRes(d), date: d, isToday: offset === 0 });
+  }
+
+  // Include current appointment date even if it's past, so user can re-confirm same date with new time
+  const currentDateObj = parseIsoDateRes(current.date);
+  currentDateObj.setHours(0, 0, 0, 0);
+  if (currentDateObj.getTime() < today.getTime()) {
+    days.unshift({ iso: current.date, date: currentDateObj, isToday: false });
+  }
+
+  const selectedBtnRef = useRef<HTMLButtonElement>(null);
+  // Mount: scroll today (or current date) into view via the shared ref
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const btn = todayBtnRef.current || selectedBtnRef.current;
+    if (!scroller || !btn) return;
+    const offset = btn.offsetLeft - scroller.clientWidth / 2 + btn.clientWidth / 2;
+    scroller.scrollTo({ left: Math.max(0, offset), behavior: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sameAsOriginal = newDate === current.date && newTime === current.time;
+
+  return (
+    <div style={{
+      flex: 1, overflowY: "auto", padding: "20px 24px 24px",
+      display: "flex", flexDirection: "column", gap: 20,
+    }}>
+      {/* Current appointment summary */}
+      <div style={{
+        background: c.bgSoft, border: `1px solid ${c.border}`, borderRadius: 14,
+        padding: "12px 14px",
+        display: "flex", alignItems: "center", gap: 12,
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: c.bg, color: c.txtMute,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${c.border}`, flexShrink: 0,
+        }}>
+          <Ic d={I.clock} size={16} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 10, color: c.txtMute, fontWeight: 700,
+            letterSpacing: "0.12em", textTransform: "uppercase",
+          }}>Сейчас</div>
+          <div style={{
+            fontSize: 14, fontWeight: 700, color: c.txtDark, marginTop: 1,
+            letterSpacing: "-0.01em", fontFeatureSettings: '"tnum" 1',
+          }}>
+            {formatDate(current.date)} · {current.time}
+          </div>
+        </div>
+      </div>
+
+      {/* New date picker */}
+      <div>
+        <div style={{
+          fontSize: 11, color: c.txtMute, fontWeight: 700,
+          letterSpacing: "0.12em", textTransform: "uppercase",
+          marginBottom: 10, paddingLeft: 2,
+        }}>Новая дата</div>
+        <div ref={scrollerRef} className="bb-no-scrollbar-modal" style={{
+          display: "flex", gap: 6, overflowX: "auto",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none" as any,
+          padding: "2px 0 6px",
+          WebkitOverflowScrolling: "touch",
+          margin: "0 -24px", paddingLeft: 24, paddingRight: 24,
+        }}>
+          {days.map(d => {
+            const sel = newDate === d.iso;
+            const refToAttach =
+              d.isToday ? todayBtnRef
+              : (sel ? selectedBtnRef : undefined);
+            return (
+              <button key={d.iso} type="button"
+                ref={refToAttach as React.RefObject<HTMLButtonElement>}
+                onClick={() => onPickDate(d.iso)}
+                style={{
+                  flexShrink: 0, position: "relative",
+                  width: 54, height: 62,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 2, padding: "8px 6px",
+                  background: sel ? c.primary : c.bg,
+                  color: sel ? "#fff" : c.txtDark,
+                  border: `1px solid ${sel ? c.primary : c.border}`,
+                  borderRadius: 12, cursor: "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                  transition: "background 0.18s, border-color 0.18s, color 0.18s",
+                  boxShadow: sel ? "0 6px 18px -4px rgba(123,97,255,0.45)" : "none",
+                }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: sel ? "rgba(255,255,255,0.85)" : c.txtMute,
+                }}>{WD_SHORT_RES[d.date.getDay()]}</span>
+                <span style={{
+                  fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em",
+                  fontFeatureSettings: '"tnum" 1',
+                }}>{d.date.getDate()}</span>
+                {d.iso === todayIso && (
+                  <span style={{
+                    position: "absolute", bottom: 5, left: "50%", transform: "translateX(-50%)",
+                    width: 4, height: 4, borderRadius: "50%",
+                    background: sel ? "#fff" : c.primary,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <style>{`.bb-no-scrollbar-modal::-webkit-scrollbar { display: none; }`}</style>
+      </div>
+
+      {/* New time picker */}
+      <div>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 10, paddingLeft: 2,
+        }}>
+          <div style={{
+            fontSize: 11, color: c.txtMute, fontWeight: 700,
+            letterSpacing: "0.12em", textTransform: "uppercase",
+          }}>Новое время</div>
+          <label style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 11, color: c.txtMute, fontWeight: 600,
+            fontFamily: "var(--font-montserrat)",
+          }}>
+            <span>своё</span>
+            <input
+              type="time"
+              value={newTime}
+              step={300}
+              onChange={e => onPickTime(e.target.value)}
+              style={{
+                width: 86, padding: "5px 8px",
+                borderRadius: 8, border: `1px solid ${c.border}`,
+                background: c.bg, color: c.txtDark, fontWeight: 700,
+                fontFamily: "var(--font-montserrat)",
+                fontFeatureSettings: '"tnum" 1',
+                outline: "none",
+              }}
+            />
+          </label>
+        </div>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 6,
+        }}>
+          {TIME_SLOTS.map(t => {
+            const sel = newTime === t;
+            return (
+              <button key={t} type="button"
+                onClick={() => onPickTime(t)}
+                style={{
+                  height: 38,
+                  background: sel ? c.primary : c.bg,
+                  color: sel ? "#fff" : c.txtDark,
+                  border: `1px solid ${sel ? c.primary : c.border}`,
+                  borderRadius: 10, cursor: "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                  fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em",
+                  fontFeatureSettings: '"tnum" 1',
+                  transition: "background 0.15s, border-color 0.15s, color 0.15s",
+                  boxShadow: sel ? "0 4px 12px -3px rgba(123,97,255,0.40)" : "none",
+                }}
+                onMouseEnter={e => { if (!sel) e.currentTarget.style.background = c.bgSoft; }}
+                onMouseLeave={e => { if (!sel) e.currentTarget.style.background = c.bg; }}
+              >{t}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hint when nothing changed */}
+      {sameAsOriginal && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 11,
+          background: c.bgSoft, border: `1px dashed ${c.border}`,
+          fontSize: 12, color: c.txtMute, fontFamily: "var(--font-montserrat)",
+          textAlign: "center",
+        }}>
+          Выберите другую дату или время чтобы перенести запись
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 12,
+          background: c.redSft, border: `1px solid rgba(239,68,68,0.22)`,
+          color: c.red, fontSize: 13, fontWeight: 600,
+          fontFamily: "var(--font-montserrat)",
+        }}>{error}</div>
+      )}
+    </div>
   );
 }
