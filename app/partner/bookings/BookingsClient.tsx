@@ -179,7 +179,7 @@ function DateStrip({ selectedIso, todayIso, onChange }: {
 // ───────────────── Status filter ─────────────────
 const STATUS_FILTERS = [
   { key: "all",       label: "Все" },
-  { key: "pending",   label: "Ожидают" },
+  { key: "pending",   label: "В процессе" },
   { key: "confirmed", label: "Подтв." },
   { key: "cancelled", label: "Отменены" },
 ] as const;
@@ -420,14 +420,13 @@ export default function BookingsClient({ initialBookings, services, masters, tod
   }, [bookings, selectedIso]);
 
   const kpi = useMemo(() => {
-    let total = 0, confirmed = 0, pending = 0;
+    let total = 0, confirmed = 0, cancelled = 0;
     for (const b of dateScoped) {
-      if (b.status === "cancelled") continue;
+      if (b.status === "cancelled") { cancelled += 1; continue; }
       total += 1;
       if (b.status === "confirmed") confirmed += 1;
-      if (b.status === "pending")   pending   += 1;
     }
-    return { total, confirmed, pending };
+    return { total, confirmed, cancelled };
   }, [dateScoped]);
 
   const statusCounts = useMemo(() => {
@@ -497,9 +496,9 @@ export default function BookingsClient({ initialBookings, services, masters, tod
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>
-        <Kpi label="Всего"  value={kpi.total}     accent={c.primary} />
-        <Kpi label="Подтв." value={kpi.confirmed} accent={c.green}   />
-        <Kpi label="Ждут"   value={kpi.pending}   accent={c.orange}  />
+        <Kpi label="Всего"    value={kpi.total}     accent={c.primary} />
+        <Kpi label="Подтв."   value={kpi.confirmed} accent={c.green}   />
+        <Kpi label="Отменено" value={kpi.cancelled} accent={c.red}     />
       </div>
 
       {/* Search */}
