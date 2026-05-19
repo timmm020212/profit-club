@@ -94,11 +94,23 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 };
 
 const STATUS_VISIT: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: "Ожидает",   color: c.orange, bg: c.orangeSft },
-  confirmed: { label: "Подтв.",    color: c.green,  bg: c.greenSft  },
-  cancelled: { label: "Отменена",  color: c.red,    bg: c.redSft    },
-  completed: { label: "Завершена", color: c.txtBody,bg: c.borderSoft},
+  pending:   { label: "Ожидает",      color: c.orange, bg: c.orangeSft },
+  confirmed: { label: "Подтверждено", color: c.green,  bg: c.greenSft  },
+  cancelled: { label: "Отменена",     color: c.red,    bg: c.redSft    },
+  completed: { label: "Завершена",    color: c.txtBody,bg: c.borderSoft},
 };
+
+// Compact money formatter: 850 → "850₽", 1300 → "1.3K₽", 36800 → "37K₽", 1.2M → "1.2M₽"
+function formatMoneyShort(n: number): string {
+  if (n <= 0) return "—";
+  if (n < 1000) return `${n}₽`;
+  if (n < 10_000) {
+    const v = (n / 1000).toFixed(1).replace(/\.0$/, "");
+    return `${v}K₽`;
+  }
+  if (n < 1_000_000) return `${Math.round(n / 1000)}K₽`;
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M₽`;
+}
 
 const MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
 const WD     = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
@@ -283,10 +295,10 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
             gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
             gap: 6,
           }}>
-            <KpiCell label="визитов"  value={String(client.visitCount)}                            accent={c.primary} />
-            <KpiCell label="всего"    value={`₽${Math.round(client.totalSpent / 1000)}k`}          accent={c.green}   subtle={`${client.totalSpent.toLocaleString("ru-RU")} ₽`} />
-            <KpiCell label="ср. чек"  value={client.avgTicket > 0 ? `₽${client.avgTicket.toLocaleString("ru-RU")}` : "—"} accent={c.txtDark} />
-            <KpiCell label="с нами"   value={ageLabel}                                              accent={c.txtBody} />
+            <KpiCell label="визитов"  value={String(client.visitCount)}      accent={c.primary} />
+            <KpiCell label="всего"    value={formatMoneyShort(client.totalSpent)} accent={c.green} subtle={`${client.totalSpent.toLocaleString("ru-RU")} ₽`} />
+            <KpiCell label="ср. чек"  value={formatMoneyShort(client.avgTicket)}  accent={c.green} subtle={client.avgTicket > 0 ? `${client.avgTicket.toLocaleString("ru-RU")} ₽` : undefined} />
+            <KpiCell label="стаж"     value={ageLabel}                       accent={c.txtBody} />
           </div>
 
           {/* Last visit chip */}
@@ -305,9 +317,13 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
             </span>
           </div>
 
-          {/* Favorites */}
+          {/* Favorites — 2 cols on desktop, 1 col on narrow phones */}
           {(client.topMasterName || client.topServiceName) && (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="bb-favs" style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 8,
+            }}>
               {client.topMasterName && (
                 <FavCard
                   icon={I.user}
@@ -326,6 +342,11 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
               )}
             </div>
           )}
+          <style>{`
+            @media (max-width: 480px) {
+              .bb-favs { grid-template-columns: 1fr !important; }
+            }
+          `}</style>
 
           {/* Visit timeline */}
           <div>
@@ -382,18 +403,19 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
                         }}>{v.startTime}</div>
                       </div>
                       {/* Body */}
-                      <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 10px" }}>
+                      <div style={{ flex: 1, minWidth: 0, padding: "12px 12px 10px",
+                        display: "flex", flexDirection: "column", justifyContent: "center", gap: 2,
+                      }}>
                         <div style={{
                           fontSize: 13, fontWeight: 700, color: c.txtDark, letterSpacing: "-0.005em",
+                          lineHeight: 1.25,
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                         }}>{v.serviceName}</div>
                         <div style={{
-                          fontSize: 11, color: c.txtMute, marginTop: 2,
+                          fontSize: 11, color: c.txtMute,
+                          lineHeight: 1.3,
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}>
-                          мастер {v.masterName}
-                          {v.price > 0 && <span style={{ color: c.txtBody }}> · {v.price.toLocaleString("ru-RU")} ₽</span>}
-                        </div>
+                        }}>мастер {v.masterName}</div>
                       </div>
                       {/* Status */}
                       <div style={{
@@ -402,7 +424,7 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
                       }}>
                         <span style={{
                           fontSize: 10, fontWeight: 700, color: vmeta.color, background: vmeta.bg,
-                          padding: "4px 8px", borderRadius: 9, letterSpacing: "0.02em",
+                          padding: "4px 9px", borderRadius: 9, letterSpacing: "0.02em",
                           whiteSpace: "nowrap",
                         }}>{vmeta.label}</span>
                       </div>
@@ -414,69 +436,72 @@ export default function ClientDetailModal({ open, client, visits, onClose }: Pro
           </div>
         </div>
 
-        {/* Footer actions */}
+        {/* Footer actions — single row that fills the width */}
         <footer style={{
           padding: "12px 24px",
-          display: "flex", gap: 8,
+          display: "flex", gap: 8, alignItems: "stretch",
           borderTop: `1px solid ${c.border}`,
           background: c.bgSoft,
           flexShrink: 0,
-          flexWrap: "wrap",
         }}>
           {client.phone ? (
             <>
               <a
                 href={`tel:${client.phone}`}
+                aria-label="Позвонить клиенту"
+                title="Позвонить"
                 style={{
-                  flex: 1, minWidth: 140,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  padding: "11px 14px", borderRadius: 11,
+                  flexShrink: 0,
+                  width: 52, height: 44,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 11,
                   background: c.primary, color: "#fff",
                   textDecoration: "none",
-                  fontSize: 13, fontWeight: 700, letterSpacing: "0.02em",
-                  fontFamily: "var(--font-montserrat)",
                   boxShadow: "0 6px 16px rgba(123, 97, 255, 0.30)",
                   transition: "background 0.15s, transform 0.15s",
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = c.primaryDk; e.currentTarget.style.transform = "translateY(-1px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = c.primary; e.currentTarget.style.transform = "translateY(0)"; }}
               >
-                <Ic d={I.phone} size={14} />
-                Позвонить
+                <Ic d={I.phone} size={16} />
               </a>
               <button
                 type="button" onClick={copyPhone}
+                aria-label={phoneCopied ? "Номер скопирован" : "Скопировать номер"}
+                title={phoneCopied ? "Скопировано" : "Скопировать номер"}
                 style={{
-                  padding: "11px 14px", borderRadius: 11,
+                  flexShrink: 0,
+                  width: 52, height: 44,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 11,
                   background: phoneCopied ? c.greenSft : c.bg,
                   color: phoneCopied ? c.green : c.txtBody,
                   border: `1px solid ${phoneCopied ? "rgba(31,180,106,0.3)" : c.border}`,
                   cursor: "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  fontSize: 12, fontWeight: 600,
-                  fontFamily: "var(--font-montserrat)",
                   transition: "all 0.15s",
                 }}
               >
-                <Ic d={phoneCopied ? I.check : I.copy} size={14} />
-                {phoneCopied ? "Скопировано" : "Скопировать"}
+                <Ic d={phoneCopied ? I.check : I.copy} size={16} />
               </button>
             </>
           ) : (
             <div style={{
-              flex: 1, padding: "11px 14px", borderRadius: 11,
+              flexShrink: 0,
+              minWidth: 112, height: 44,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              padding: "0 12px", borderRadius: 11,
               background: c.bg, border: `1px dashed ${c.border}`,
-              color: c.txtMute, fontSize: 12, fontWeight: 600, textAlign: "center",
+              color: c.txtMute, fontSize: 11, fontWeight: 600, textAlign: "center",
               fontFamily: "var(--font-montserrat)",
-            }}>Телефон клиента не указан</div>
+            }}>Нет телефона</div>
           )}
           <button
             type="button" onClick={onClose}
             style={{
-              padding: "11px 18px",
+              flex: 1, height: 44,
               background: c.bg, border: `1px solid ${c.border}`,
               borderRadius: 11, color: c.txtBody,
-              fontSize: 13, fontWeight: 600,
+              fontSize: 13, fontWeight: 700,
               cursor: "pointer",
               fontFamily: "var(--font-montserrat)",
             }}

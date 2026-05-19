@@ -97,10 +97,9 @@ const STATUS_FILTERS = [
 type StatusFilterKey = typeof STATUS_FILTERS[number]["key"];
 
 const SORT_OPTIONS = [
-  { key: "lastVisit",  label: "По последнему" },
-  { key: "totalSpent", label: "По выручке"    },
-  { key: "visitCount", label: "По визитам"    },
-  { key: "name",       label: "По имени"      },
+  { key: "lastVisit",  label: "По дате"    },
+  { key: "totalSpent" as const, label: "По выручке" },
+  { key: "visitCount" as const, label: "По визитам" },
 ] as const;
 type SortKey = typeof SORT_OPTIONS[number]["key"];
 
@@ -302,7 +301,6 @@ export default function ClientsClient({ summaries, bookings, services, masters, 
       switch (sortKey) {
         case "totalSpent": return b.totalSpent - a.totalSpent;
         case "visitCount": return b.visitCount - a.visitCount;
-        case "name":       return a.name.localeCompare(b.name, "ru");
         case "lastVisit":
         default:           return b.lastVisit.localeCompare(a.lastVisit);
       }
@@ -467,12 +465,16 @@ export default function ClientsClient({ summaries, bookings, services, masters, 
         })}
       </div>
 
-      {/* Sort row */}
+      {/* Sort row — single line, scrolls horizontally if too narrow */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        display: "flex", alignItems: "center", gap: 8,
         padding: "0 2px",
-      }}>
+        overflowX: "auto",
+        scrollbarWidth: "none", msOverflowStyle: "none",
+        WebkitOverflowScrolling: "touch",
+      } as React.CSSProperties} className="bb-no-scrollbar">
         <span style={{
+          flexShrink: 0,
           fontSize: 11, color: c.txtMute, fontWeight: 700,
           letterSpacing: "0.08em", textTransform: "uppercase",
           fontFamily: "var(--font-montserrat)",
@@ -482,6 +484,7 @@ export default function ClientsClient({ summaries, bookings, services, masters, 
           return (
             <button key={o.key} type="button" onClick={() => setSortKey(o.key)}
               style={{
+                flexShrink: 0,
                 padding: "6px 10px", borderRadius: 8,
                 background: sel ? c.txtDark : "transparent",
                 color: sel ? "#fff" : c.txtBody,
