@@ -68,6 +68,17 @@ export async function PATCH(
       status?: string;
     };
 
+    // Handle completion
+    if (status === "completed") {
+      const [updated] = await db
+        .update(appointments)
+        .set({ status: "completed" })
+        .where(eq(appointments.id, idNum))
+        .returning();
+      if (!updated) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+      return NextResponse.json({ appointment: updated });
+    }
+
     // Handle cancellation separately
     if (status === "cancelled") {
       const existingRows = await db

@@ -151,11 +151,19 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
   const [error, setError] = useState("");
 
   // Reschedule sub-view state
-  const [view, setView] = useState<"details" | "reschedule">("details");
+  const [view, setView] = useState<"details" | "reschedule" | "complete">("details");
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("");
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState("");
+
+  // Complete sub-view state
+  interface UsageItem { materialId: number; quantity: string; }
+  const [usageItems, setUsageItems] = useState<UsageItem[]>([]);
+  const [usageMaterials, setUsageMaterials] = useState<{ id: number; name: string; unit: string }[]>([]);
+  const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState("");
+  const [shortfallBanner, setShortfallBanner] = useState<string | null>(null);
   const dateScrollerRef = useRef<HTMLDivElement>(null);
   const todayBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -170,8 +178,39 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
       setNewTime(appointment?.startTime || "");
       setRescheduling(false);
       setRescheduleError("");
+      setUsageItems([]);
+      setUsageMaterials([]);
+      setCompleting(false);
+      setCompleteError("");
+      setShortfallBanner(null);
     }
   }, [open, appointment]);
+
+  // Load materials + recipe when entering complete view
+  useEffect(() => {
+    if (view !== "complete" || !appointment) return;
+    setCompleteError("");
+    fetch("/api/partner/materials")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setUsageMaterials(d.map((m: { id: number; name: string; unit: string }) => ({ id: m.id, name: m.name, unit: m.unit }))); })
+      .catch(() => {});
+    if (service && service.id) {
+      const variantId = appointment.variantId;
+      const serviceId = service.id;
+      if (variantId) {
+        fetch(`/api/partner/services/${serviceId}/variants/${variantId}/materials`)
+          .then(r => r.ok ? r.json() : [])
+          .then((arr: { materialId: number; quantity: string }[]) =>
+            setUsageItems(arr.map(x => ({ materialId: x.materialId, quantity: String(x.quantity) }))))
+          .catch(() => setUsageItems([]));
+      } else {
+        setUsageItems([]);
+      }
+    } else {
+      setUsageItems([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, appointment, service]);
 
   // Scroll selected date into view when entering reschedule
   useEffect(() => {
@@ -268,7 +307,55 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
     }
   }
 
+  async function handleComplete() {
+    if (!appointment) return;
+    setCompleting(true);
+    setCompleteError("");
+    setShortfallBanner(null);
+    try {
+      const patchRes = await fetch(`/api/appointments/${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (!patchRes.ok) {
+        const j = await patchRes.json().catch(() => ({}));
+        throw new Error(j.error || "Не удалось завершить запись");
+      }
+      if (usageItems.length > 0) {
+        const items = usageItems
+          .map(u => ({ materialId: Number(u.materialId), quantity: Number(u.quantity) }))
+          .filter(u => u.materialId > 0 && u.quantity > 0);
+        if (items.length > 0) {
+          const usageRes = await fetch(`/api/partner/appointments/${appointment.id}/usage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items }),
+          });
+          const data = await usageRes.json();
+          if (!usageRes.ok) throw new Error(data?.error || "Не удалось списать материалы");
+          if (data?.anyShortfall) {
+            setShortfallBanner("Часть материалов списана не полностью — внесите фактический приход.");
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+      }
+      onChanged?.();
+      onClose();
+    } catch (e) {
+      setCompleteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   const isActive = appointment.status === "confirmed" || appointment.status === "pending";
+  const isTodayOrPast = (() => {
+    if (!appointment) return false;
+    const d = new Date();
+    const todayIso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    return appointment.appointmentDate <= todayIso;
+  })();
   const isUnchanged =
     newDate === appointment.appointmentDate && newTime === appointment.startTime;
   const canSaveReschedule = !!newDate && !!newTime && !isUnchanged && !rescheduling;
@@ -302,7 +389,7 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
       >
         {/* Status bar */}
         <div style={{
-          background: view === "reschedule" ? c.primarySft : status.bg,
+          background: view === "reschedule" ? c.primarySft : view === "complete" ? c.greenSft : status.bg,
           padding: "14px 24px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0,
@@ -310,13 +397,18 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
         }}>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 8,
-            color: view === "reschedule" ? c.primaryDk : status.color,
+            color: view === "reschedule" ? c.primaryDk : view === "complete" ? c.green : status.color,
             fontSize: 13, fontWeight: 700, letterSpacing: "0.02em",
           }}>
             {view === "reschedule" ? (
               <>
                 <Ic d={I.swap} size={14} />
                 Перенос записи
+              </>
+            ) : view === "complete" ? (
+              <>
+                <Ic d={I.check} size={14} />
+                Завершение записи
               </>
             ) : (
               <>
@@ -348,6 +440,105 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
             scrollerRef={dateScrollerRef} todayBtnRef={todayBtnRef}
             error={rescheduleError}
           />
+        ) : view === "complete" ? (
+          <div style={{
+            flex: 1, overflowY: "auto", padding: "20px 24px 24px",
+            display: "flex", flexDirection: "column", gap: 16,
+            fontFamily: "var(--font-montserrat)",
+          }}>
+            <div style={{
+              fontSize: 11, color: c.txtMute, fontWeight: 700,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>Списать материалы</div>
+
+            {usageItems.length === 0 ? (
+              <div style={{
+                padding: "24px 16px", background: c.bgSoft, borderRadius: 12,
+                textAlign: "center", color: c.txtMute, fontSize: 13, lineHeight: 1.5,
+              }}>
+                Рецепт для этого варианта услуги не задан.<br/>
+                Можно добавить материалы вручную или завершить без списания.
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: c.txtMute, textAlign: "right" }}>из рецепта · можно править</div>
+            )}
+
+            {usageItems.map((u, idx) => {
+              const mat = usageMaterials.find(m => m.id === u.materialId);
+              return (
+                <div key={idx} style={{ display: "flex", gap: 6 }}>
+                  <select value={u.materialId}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setUsageItems(prev => prev.map((x, i) => i === idx ? { ...x, materialId: v } : x));
+                    }}
+                    style={{
+                      flex: 1, height: 40, padding: "0 10px",
+                      background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10,
+                      fontFamily: "var(--font-montserrat)", fontSize: 13, color: c.txtDark, outline: "none",
+                    }}>
+                    {usageMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                  <input value={u.quantity}
+                    onChange={e => {
+                      const q = e.target.value;
+                      setUsageItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: q } : x));
+                    }}
+                    inputMode="decimal" placeholder="0"
+                    style={{
+                      width: 80, height: 40, padding: "0 10px",
+                      background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10,
+                      fontFamily: "var(--font-montserrat)", fontSize: 13, color: c.txtDark, outline: "none",
+                    }} />
+                  <div style={{
+                    display: "flex", alignItems: "center", padding: "0 8px",
+                    fontSize: 12, color: c.txtBody, fontWeight: 600, minWidth: 28,
+                  }}>{mat?.unit ?? ""}</div>
+                  <button type="button"
+                    onClick={() => setUsageItems(prev => prev.filter((_, i) => i !== idx))}
+                    style={{
+                      width: 36, height: 40, borderRadius: 9,
+                      background: c.bg, border: `1px solid ${c.border}`,
+                      color: c.red, cursor: "pointer", flexShrink: 0,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }} aria-label="Удалить">&#215;</button>
+                </div>
+              );
+            })}
+
+            <button type="button"
+              disabled={usageMaterials.length === 0}
+              onClick={() => {
+                const firstId = usageMaterials[0]?.id;
+                if (!firstId) return;
+                setUsageItems(prev => [...prev, { materialId: firstId, quantity: "" }]);
+              }}
+              style={{
+                alignSelf: "flex-start",
+                background: "transparent", border: `1px dashed ${c.border}`,
+                padding: "8px 12px", borderRadius: 9,
+                color: c.primary, fontSize: 12, fontWeight: 700,
+                cursor: usageMaterials.length === 0 ? "not-allowed" : "pointer",
+                opacity: usageMaterials.length === 0 ? 0.5 : 1,
+                fontFamily: "var(--font-montserrat)",
+              }}>+ Добавить материал</button>
+
+            {shortfallBanner && (
+              <div style={{
+                padding: "10px 12px", borderRadius: 10,
+                background: "#FEF3C7", color: "#92400E",
+                fontSize: 12, fontWeight: 600,
+              }}>{shortfallBanner}</div>
+            )}
+
+            {completeError && (
+              <div style={{
+                padding: "10px 12px", borderRadius: 10,
+                background: c.redSft, color: c.red,
+                fontSize: 12, fontWeight: 600,
+              }}>{completeError}</div>
+            )}
+          </div>
         ) : (
         /* Body */
         <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -645,6 +836,30 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
                   >
                     <Ic d={I.swap} size={16} />
                   </button>
+                  {isTodayOrPast && (
+                    <button
+                      type="button"
+                      onClick={() => setView("complete")}
+                      aria-label="Завершить запись и списать материалы"
+                      title="Завершить и списать материалы"
+                      style={{
+                        flexShrink: 0,
+                        width: 52, height: 44,
+                        background: c.greenSft,
+                        border: "1px solid transparent",
+                        borderRadius: 11,
+                        color: "#0F8A4A",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-montserrat)",
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        transition: "background 0.18s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#C8F0DC"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = c.greenSft; }}
+                    >
+                      <Ic d={I.check} size={16} />
+                    </button>
+                  )}
                 </>
               )}
               <button
@@ -659,6 +874,48 @@ export default function AppointmentDetailModal({ open, appointment, service, mas
                   fontFamily: "var(--font-montserrat)",
                 }}
               >Закрыть</button>
+            </>
+          ) : view === "complete" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { setView("details"); setCompleteError(""); setShortfallBanner(null); }}
+                disabled={completing}
+                aria-label="Назад"
+                style={{
+                  flexShrink: 0,
+                  width: 52, height: 44,
+                  background: c.bg, border: `1px solid ${c.border}`,
+                  borderRadius: 11, color: c.txtBody,
+                  cursor: completing ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Ic d={I.arrowL} size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleComplete}
+                disabled={completing}
+                style={{
+                  flex: 1, height: 44,
+                  background: c.green, border: "none",
+                  borderRadius: 11, color: "#fff",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: completing ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-montserrat)",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  boxShadow: "0 6px 18px -4px rgba(31, 180, 106, 0.45)",
+                }}
+              >
+                <Ic d={I.check} size={16} />
+                {completing
+                  ? "Завершаем..."
+                  : usageItems.length === 0
+                    ? "Завершить без списания"
+                    : "Завершить и списать"}
+              </button>
             </>
           ) : (
             <>
