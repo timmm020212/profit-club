@@ -72,6 +72,10 @@ export default async function AdminDashboardPage({
       ? session.user.salonId
       : null;
 
+  const perms = session?.user?.role === "salonAdmin"
+    ? (session.user.perms ?? { schedule: false, bookings: false, masters: false, bots: false, optimize: false, inventory: false })
+    : { schedule: true, bookings: true, masters: true, bots: true, optimize: true, inventory: true };
+
   const params = await searchParams;
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -199,12 +203,13 @@ export default async function AdminDashboardPage({
                 </svg>
               } value={appointmentsData.length} label="записей" />
               <div className="h-6 w-px bg-white/[0.07]" />
-              <AdminMasterCreator masters={mastersData as any} />
-              <AdminRoleCreator masters={mastersData as any} />
+              <AdminMasterCreator masters={mastersData as any} perms={perms} />
+              <AdminRoleCreator masters={mastersData as any} perms={perms} />
               <AdminAddBlockButton
                 masters={(mastersData as any[]).map((m: any) => ({ id: m.id, fullName: m.fullName }))}
                 services={(servicesData as any[]).map((s: any) => ({ id: s.id, name: s.name }))}
                 date={dateStr}
+                perms={perms}
               />
             </div>
           </div>
@@ -233,7 +238,7 @@ export default async function AdminDashboardPage({
                 </div>
                 <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {outsideAppointments.map((a: any) => (
-                    <AdminAppointmentManager key={a.id} appointment={a as any} masters={mastersData as any} services={servicesData as any} outsideSchedule />
+                    <AdminAppointmentManager key={a.id} appointment={a as any} masters={mastersData as any} services={servicesData as any} outsideSchedule perms={perms} />
                   ))}
                 </div>
               </section>
@@ -333,6 +338,7 @@ export default async function AdminDashboardPage({
                                 masterId={master.id}
                                 workDate={dateStr}
                                 masterName={master.fullName || "Мастер"}
+                                perms={perms}
                               />
                             )}
                           </div>
@@ -389,6 +395,7 @@ export default async function AdminDashboardPage({
                                     masters={mastersData as any}
                                     services={servicesData as any}
                                     cardHeight={height}
+                                    perms={perms}
                                   />
                                 </div>
                               );
@@ -412,6 +419,7 @@ export default async function AdminDashboardPage({
                                       block={block as any}
                                       masters={(mastersData as any[]).map((m: any) => ({ id: m.id, fullName: m.fullName }))}
                                       cardHeight={height}
+                                      perms={perms}
                                     />
                                   </div>
                                 );
@@ -491,8 +499,8 @@ export default async function AdminDashboardPage({
 
           {/* ===== RIGHT COLUMN: SIDEBAR ===== */}
           <div className="space-y-4 lg:sticky lg:top-36">
-            <AdminWorkSlotChangeRequests />
-            <AdminWorkSlotsCreator masters={mastersData} currentDate={dateStr} />
+            <AdminWorkSlotChangeRequests perms={perms} />
+            <AdminWorkSlotsCreator masters={mastersData} currentDate={dateStr} perms={perms} />
             {/* Auto-optimization per master */}
             <section className="rounded-2xl border border-white/[0.06] bg-[#0D0D10] overflow-hidden">
               <div className="px-4 py-3 border-b border-white/[0.05] flex items-center gap-2">
@@ -515,12 +523,13 @@ export default async function AdminDashboardPage({
                         masterId={mid}
                         workDate={dateStr}
                         masterName={master?.fullName || "Мастер"}
+                        perms={perms}
                       />
                     );
                   });
                 })()}
                 <div className="pt-2 border-t border-white/[0.04]">
-                  <AdminOptimizeDelaySettings />
+                  <AdminOptimizeDelaySettings perms={perms} />
                 </div>
               </div>
             </section>
@@ -529,7 +538,7 @@ export default async function AdminDashboardPage({
 
         {/* ===== FULL-WIDTH BOTTOM: WORK SLOTS LIST ===== */}
         <div className="mt-5">
-          <AdminWorkSlotsList masters={mastersData as any} currentDate={dateStr} />
+          <AdminWorkSlotsList masters={mastersData as any} currentDate={dateStr} perms={perms} />
         </div>
       </main>
     </div>

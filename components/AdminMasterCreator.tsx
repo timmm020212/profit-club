@@ -6,9 +6,12 @@ import type { Master } from "@/db/schema";
 import { useRouter } from "next/navigation";
 import AdminSelect from "@/components/ui/AdminSelect";
 
-interface Props { masters: Master[]; }
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
 
-export default function AdminMasterCreator({ masters }: Props) {
+interface Props { masters: Master[]; perms?: Perms; }
+
+export default function AdminMasterCreator({ masters, perms }: Props) {
+  const allowed = perms ? perms.masters : true;
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -170,9 +173,11 @@ export default function AdminMasterCreator({ masters }: Props) {
     <>
       <button
         type="button"
-        onClick={() => { resetForm(); setIsOpen(true); }}
+        onClick={() => { if (allowed) { resetForm(); setIsOpen(true); } }}
+        disabled={!allowed}
+        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : "Добавить мастера"}
+        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
         className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-300 bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] transition-all"
-        title="Добавить мастера"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-violet-400">
           <path d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z" />
@@ -323,7 +328,10 @@ export default function AdminMasterCreator({ masters }: Props) {
                     <button type="button" onClick={handleClose} className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07] transition-all">
                       Отмена
                     </button>
-                    <button type="submit" disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25">
+                    <button type="submit" disabled={loading || !allowed}
+                      title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                      style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+                      className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25">
                       {loading ? (
                         <><span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />Сохраняем...</>
                       ) : (
@@ -367,13 +375,19 @@ export default function AdminMasterCreator({ masters }: Props) {
                                   <p className="text-[11px] text-zinc-600 truncate">{m.specialization}</p>
                                 </div>
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                  <button type="button" onClick={() => startEditMaster(m)} className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all">
+                                  <button type="button" onClick={() => startEditMaster(m)} disabled={!allowed}
+                                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+                                    className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                                       <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.263a1.75 1.75 0 0 0 0-2.474Z" />
                                       <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9a.75.75 0 0 1 1.5 0v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
                                     </svg>
                                   </button>
-                                  <button type="button" onClick={() => handleDeleteMaster(m)} className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                                  <button type="button" onClick={() => handleDeleteMaster(m)} disabled={!allowed}
+                                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+                                    className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                                       <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.712Z" clipRule="evenodd" />
                                     </svg>
@@ -507,7 +521,10 @@ export default function AdminMasterCreator({ masters }: Props) {
                   <button type="button" onClick={cancelEditMaster} className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07] transition-all">
                     Отмена
                   </button>
-                  <button type="button" onClick={applyEditMaster} disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25">
+                  <button type="button" onClick={applyEditMaster} disabled={loading || !allowed}
+                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25">
                     {loading ? (
                       <><span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />Сохраняем...</>
                     ) : (

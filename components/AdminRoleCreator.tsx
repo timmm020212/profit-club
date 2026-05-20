@@ -7,9 +7,12 @@ import type { Master } from "@/db/schema";
 const ROLES_STORAGE_KEY = "pc_admin_roles";
 const ROLES_EVENT_KEY = "pc_roles_updated";
 
-interface Props { masters: Master[]; }
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
 
-export default function AdminRoleCreator({ masters }: Props) {
+interface Props { masters: Master[]; perms?: Perms; }
+
+export default function AdminRoleCreator({ masters, perms }: Props) {
+  const allowed = perms ? perms.masters : true;
   const [isOpen, setIsOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -123,9 +126,11 @@ export default function AdminRoleCreator({ masters }: Props) {
     <>
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => allowed && setIsOpen(true)}
+        disabled={!allowed}
+        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : "Управление ролями"}
+        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
         className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-300 bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] transition-all"
-        title="Управление ролями"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-violet-400">
           <path d="M3 3.5A1.5 1.5 0 0 1 4.5 2h7A1.5 1.5 0 0 1 13 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 12.5v-9ZM5.5 5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5Zm0 2.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5Zm0 2.5a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3Z" />
@@ -209,7 +214,9 @@ export default function AdminRoleCreator({ masters }: Props) {
                   />
                   <button
                     type="submit"
-                    disabled={loading || !roleName.trim()}
+                    disabled={loading || !roleName.trim() || !allowed}
+                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                     className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-violet-900/25"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
@@ -265,6 +272,9 @@ export default function AdminRoleCreator({ masters }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => { setEditingRole(role); setEditingValue(role); }}
+                                    disabled={!allowed}
+                                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                                     className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
@@ -275,6 +285,9 @@ export default function AdminRoleCreator({ masters }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => handleRemove(role)}
+                                    disabled={!allowed}
+                                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                                     className="flex h-6 w-6 items-center justify-center rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">

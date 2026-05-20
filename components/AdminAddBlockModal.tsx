@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -12,9 +14,11 @@ interface Props {
   prefillMasterId?: number;
   prefillStartTime?: string;
   date: string;
+  perms?: Perms;
 }
 
-export default function AdminAddBlockModal({ isOpen, onClose, masters, services, prefillMasterId, prefillStartTime, date }: Props) {
+export default function AdminAddBlockModal({ isOpen, onClose, masters, services, prefillMasterId, prefillStartTime, date, perms }: Props) {
+  const allowed = perms ? perms.schedule : true;
   const router = useRouter();
   const [masterId, setMasterId] = useState(prefillMasterId || 0);
   const [blockType, setBlockType] = useState("appointment");
@@ -137,7 +141,9 @@ export default function AdminAddBlockModal({ isOpen, onClose, masters, services,
         </div>
         <div className="px-6 py-4 border-t border-white/[0.06] flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07]">Отмена</button>
-          <button onClick={handleSubmit} disabled={saving || !masterId}
+          <button onClick={handleSubmit} disabled={saving || !masterId || !allowed}
+            title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+            style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
             className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Создаём..." : "Создать"}
           </button>

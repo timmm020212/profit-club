@@ -18,8 +18,11 @@ interface PreliminaryAppointment {
   fitsInSlot?: boolean;
 }
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   appointments: PreliminaryAppointment[];
+  perms?: Perms;
 }
 
 const MONTH_NAMES = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
@@ -29,7 +32,8 @@ function formatDate(dateStr: string): string {
   return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
 }
 
-export default function AdminPreliminaryBookings({ appointments }: Props) {
+export default function AdminPreliminaryBookings({ appointments, perms }: Props) {
+  const allowed = perms ? perms.bookings : true;
   const router = useRouter();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -87,7 +91,9 @@ export default function AdminPreliminaryBookings({ appointments }: Props) {
             {selected.size === confirmableAppointments.length ? "Снять все" : "Выбрать все"}
           </button>
           {selected.size > 0 && (
-            <button onClick={handleConfirm} disabled={confirming}
+            <button onClick={handleConfirm} disabled={confirming || !allowed}
+              title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+              style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white disabled:opacity-50 transition-all">
               {confirming ? "..." : `✅ Подтвердить (${selected.size})`}
             </button>

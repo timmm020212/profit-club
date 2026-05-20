@@ -5,7 +5,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import type { WorkSlot } from "@/db/schema";
 
-export default function AdminWorkSlotsList({ masters, currentDate }: { masters: any[]; currentDate?: string }) {
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
+export default function AdminWorkSlotsList({ masters, currentDate, perms }: { masters: any[]; currentDate?: string; perms?: Perms }) {
+  const allowed = perms ? perms.schedule : true;
   const { data: session } = useSession();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
@@ -225,8 +228,10 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
                         </button>
                         <button
                           type="button"
-                          disabled={pending}
+                          disabled={pending || !allowed}
                           onClick={() => handleSendRequest(slot, { workDate: localDate, startTime: localStart, endTime: localEnd })}
+                          title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                          style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                           className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white disabled:opacity-50 transition-all"
                         >
                           Отправить мастеру
@@ -289,8 +294,10 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
                       {(displayStatus === 'pending' || displayStatus === 'unconfirmed') && (
                         <button
                           type="button"
-                          disabled={pending}
+                          disabled={pending || !allowed}
                           onClick={() => handleConfirm(slot)}
+                          title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                          style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                           className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 text-xs font-medium text-emerald-400 disabled:opacity-50 transition-all"
                         >
                           Подтвердить
@@ -298,16 +305,20 @@ export default function AdminWorkSlotsList({ masters, currentDate }: { masters: 
                       )}
                       <button
                         type="button"
-                        disabled={pending}
+                        disabled={pending || !allowed}
                         onClick={() => { setEditingId(slot.id); setError(null); }}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-50 transition-all"
                       >
                         Изменить
                       </button>
                       <button
                         type="button"
-                        disabled={pending}
+                        disabled={pending || !allowed}
                         onClick={() => handleDelete(slot)}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="px-3 py-1.5 rounded-lg bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 text-xs font-medium text-red-400 disabled:opacity-50 transition-all"
                       >
                         Удалить

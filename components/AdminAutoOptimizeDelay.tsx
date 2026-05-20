@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   masterId: number;
   workDate: string;
   masterName: string;
+  perms?: Perms;
 }
 
-export default function AdminAutoOptimizeDelay({ masterId, workDate, masterName }: Props) {
+export default function AdminAutoOptimizeDelay({ masterId, workDate, masterName, perms }: Props) {
+  const _allowed = perms ? perms.optimize : true; // used for consistency; no write actions in this component
   const [minutes, setMinutes] = useState("5");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -150,7 +154,8 @@ export default function AdminAutoOptimizeDelay({ masterId, workDate, masterName 
 }
 
 // Separate component for global delay setting
-export function AdminOptimizeDelaySettings() {
+export function AdminOptimizeDelaySettings({ perms }: { perms?: Perms }) {
+  const allowed = perms ? perms.optimize : true;
   const [minutes, setMinutes] = useState("5");
   const [enabled, setEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,7 +200,9 @@ export function AdminOptimizeDelaySettings() {
       {/* Toggle */}
       <div className="flex items-center justify-between">
         <p className="text-[10px] text-zinc-500">Авто-отправка</p>
-        <button type="button" onClick={handleToggle}
+        <button type="button" onClick={handleToggle} disabled={!allowed}
+          title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+          style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
           className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${enabled ? "bg-violet-600" : "bg-white/[0.08]"}`}>
           <span className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${enabled ? "left-[19px]" : "left-[3px]"}`} />
         </button>
@@ -207,7 +214,9 @@ export function AdminOptimizeDelaySettings() {
           <p className="text-[10px] text-zinc-600">Задержка</p>
           <div className="flex items-center gap-1 flex-wrap">
             {["1", "3", "5", "10", "15", "30"].map(v => (
-              <button key={v} type="button" onClick={() => handleSave(v)} disabled={saving}
+              <button key={v} type="button" onClick={() => handleSave(v)} disabled={saving || !allowed}
+                title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                 className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all border ${
                   minutes === v ? "bg-violet-600/20 border-violet-500/30 text-violet-300" : "bg-white/[0.03] border-white/[0.06] text-zinc-600 hover:text-zinc-400"
                 }`}>

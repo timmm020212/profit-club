@@ -22,14 +22,18 @@ interface Optimization {
   moves: OptimizeMove[];
 }
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   masterId: number;
   workDate: string;
   masterName: string;
   onClose: () => void;
+  perms?: Perms;
 }
 
-export default function AdminScheduleOptimizer({ masterId, workDate, masterName, onClose }: Props) {
+export default function AdminScheduleOptimizer({ masterId, workDate, masterName, onClose, perms }: Props) {
+  const allowed = perms ? perms.optimize : true;
   const [phase, setPhase] = useState<"loading" | "results" | "error">("loading");
   const [optimization, setOptimization] = useState<Optimization | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -408,9 +412,10 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                           <button
                             type="button"
                             onClick={() => handleSaveMove(move.id)}
-                            disabled={savingMove}
+                            disabled={savingMove || !allowed}
+                            title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : "Сохранить"}
+                            style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                             className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50"
-                            title="Сохранить"
                           >
                             {savingMove ? (
                               <span className="h-3 w-3 rounded-full border-2 border-emerald-500/30 border-t-emerald-400 animate-spin" />
@@ -425,8 +430,10 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                             <button
                               type="button"
                               onClick={() => handleEditMove(move)}
+                              disabled={!allowed}
+                              title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : "Редактировать время"}
+                              style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                               className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
-                              title="Редактировать время"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                                 <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.263a1.75 1.75 0 0 0 0-2.474Z" />
@@ -495,7 +502,9 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                       } catch (e) { console.error(e); }
                       setSending(false);
                     }}
-                    disabled={sending}
+                    disabled={sending || !allowed}
+                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                     className="flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/25"
                   >
                     {sending ? "Отправляем..." : "Отправить мастеру"}
@@ -517,7 +526,9 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                       } catch (e) { console.error(e); }
                       setSending(false);
                     }}
-                    disabled={sending}
+                    disabled={sending || !allowed}
+                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                     className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-amber-900/25"
                   >
                     {sending ? "Отправляем..." : "Отправить клиентам"}
@@ -528,7 +539,9 @@ export default function AdminScheduleOptimizer({ masterId, workDate, masterName,
                   <button
                     type="button"
                     onClick={handleApplyAccepted}
-                    disabled={applying}
+                    disabled={applying || !allowed}
+                    title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                    style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                     className="flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/25"
                   >
                     {applying ? (

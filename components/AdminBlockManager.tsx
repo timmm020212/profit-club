@@ -15,10 +15,13 @@ interface Block {
   comment: string | null;
 }
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   block: Block;
   masters: { id: number; fullName: string }[];
   cardHeight?: number;
+  perms?: Perms;
 }
 
 const STATUS_COLORS: Record<string, { border: string; badge: string; label: string }> = {
@@ -27,7 +30,8 @@ const STATUS_COLORS: Record<string, { border: string; badge: string; label: stri
   finished: { border: "rgba(34,197,94,0.6)", badge: "bg-green-500/20 text-green-400", label: "Завершено" },
 };
 
-export default function AdminBlockManager({ block, masters, cardHeight }: Props) {
+export default function AdminBlockManager({ block, masters, cardHeight, perms }: Props) {
+  const allowed = perms ? perms.schedule : true;
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [startTime, setStartTime] = useState(block.startTime);
@@ -157,14 +161,19 @@ export default function AdminBlockManager({ block, masters, cardHeight }: Props)
         </div>
 
         <div className="px-6 py-4 border-t border-white/[0.06] flex items-center justify-between">
-          <button onClick={handleDelete} className="text-xs text-red-400 hover:text-red-300">
+          <button onClick={handleDelete} disabled={!allowed}
+            title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+            style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+            className="text-xs text-red-400 hover:text-red-300">
             Удалить
           </button>
           <div className="flex gap-2">
             <button onClick={() => setIsOpen(false)} className="px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.03] text-sm text-zinc-300 hover:bg-white/[0.07]">
               Отмена
             </button>
-            <button onClick={handleSave} disabled={saving}
+            <button onClick={handleSave} disabled={saving || !allowed}
+              title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+              style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
               className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? "Сохраняем..." : "Сохранить"}
             </button>

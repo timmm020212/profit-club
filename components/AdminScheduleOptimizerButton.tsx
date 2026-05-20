@@ -3,13 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import AdminScheduleOptimizer from "./AdminScheduleOptimizer";
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   masterId: number;
   workDate: string;
   masterName: string;
+  perms?: Perms;
 }
 
-export default function AdminScheduleOptimizerButton({ masterId, workDate, masterName }: Props) {
+export default function AdminScheduleOptimizerButton({ masterId, workDate, masterName, perms }: Props) {
+  const allowed = perms ? perms.optimize : true;
   const [isOpen, setIsOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [pulse, setPulse] = useState(false);
@@ -62,6 +66,8 @@ export default function AdminScheduleOptimizerButton({ masterId, workDate, maste
       <button
         type="button"
         onClick={handleOpen}
+        disabled={!allowed}
+        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : "Оптимизировать расписание"}
         className="relative inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold text-violet-200 transition-all duration-300 hover:scale-[1.03] active:scale-95"
         style={{
           background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.08))",
@@ -69,8 +75,9 @@ export default function AdminScheduleOptimizerButton({ masterId, workDate, maste
           boxShadow: pulse
             ? "0 0 20px rgba(139,92,246,0.4), 0 0 40px rgba(139,92,246,0.15)"
             : "0 2px 8px rgba(139,92,246,0.1)",
+          opacity: !allowed ? 0.5 : undefined,
+          cursor: !allowed ? "not-allowed" : undefined,
         }}
-        title="Оптимизировать расписание"
       >
         {/* Lightning icon */}
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-300">
@@ -97,6 +104,7 @@ export default function AdminScheduleOptimizerButton({ masterId, workDate, maste
           workDate={workDate}
           masterName={masterName}
           onClose={() => setIsOpen(false)}
+          perms={perms}
         />
       )}
     </>

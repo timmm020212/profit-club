@@ -22,12 +22,16 @@ function toDativeFullName(fullName: string): string {
   return parts.map(inflectWord).join(" ");
 }
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   masters: Master[];
   currentDate: string;
+  perms?: Perms;
 }
 
-export default function AdminWorkSlotsCreator({ masters, currentDate }: Props) {
+export default function AdminWorkSlotsCreator({ masters, currentDate, perms }: Props) {
+  const allowed = perms ? perms.schedule : true;
   const { data: session } = useSession();
   const router = useRouter();
   const [masterId, setMasterId] = useState<number | "">("");
@@ -143,7 +147,9 @@ export default function AdminWorkSlotsCreator({ masters, currentDate }: Props) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !allowed}
+          title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+          style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
           className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold text-white transition-all shadow-lg shadow-violet-900/20 mt-1"
         >
           {loading ? (

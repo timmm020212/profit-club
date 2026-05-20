@@ -45,7 +45,10 @@ function timeOptions(fromHour: number, toHour: number): string[] {
   return opts;
 }
 
-export default function AdminWorkSlotChangeRequests() {
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
+export default function AdminWorkSlotChangeRequests({ perms }: { perms?: Perms } = {}) {
+  const allowed = perms ? perms.schedule : true;
   useSession();
   const router = useRouter();
   const [items, setItems] = useState<ChangeRequestItem[]>([]);
@@ -276,33 +279,45 @@ export default function AdminWorkSlotChangeRequests() {
                 <>
                   {isRejection ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" disabled={isProcessing} onClick={() => handleAction(item.id, "accept")}
+                      <button type="button" disabled={isProcessing || !allowed} onClick={() => handleAction(item.id, "accept")}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.07] disabled:opacity-50 transition-all">
                         {isProcessing ? "..." : "Удалить день"}
                       </button>
-                      <button type="button" onClick={() => startReoffer(item.id)}
-                        className="py-2 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/20 text-xs font-semibold text-violet-400 transition-all">
+                      <button type="button" onClick={() => allowed && startReoffer(item.id)} disabled={!allowed}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
+                        className="py-2 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/20 text-xs font-semibold text-violet-400 transition-all disabled:opacity-50">
                         Предложить другое
                       </button>
                     </div>
                   ) : isCancel ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" disabled={isProcessing} onClick={() => handleAction(item.id, "reject")}
+                      <button type="button" disabled={isProcessing || !allowed} onClick={() => handleAction(item.id, "reject")}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.07] disabled:opacity-50 transition-all">
                         {isProcessing ? "..." : "Отклонить"}
                       </button>
-                      <button type="button" disabled={isProcessing} onClick={() => handleAction(item.id, "accept")}
+                      <button type="button" disabled={isProcessing || !allowed} onClick={() => handleAction(item.id, "accept")}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="py-2 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/20 text-xs font-semibold text-red-400 disabled:opacity-50 transition-all">
                         {isProcessing ? "..." : "Подтвердить отмену"}
                       </button>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" disabled={isProcessing} onClick={() => handleAction(item.id, "reject")}
+                      <button type="button" disabled={isProcessing || !allowed} onClick={() => handleAction(item.id, "reject")}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/[0.07] disabled:opacity-50 transition-all">
                         {isProcessing ? "..." : "Отклонить"}
                       </button>
-                      <button type="button" disabled={isProcessing} onClick={() => handleAction(item.id, "accept")}
+                      <button type="button" disabled={isProcessing || !allowed} onClick={() => handleAction(item.id, "accept")}
+                        title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                        style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                         className="py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/20 text-xs font-semibold text-emerald-400 disabled:opacity-50 transition-all">
                         {isProcessing ? "..." : "Принять"}
                       </button>

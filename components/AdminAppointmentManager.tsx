@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import type { Appointment, Master, Service } from "@/db/schema";
 import AdminSelect from "@/components/ui/AdminSelect";
 
+type Perms = { schedule: boolean; bookings: boolean; masters: boolean; bots: boolean; optimize: boolean; inventory: boolean };
+
 interface Props {
   appointment: Appointment;
   masters: Master[];
   services: Service[];
   cardHeight?: number;
   outsideSchedule?: boolean;
+  perms?: Perms;
 }
 
 const STATUS_COLORS: Record<string, { border: string; badge: string; label: string }> = {
@@ -21,7 +24,8 @@ const STATUS_COLORS: Record<string, { border: string; badge: string; label: stri
   disputed: { border: "rgba(239,68,68,0.6)", badge: "bg-red-500/20 text-red-400", label: "Оспорена" },
 };
 
-export default function AdminAppointmentManager({ appointment, masters, services, cardHeight, outsideSchedule }: Props) {
+export default function AdminAppointmentManager({ appointment, masters, services, cardHeight, outsideSchedule, perms }: Props) {
+  const allowed = perms ? perms.bookings : true;
   const router = useRouter();
   const statusCfg = outsideSchedule
     ? { border: "rgba(239,68,68,0.6)", badge: "bg-red-500/20 text-red-400", label: "Вне графика" }
@@ -288,8 +292,10 @@ export default function AdminAppointmentManager({ appointment, masters, services
             <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-white/[0.06] bg-black/20">
               <button
                 type="button"
-                disabled={deleting || saving}
+                disabled={deleting || saving || !allowed}
                 onClick={handleDelete}
+                title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 text-sm font-medium text-red-400 transition-all disabled:opacity-50"
               >
                 {deleting ? (
@@ -314,8 +320,10 @@ export default function AdminAppointmentManager({ appointment, masters, services
                 </button>
                 <button
                   type="button"
-                  disabled={saving || deleting}
+                  disabled={saving || deleting || !allowed}
                   onClick={handleSave}
+                  title={!allowed ? "Нет прав. Свяжитесь с владельцем салона." : ""}
+                  style={{ opacity: !allowed ? 0.5 : undefined, cursor: !allowed ? "not-allowed" : undefined }}
                   className="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30"
                 >
                   {saving ? (
