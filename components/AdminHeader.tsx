@@ -12,8 +12,6 @@ interface Props {
 
 const navItems = [
   { href: "/admin", label: "Расписание" },
-  { href: "/admin/services", label: "Услуги" },
-  { href: "/admin/analytics", label: "Аналитика" },
   { href: "/admin/bots", label: "Боты" },
 ];
 
