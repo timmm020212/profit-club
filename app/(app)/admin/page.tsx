@@ -15,7 +15,9 @@ import AdminBlockManager from "@/components/AdminBlockManager";
 import AdminAutoOptimizeDelay, { AdminOptimizeDelaySettings } from "@/components/AdminAutoOptimizeDelay";
 import AutoRefresh from "@/components/AutoRefresh";
 
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map((v) => parseInt(v, 10));
@@ -26,21 +28,33 @@ function minutesToTime(m: number): string {
   return `${Math.floor(m / 60).toString().padStart(2, "0")}:${(m % 60).toString().padStart(2, "0")}`;
 }
 
-async function getAdminDataForDate(dateStr: string) {
+async function getAdminDataForDate(dateStr: string, salonId: number | null) {
+  const apptCond = salonId
+    ? and(eq(appointments.appointmentDate, dateStr), eq(appointments.salonId, salonId))
+    : eq(appointments.appointmentDate, dateStr);
+  const masterCond = salonId
+    ? and(eq(masters.isActive, true), eq(masters.salonId, salonId))
+    : eq(masters.isActive, true);
+  const serviceCond = salonId ? eq(services.salonId, salonId) : undefined;
+  const slotCond = salonId
+    ? and(eq(workSlots.workDate, dateStr), eq(workSlots.salonId, salonId))
+    : eq(workSlots.workDate, dateStr);
+  // scheduleBlocks has no salonId in current schema — filter via masters join
+  const blockCond = eq(scheduleBlocks.blockDate, dateStr);
+
   const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData] = await Promise.all([
-    db.select().from(appointments)
-      .where(eq(appointments.appointmentDate, dateStr))
-      .orderBy(appointments.startTime as any),
-    db.select().from(masters).where(eq(masters.isActive, true)),
-    db.select().from(services),
-    db.select().from(workSlots)
-      .where(eq(workSlots.workDate, dateStr))
-      .orderBy(workSlots.startTime as any),
-    db.select().from(scheduleBlocks)
-      .where(eq(scheduleBlocks.blockDate, dateStr)),
+    db.select().from(appointments).where(apptCond).orderBy(appointments.startTime as any),
+    db.select().from(masters).where(masterCond),
+    serviceCond ? db.select().from(services).where(serviceCond) : db.select().from(services),
+    db.select().from(workSlots).where(slotCond).orderBy(workSlots.startTime as any),
+    db.select().from(scheduleBlocks).where(blockCond),
   ]);
 
-  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData };
+  // Post-filter blocks by mastersData (scheduleBlocks has no salonId column)
+  const masterIds = new Set(mastersData.map((m: any) => m.id));
+  const filteredBlocks = salonId ? blocksData.filter((b: any) => masterIds.has(b.masterId)) : blocksData;
+
+  return { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData: filteredBlocks };
 }
 
 const MONTHS_RU = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -51,6 +65,13 @@ export default async function AdminDashboardPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
+  const session = await getServerSession(authOptions);
+  // Salon admin: pass salonId. Legacy global admin: null (no filter).
+  const salonId =
+    session?.user?.role === "salonAdmin" && session.user.salonId
+      ? session.user.salonId
+      : null;
+
   const params = await searchParams;
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -58,7 +79,7 @@ export default async function AdminDashboardPage({
   const currentDateStr = requestedDate || todayStr;
 
   const { dateStr, appointmentsData, mastersData, servicesData, workSlotsData, blocksData } =
-    await getAdminDataForDate(currentDateStr);
+    await getAdminDataForDate(currentDateStr, salonId);
 
   const now = new Date();
   const todayMidnight = new Date(now.toISOString().slice(0, 10) + "T00:00:00");
