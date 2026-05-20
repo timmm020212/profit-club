@@ -63,9 +63,10 @@ const mainNav: NavItem[] = [
 ];
 
 const accountNav: NavItem[] = [
-  { href: "/partner/schedule", label: "Расписание", icon: "grid" },
-  { href: "/partner/profile",  label: "Профиль",    icon: "gear" },
-  { href: "/partner/billing",  label: "Тарифы",     icon: "card" },
+  { href: "/partner/schedule",       label: "Расписание",    icon: "grid" },
+  { href: "/partner/administrator",  label: "Администратор", icon: "user" },
+  { href: "/partner/profile",        label: "Профиль",       icon: "gear" },
+  { href: "/partner/billing",        label: "Тарифы",        icon: "card" },
 ];
 
 function BrandMark({ size = 40 }: { size?: number }) {
