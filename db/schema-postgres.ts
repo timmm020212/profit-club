@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, uniqueIndex, numeric, jsonb } from "drizzle-orm/pg-core";
 
 export const serviceCategories = pgTable("serviceCategories", {
   id: serial("id").primaryKey(),
@@ -331,6 +331,60 @@ export const reviews = pgTable("reviews", {
   publishedAt: timestamp("published_at"),
   repliedAt: timestamp("replied_at"),
 });
+
+export const materials = pgTable("materials", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  unit: varchar("unit", { length: 16 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  lowStockThreshold: numeric("low_stock_threshold", { precision: 12, scale: 2 }),
+  isActive: boolean("is_active").notNull().default(true),
+  archivedAt: timestamp("archived_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const materialLots = pgTable("material_lots", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  materialId: integer("material_id").notNull(),
+  qtyInitial: numeric("qty_initial", { precision: 12, scale: 2 }).notNull(),
+  qtyRemaining: numeric("qty_remaining", { precision: 12, scale: 2 }).notNull(),
+  pricePerUnit: integer("price_per_unit").notNull(), // копейки
+  supplier: varchar("supplier", { length: 200 }),
+  arrivedAt: varchar("arrived_at", { length: 10 }).notNull(), // YYYY-MM-DD
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const serviceVariantMaterials = pgTable("service_variant_materials", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  variantId: integer("variant_id").notNull(),
+  materialId: integer("material_id").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
+});
+
+export const appointmentMaterialUsage = pgTable("appointment_material_usage", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  appointmentId: integer("appointment_id").notNull(),
+  materialId: integer("material_id").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
+  totalCost: integer("total_cost").notNull(), // копейки
+  lotsConsumed: jsonb("lots_consumed").notNull(), // [{lotId, qty, price}]
+  shortfall: numeric("shortfall", { precision: 12, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Material = typeof materials.$inferSelect;
+export type NewMaterial = typeof materials.$inferInsert;
+export type MaterialLot = typeof materialLots.$inferSelect;
+export type NewMaterialLot = typeof materialLots.$inferInsert;
+export type ServiceVariantMaterial = typeof serviceVariantMaterials.$inferSelect;
+export type NewServiceVariantMaterial = typeof serviceVariantMaterials.$inferInsert;
+export type AppointmentMaterialUsage = typeof appointmentMaterialUsage.$inferSelect;
+export type NewAppointmentMaterialUsage = typeof appointmentMaterialUsage.$inferInsert;
 
 export type Salon = typeof salons.$inferSelect;
 export type NewSalon = typeof salons.$inferInsert;

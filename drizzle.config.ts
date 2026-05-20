@@ -35,6 +35,11 @@ export default {
     "scheduleBlocks",
     "salons",
     "partner_users",
+    "reviews",
+    "materials",
+    "material_lots",
+    "service_variant_materials",
+    "appointment_material_usage",
   ],
   dbCredentials: {
     url: process.env.DATABASE_URL!,
