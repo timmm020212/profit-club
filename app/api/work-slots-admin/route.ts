@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 
 // GET /api/work-slots-admin - все рабочие дни (включая неподтвержденные) для админа
 export async function GET(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -36,6 +37,10 @@ export async function GET(request: Request) {
     // Показываем ВСЕ рабочие дни (включая неподтвержденные)
     const today = new Date().toISOString().split("T")[0];
     conditions.push(gte(workSlots.workDate, today));
+
+    if (salonId) {
+      conditions.push(eq(workSlots.salonId, salonId));
+    }
 
     // Получаем слоты с объединением таблиц
     const slots = await db
@@ -84,8 +89,9 @@ export async function GET(request: Request) {
 
 // PATCH /api/work-slots-admin?id=1 - обновить статус рабочего дня
 export async function PATCH(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -117,7 +123,11 @@ export async function PATCH(request: Request) {
     const updated = await db
       .update(workSlots)
       .set(updateData)
-      .where(eq(workSlots.id, slotId))
+      .where(
+        salonId
+          ? and(eq(workSlots.id, slotId), eq(workSlots.salonId, salonId))
+          : eq(workSlots.id, slotId)
+      )
       .returning();
 
     if (!updated.length) {
@@ -136,8 +146,9 @@ export async function PATCH(request: Request) {
 
 // DELETE /api/work-slots-admin?id=1 - удалить рабочий день
 export async function DELETE(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -150,7 +161,11 @@ export async function DELETE(request: Request) {
 
     const deleted = await db
       .delete(workSlots)
-      .where(eq(workSlots.id, slotId))
+      .where(
+        salonId
+          ? and(eq(workSlots.id, slotId), eq(workSlots.salonId, salonId))
+          : eq(workSlots.id, slotId)
+      )
       .returning();
 
     if (!deleted.length) {

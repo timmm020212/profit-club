@@ -9,10 +9,12 @@ export const dynamic = "force-dynamic";
 
 // GET /api/work-slot-change-requests-admin - все запросы на изменение
 export async function GET(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
+    // Filter via JOIN to workSlots.salonId when acting as salon admin
     const rows = await db
       .select({
         id: workSlotChangeRequests.id,
@@ -32,8 +34,12 @@ export async function GET(request: Request) {
       })
       .from(workSlotChangeRequests)
       .leftJoin(masters, eq(workSlotChangeRequests.masterId, masters.id))
-      .leftJoin(workSlots, eq(workSlotChangeRequests.workSlotId, workSlots.id))
-      .where(eq(workSlotChangeRequests.status, "pending"))
+      .innerJoin(workSlots, eq(workSlotChangeRequests.workSlotId, workSlots.id))
+      .where(
+        salonId
+          ? and(eq(workSlotChangeRequests.status, "pending"), eq(workSlots.salonId, salonId))
+          : eq(workSlotChangeRequests.status, "pending")
+      )
       .orderBy(workSlotChangeRequests.createdAt);
 
     return NextResponse.json(rows);
@@ -48,8 +54,9 @@ export async function GET(request: Request) {
 
 // PATCH /api/work-slot-change-requests-admin?id=1&action=accept|reject - принять или отклонить запрос
 export async function PATCH(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -71,11 +78,22 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Получаем запрос
+    // Получаем запрос — verify it belongs to this salon via JOIN
     const requests = await db
-      .select()
+      .select({
+        id: workSlotChangeRequests.id,
+        workSlotId: workSlotChangeRequests.workSlotId,
+        suggestedWorkDate: workSlotChangeRequests.suggestedWorkDate,
+        suggestedStartTime: workSlotChangeRequests.suggestedStartTime,
+        suggestedEndTime: workSlotChangeRequests.suggestedEndTime,
+      })
       .from(workSlotChangeRequests)
-      .where(eq(workSlotChangeRequests.id, requestId));
+      .innerJoin(workSlots, eq(workSlotChangeRequests.workSlotId, workSlots.id))
+      .where(
+        salonId
+          ? and(eq(workSlotChangeRequests.id, requestId), eq(workSlots.salonId, salonId))
+          : eq(workSlotChangeRequests.id, requestId)
+      );
 
     if (!requests.length) {
       return NextResponse.json(
@@ -93,7 +111,7 @@ export async function PATCH(request: Request) {
       .where(eq(workSlotChangeRequests.id, requestId));
 
     if (action === "accept") {
-      // Применяем изменения к рабочему слоту
+      // Применяем изменения к рабочему слоту (scoped by salonId for safety)
       await db
         .update(workSlots)
         .set({
@@ -102,7 +120,11 @@ export async function PATCH(request: Request) {
           endTime: changeRequest.suggestedEndTime,
           adminUpdateStatus: "accepted",
         })
-        .where(eq(workSlots.id, changeRequest.workSlotId));
+        .where(
+          salonId
+            ? and(eq(workSlots.id, changeRequest.workSlotId), eq(workSlots.salonId, salonId))
+            : eq(workSlots.id, changeRequest.workSlotId)
+        );
 
       console.log("Change request accepted and applied to work slot");
     } else {
@@ -110,7 +132,11 @@ export async function PATCH(request: Request) {
       await db
         .update(workSlots)
         .set({ adminUpdateStatus: "rejected" })
-        .where(eq(workSlots.id, changeRequest.workSlotId));
+        .where(
+          salonId
+            ? and(eq(workSlots.id, changeRequest.workSlotId), eq(workSlots.salonId, salonId))
+            : eq(workSlots.id, changeRequest.workSlotId)
+        );
 
       console.log("Change request rejected");
     }
