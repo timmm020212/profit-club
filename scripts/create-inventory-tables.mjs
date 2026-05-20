@@ -1,3 +1,10 @@
+// ONE-TIME BOOTSTRAP SCRIPT.
+// Canonical schema lives in db/schema-postgres.ts — DO NOT use this script
+// as a source of truth. It exists because `drizzle-kit push` fails on a
+// pre-existing Supabase permission issue on legacy tables (bot_buttons et al.).
+// When that is fixed, this script can be deleted. If you change inventory
+// table columns, update db/schema-postgres.ts; this file does not auto-sync.
+
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
