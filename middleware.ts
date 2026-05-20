@@ -5,6 +5,19 @@ import type { NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Force-password-reset redirect for salon admins
+  if (
+    pathname.startsWith("/admin")
+    && !pathname.startsWith("/admin/login")
+  ) {
+    const token = await getToken({ req: request });
+    if (token && token.role === "salonAdmin" && token.forcePasswordReset) {
+      if (!pathname.startsWith("/admin/login/change-password")) {
+        return NextResponse.redirect(new URL("/admin/login/change-password", request.url));
+      }
+    }
+  }
+
   // Admin protection
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
     const token = await getToken({ req: request });
