@@ -68,8 +68,21 @@ export async function PATCH(
       status?: string;
     };
 
-    // Handle completion
+    // Handle completion — requires partner session for the salon that owns the appointment.
+    // The rest of this PATCH endpoint is pre-existing (unauthenticated by legacy design,
+    // used by the master miniapp). The "completed" branch is new and protected.
     if (status === "completed") {
+      const { requirePartnerSession } = await import("@/lib/requirePartnerSession");
+      const { session, response } = await requirePartnerSession();
+      if (!session) return response;
+      const [existing] = await db
+        .select({ id: appointments.id, salonId: appointments.salonId })
+        .from(appointments)
+        .where(eq(appointments.id, idNum));
+      if (!existing) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+      if (existing.salonId !== session.salonId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       const [updated] = await db
         .update(appointments)
         .set({ status: "completed" })
