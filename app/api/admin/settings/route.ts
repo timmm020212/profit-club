@@ -7,8 +7,8 @@ import { requireAdminSession } from "@/lib/requireAdminSession";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { response } = await requireAdminSession();
+  if (response) return response;
   try {
     const rows = await db.select().from(adminSettings);
     const settings: Record<string, string> = {};
@@ -22,8 +22,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { response } = await requireAdminSession();
+  if (response) return response;
   try {
     const body = await request.json();
     const { key, value } = body;

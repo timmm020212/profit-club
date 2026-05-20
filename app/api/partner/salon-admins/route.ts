@@ -90,7 +90,25 @@ export async function POST(req: NextRequest) {
         canRunOptimization: body.canRunOptimization === true,
         canEditInventory:   body.canEditInventory   === true,
       })
-      .returning()
+      .returning({
+        id: salonAdmins.id,
+        salonId: salonAdmins.salonId,
+        username: salonAdmins.username,
+        name: salonAdmins.name,
+        rank: salonAdmins.rank,
+        isActive: salonAdmins.isActive,
+        forcePasswordReset: salonAdmins.forcePasswordReset,
+        lastLoginAt: salonAdmins.lastLoginAt,
+        sessionsInvalidatedAt: salonAdmins.sessionsInvalidatedAt,
+        canEditSchedule: salonAdmins.canEditSchedule,
+        canEditBookings: salonAdmins.canEditBookings,
+        canEditMasters: salonAdmins.canEditMasters,
+        canEditBotFlows: salonAdmins.canEditBotFlows,
+        canRunOptimization: salonAdmins.canRunOptimization,
+        canEditInventory: salonAdmins.canEditInventory,
+        createdAt: salonAdmins.createdAt,
+        archivedAt: salonAdmins.archivedAt,
+      })
     );
     return NextResponse.json(row);
   } catch (e) {

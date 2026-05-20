@@ -5,8 +5,8 @@ import { admins } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { response } = await requireAdminSession();
+  if (response) return response;
   try {
     const adminUsers = await db
       .select({

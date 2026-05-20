@@ -5,8 +5,8 @@ import { botNotificationTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { response } = await requireAdminSession();
+  if (response) return response;
   try {
     const { slug } = await params;
     const body = await request.json();

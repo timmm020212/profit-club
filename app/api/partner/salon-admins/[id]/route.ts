@@ -33,7 +33,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .update(salonAdmins)
       .set(patch)
       .where(and(eq(salonAdmins.id, id), eq(salonAdmins.salonId, session.salonId)))
-      .returning()
+      .returning({
+        id: salonAdmins.id,
+        salonId: salonAdmins.salonId,
+        username: salonAdmins.username,
+        name: salonAdmins.name,
+        rank: salonAdmins.rank,
+        isActive: salonAdmins.isActive,
+        forcePasswordReset: salonAdmins.forcePasswordReset,
+        lastLoginAt: salonAdmins.lastLoginAt,
+        sessionsInvalidatedAt: salonAdmins.sessionsInvalidatedAt,
+        canEditSchedule: salonAdmins.canEditSchedule,
+        canEditBookings: salonAdmins.canEditBookings,
+        canEditMasters: salonAdmins.canEditMasters,
+        canEditBotFlows: salonAdmins.canEditBotFlows,
+        canRunOptimization: salonAdmins.canRunOptimization,
+        canEditInventory: salonAdmins.canEditInventory,
+        createdAt: salonAdmins.createdAt,
+        archivedAt: salonAdmins.archivedAt,
+      })
     );
     if (!row) return NextResponse.json({ error: "not found" }, { status: 404 });
     return NextResponse.json(row);

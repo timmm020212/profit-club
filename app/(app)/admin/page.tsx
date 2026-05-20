@@ -78,7 +78,7 @@ export default async function AdminDashboardPage({
 
   const params = await searchParams;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const requestedDate = typeof params?.date === "string" ? params.date : undefined;
   const currentDateStr = requestedDate || todayStr;
 
@@ -86,7 +86,7 @@ export default async function AdminDashboardPage({
     await getAdminDataForDate(currentDateStr, salonId);
 
   const now = new Date();
-  const todayMidnight = new Date(now.toISOString().slice(0, 10) + "T00:00:00");
+  const todayMidnight = new Date(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T00:00:00`);
   const currentDateObj = new Date(dateStr + "T00:00:00");
   const diffDays = Math.floor((currentDateObj.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
   const isPrebookingDate = diffDays >= 2;
