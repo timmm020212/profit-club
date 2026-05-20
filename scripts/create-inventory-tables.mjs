@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS appointment_material_usage (
   shortfall NUMERIC(12, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS svm_variant_material_idx
+  ON service_variant_materials (variant_id, material_id);
 `;
 
 try {

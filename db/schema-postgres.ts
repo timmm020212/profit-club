@@ -363,7 +363,9 @@ export const serviceVariantMaterials = pgTable("service_variant_materials", {
   variantId: integer("variant_id").notNull(),
   materialId: integer("material_id").notNull(),
   quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
-});
+}, (table) => [
+  uniqueIndex("svm_variant_material_idx").on(table.variantId, table.materialId),
+]);
 
 export const appointmentMaterialUsage = pgTable("appointment_material_usage", {
   id: serial("id").primaryKey(),
