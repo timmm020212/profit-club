@@ -82,9 +82,10 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  pages: {
-    signIn: "/admin/login",
-  },
+  // NB: deliberately no `pages.signIn` — partner and admin have separate login
+  // pages (/partner/login, /admin/login) and middleware routes by role.
+  // A global signIn would silently dump partners on /admin/login on session
+  // expiry, which looks like "internet kicks me out of the partner account".
   providers: [
     // Admin provider
     CredentialsProvider({
