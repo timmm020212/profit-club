@@ -110,6 +110,7 @@ botFlows / botSteps / botButtons / botUserStates — конструктор бо
 | Отзывы | `/partner/reviews` | ✅ (UI готов, форма на сайте — нет) | Overview с распределением по звёздам, фильтры, ответы партнёра. Empty state с превью карточки. Schema готова. |
 | Аналитика | `/partner/analytics` | ⏳ ComingSoon | Заглушка. |
 | Тарифы | `/partner/tariff`, `/partner/billing` | ⏳ basic | Выбор тарифа есть, оплаты нет. |
+| Администратор | `/partner/administrator` | ✅ | Управление аккаунтами сотрудников салона (`salon_admins` per-salon). CRUD + 6 переключателей прав (расписание/записи/мастера/боты/авто‑опт/склад) + «Сбросить пароль» (force_password_reset + invalidate sessions) + «Выгнать отовсюду» (sessions_invalidated_at). Логин — на `/admin/login`. |
 | Профиль партнёра | `/partner/profile` | ⏳ basic | Заглушка. |
 
 ### Публичный сайт салона
@@ -228,6 +229,8 @@ botFlows / botSteps / botButtons / botUserStates — конструктор бо
 - ✅ Подтверждение смен мастером через Telegram
 - ✅ Складской учёт расходных материалов (партии FIFO + per-variant рецепт + авто-списание при завершении записи)
 - ✅ Завершение записи мастером (через partner-кабинет; через мини-приложение мастера — в v2)
+- ✅ Роли: partner / salonAdmin / admin (legacy) с 6 переключателями прав для админа на уровне раздела (schedule/bookings/masters/bots/optimize/inventory)
+- ✅ Multi-tenant админка: `/admin` теперь scoped per-salon, каждый администратор видит данные только своего салона
 
 ### Что у нас уже частично
 
@@ -236,6 +239,7 @@ botFlows / botSteps / botButtons / botUserStates — конструктор бо
 - 🟡 **Аналитика** — заглушка
 - 🟡 **Multi‑branch** — schema готова (`salonId` колонки), но UI как будто один филиал
 - 🟡 **Тарифы** — выбор есть, биллинг/оплата нет
+- 🟡 **Granular permissions** — есть переключатели по разделам админки, но не по операциям внутри раздела (нет отдельно «может смотреть Записи но не может Удалять»)
 
 ### Чего нет (предполагаемые gaps vs Yclients) — Gemini, проверь!
 
