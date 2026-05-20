@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db, dbRetry } from "@/db/index-postgres";
-import { admins, partnerUsers, salons } from "@/db/schema";
+import { admins, partnerUsers, salons, salonAdmins } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { rateLimit } from "./rate-limit";
@@ -15,6 +15,18 @@ declare module "next-auth" {
     salonId?: number;
     salonSlug?: string;
     salonName?: string;
+    // Salon admin fields
+    adminId?: number;
+    perms?: {
+      schedule: boolean;
+      bookings: boolean;
+      masters: boolean;
+      bots: boolean;
+      optimize: boolean;
+      inventory: boolean;
+    };
+    forcePasswordReset?: boolean;
+    issuedAt?: number;
   }
 
   interface Session {
@@ -26,6 +38,17 @@ declare module "next-auth" {
       salonId?: number;
       salonSlug?: string;
       salonName?: string;
+      adminId?: number;
+      perms?: {
+        schedule: boolean;
+        bookings: boolean;
+        masters: boolean;
+        bots: boolean;
+        optimize: boolean;
+        inventory: boolean;
+      };
+      forcePasswordReset?: boolean;
+      issuedAt?: number;
     };
   }
 }
@@ -36,6 +59,17 @@ declare module "next-auth/jwt" {
     salonId?: number;
     salonSlug?: string;
     salonName?: string;
+    adminId?: number;
+    perms?: {
+      schedule: boolean;
+      bookings: boolean;
+      masters: boolean;
+      bots: boolean;
+      optimize: boolean;
+      inventory: boolean;
+    };
+    forcePasswordReset?: boolean;
+    issuedAt?: number;
   }
 }
 
@@ -62,22 +96,57 @@ export const authOptions: NextAuthOptions = {
 
         const rl = rateLimit(`admin-login:${username}`, 5, 60 * 1000);
         if (!rl.ok) return null;
-
         if (!username || !password) return null;
 
         try {
-          const [admin] = await db
-            .select()
-            .from(admins)
+          // 1. Try salon_admins first (the new per-salon role)
+          const [sa] = await db.select().from(salonAdmins)
+            .where(eq(salonAdmins.username, username))
+            .limit(1);
+          if (sa) {
+            if (!sa.isActive || sa.archivedAt) return null;
+            const valid = await bcrypt.compare(password, sa.passwordHash);
+            if (!valid) return null;
+            // Track last login (best-effort, don't fail auth if this fails)
+            try {
+              await db.update(salonAdmins)
+                .set({ lastLoginAt: new Date() })
+                .where(eq(salonAdmins.id, sa.id));
+            } catch {}
+            return {
+              id: sa.id.toString(),
+              name: sa.name,
+              role: "salonAdmin",
+              salonId: sa.salonId,
+              adminId: sa.id,
+              perms: {
+                schedule:  sa.canEditSchedule,
+                bookings:  sa.canEditBookings,
+                masters:   sa.canEditMasters,
+                bots:      sa.canEditBotFlows,
+                optimize:  sa.canRunOptimization,
+                inventory: sa.canEditInventory,
+              },
+              forcePasswordReset: sa.forcePasswordReset,
+              issuedAt: Math.floor(Date.now() / 1000),
+            };
+          }
+
+          // 2. Fallback: platform admin (legacy, god-mode in scoped queries)
+          const [pa] = await db.select().from(admins)
             .where(eq(admins.username, username))
             .limit(1);
-
-          if (!admin || !admin.isActive) return null;
-
-          const valid = await bcrypt.compare(password, admin.passwordHash);
+          if (!pa || !pa.isActive) return null;
+          const valid = await bcrypt.compare(password, pa.passwordHash);
           if (!valid) return null;
-
-          return { id: admin.id.toString(), name: admin.name, role: "admin" };
+          return {
+            id: pa.id.toString(),
+            name: pa.name,
+            role: "admin",
+            // Legacy admins have all perms (god mode); salonId stays undefined
+            perms: { schedule: true, bookings: true, masters: true, bots: true, optimize: true, inventory: true },
+            issuedAt: Math.floor(Date.now() / 1000),
+          };
         } catch (error) {
           console.error("Admin auth error:", error);
           return null;
@@ -145,6 +214,13 @@ export const authOptions: NextAuthOptions = {
           token.salonSlug = user.salonSlug;
           token.salonName = user.salonName;
         }
+        if (user.role === "salonAdmin" || user.role === "admin") {
+          token.adminId = user.adminId;
+          token.salonId = user.salonId;
+          token.perms = user.perms;
+          token.forcePasswordReset = user.forcePasswordReset;
+          token.issuedAt = user.issuedAt;
+        }
       }
       return token;
     },
@@ -157,6 +233,13 @@ export const authOptions: NextAuthOptions = {
           session.user.salonId = token.salonId;
           session.user.salonSlug = token.salonSlug;
           session.user.salonName = token.salonName;
+        }
+        if (token.role === "salonAdmin" || token.role === "admin") {
+          session.user.adminId = token.adminId;
+          session.user.salonId = token.salonId;
+          session.user.perms = token.perms;
+          session.user.forcePasswordReset = token.forcePasswordReset;
+          session.user.issuedAt = token.issuedAt;
         }
       }
       return session;
