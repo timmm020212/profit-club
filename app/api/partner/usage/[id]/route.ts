@@ -19,7 +19,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       const [row] = await tx
         .select()
         .from(appointmentMaterialUsage)
-        .where(and(eq(appointmentMaterialUsage.id, id), eq(appointmentMaterialUsage.salonId, session.salonId)));
+        .where(and(eq(appointmentMaterialUsage.id, id), eq(appointmentMaterialUsage.salonId, session.salonId)))
+        .for("update");
       if (!row) throw new Error("not_found");
       const consumed = (row.lotsConsumed as unknown as ConsumedLot[]) || [];
       await returnFifo(tx, session.salonId, consumed);
