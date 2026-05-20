@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 import { db } from "@/db";
 import {
   scheduleOptimizations,
@@ -14,6 +15,9 @@ export const dynamic = "force-dynamic";
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
 export async function POST(request: Request) {
+  const { session, response } = await requireAdminSession("optimize");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const body = await request.json();
     const { optimizationId, sendTo = "master" } = body;
@@ -26,6 +30,16 @@ export async function POST(request: Request) {
       .where(eq(scheduleOptimizations.id, optimizationId));
     if (!optimization) {
       return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
+    }
+
+    // Verify the master (and thus this optimization) belongs to the salon
+    if (salonId) {
+      const [m] = await db
+        .select({ id: masters.id, salonId: masters.salonId })
+        .from(masters)
+        .where(eq(masters.id, optimization.masterId));
+      if (!m) return NextResponse.json({ error: "master not found" }, { status: 404 });
+      if (m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const now = new Date().toISOString();
@@ -63,8 +77,13 @@ export async function POST(request: Request) {
       }
 
       for (const move of moves) {
-        const [apt] = await db.select({ clientName: appointments.clientName, serviceId: appointments.serviceId })
+        // Ownership check per appointment
+        const [apt] = await db.select({ clientName: appointments.clientName, serviceId: appointments.serviceId, salonId: appointments.salonId })
           .from(appointments).where(eq(appointments.id, move.appointmentId));
+        if (salonId && apt && apt.salonId !== salonId) {
+          sendResults.push({ moveId: move.moveId, status: "skipped", reason: "not in salon" });
+          continue;
+        }
         const svcRows = apt ? await db.select({ name: services.name }).from(services).where(eq(services.id, apt.serviceId)) : [];
         const svc = svcRows[0] || null;
 
@@ -134,7 +153,14 @@ export async function POST(request: Request) {
           clientTelegramId: appointments.clientTelegramId,
           clientName: appointments.clientName,
           serviceId: appointments.serviceId,
+          salonId: appointments.salonId,
         }).from(appointments).where(eq(appointments.id, move.appointmentId));
+
+        // Ownership check per appointment
+        if (salonId && apt && apt.salonId !== salonId) {
+          sendResults.push({ moveId: move.moveId, status: "skipped", reason: "not in salon" });
+          continue;
+        }
 
         if (!apt?.clientTelegramId) {
           sendResults.push({ moveId: move.moveId, status: "skipped", reason: "no telegramId" });

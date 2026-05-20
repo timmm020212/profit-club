@@ -23,8 +23,9 @@ function minutesToTime(m: number): string {
 }
 
 export async function POST(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("optimize");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const body = await request.json();
     const { optimizationId } = body;
@@ -40,6 +41,16 @@ export async function POST(request: Request) {
 
     if (!optimization) {
       return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
+    }
+
+    // Verify the master (and thus this optimization) belongs to the salon
+    if (salonId) {
+      const [m] = await db
+        .select({ id: masters.id, salonId: masters.salonId })
+        .from(masters)
+        .where(eq(masters.id, optimization.masterId));
+      if (!m) return NextResponse.json({ error: "master not found" }, { status: 404 });
+      if (m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const moves = await db
@@ -59,6 +70,8 @@ export async function POST(request: Request) {
     for (const move of acceptedMoves) {
       // Get appointment details before update
       const [apt] = await db.select().from(appointments).where(eq(appointments.id, move.appointmentId));
+      // Extra ownership check per appointment
+      if (salonId && apt && apt.salonId !== salonId) continue;
       const [svc] = apt ? await db.select().from(services).where(eq(services.id, apt.serviceId)) : [null];
 
       await db
@@ -105,16 +118,17 @@ export async function POST(request: Request) {
 
       // Check for breaks only adjacent to MOVED appointments
       const movedTimes = new Set(applied.map(a => a.newStart));
+      const allApptConditions = [
+        eq(appointments.masterId, optimization.masterId),
+        eq(appointments.appointmentDate, optimization.workDate),
+        eq(appointments.status, "confirmed"),
+      ];
+      if (salonId) allApptConditions.push(eq(appointments.salonId, salonId));
+
       const allAppts = await db
         .select({ startTime: appointments.startTime, endTime: appointments.endTime })
         .from(appointments)
-        .where(
-          and(
-            eq(appointments.masterId, optimization.masterId),
-            eq(appointments.appointmentDate, optimization.workDate),
-            eq(appointments.status, "confirmed")
-          )
-        );
+        .where(and(...allApptConditions));
 
       const sorted = [...allAppts].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -141,16 +155,17 @@ export async function POST(request: Request) {
       }
 
       // Check early finish
+      const slotConditions = [
+        eq(workSlots.masterId, optimization.masterId),
+        eq(workSlots.workDate, optimization.workDate),
+        eq(workSlots.isConfirmed, true),
+      ];
+      if (salonId) slotConditions.push(eq(workSlots.salonId, salonId));
+
       const shiftSlots = await db
         .select({ endTime: workSlots.endTime })
         .from(workSlots)
-        .where(
-          and(
-            eq(workSlots.masterId, optimization.masterId),
-            eq(workSlots.workDate, optimization.workDate),
-            eq(workSlots.isConfirmed, true)
-          )
-        );
+        .where(and(...slotConditions));
 
       if (shiftSlots.length > 0 && sorted.length > 0) {
         const lastEnd = timeToMinutes(sorted[sorted.length - 1].endTime);

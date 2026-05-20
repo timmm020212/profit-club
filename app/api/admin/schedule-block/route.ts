@@ -29,13 +29,28 @@ async function notifyMaster(masterTelegramId: string, text: string) {
 }
 
 export async function GET(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
     if (!date) return NextResponse.json({ error: "date required" }, { status: 400 });
     const blocks = await db.select().from(scheduleBlocks).where(eq(scheduleBlocks.blockDate, date));
+
+    // Filter blocks by salonId via master ownership
+    if (salonId) {
+      const filtered = [];
+      for (const block of blocks) {
+        const [m] = await db
+          .select({ salonId: masters.salonId })
+          .from(masters)
+          .where(eq(masters.id, block.masterId));
+        if (m && m.salonId === salonId) filtered.push(block);
+      }
+      return NextResponse.json({ blocks: filtered });
+    }
+
     return NextResponse.json({ blocks });
   } catch (error) {
     console.error("schedule-block GET error:", error);
@@ -44,8 +59,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const body = await request.json();
     const { masterId, date, startTime, endTime, blockType, clientName, clientPhone, serviceId, comment } = body;
@@ -53,9 +69,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
     const masterIdNum = Number(masterId);
+
+    // Verify master belongs to this salon
+    const [m] = await db
+      .select({ id: masters.id, salonId: masters.salonId, telegramId: masters.telegramId, fullName: masters.fullName })
+      .from(masters)
+      .where(eq(masters.id, masterIdNum));
+    if (!m) return NextResponse.json({ error: "master not found" }, { status: 404 });
+    if (salonId && m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const now = new Date().toISOString();
-    const [master] = await db.select({ telegramId: masters.telegramId, fullName: masters.fullName })
-      .from(masters).where(eq(masters.id, masterIdNum));
+    const master = m;
 
     if (blockType === "appointment") {
       const [newApt] = await db.insert(appointments).values({
@@ -69,6 +93,7 @@ export async function POST(request: Request) {
         status: "confirmed",
         source: "admin",
         createdAt: now,
+        ...(salonId ? { salonId } : {}),
       }).returning();
 
       let serviceName = "Услуга";
@@ -121,12 +146,27 @@ export async function POST(request: Request) {
 
 // PATCH — update block
 export async function PATCH(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const body = await request.json();
     const { id, startTime, endTime, blockType, comment } = body;
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+    // Verify ownership via parent master before mutating
+    if (salonId) {
+      const [block] = await db
+        .select({ masterId: scheduleBlocks.masterId })
+        .from(scheduleBlocks)
+        .where(eq(scheduleBlocks.id, id));
+      if (!block) return NextResponse.json({ error: "block not found" }, { status: 404 });
+      const [m] = await db
+        .select({ salonId: masters.salonId })
+        .from(masters)
+        .where(eq(masters.id, block.masterId));
+      if (!m || m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const updates: any = {};
     if (startTime) updates.startTime = startTime;
@@ -143,13 +183,38 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("schedule");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const { searchParams } = new URL(request.url);
     const id = parseInt(searchParams.get("id") || "0");
     const type = searchParams.get("type") || "block";
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+    // Verify ownership before deletion
+    if (salonId) {
+      if (type === "appointment") {
+        const [appt] = await db
+          .select({ id: appointments.id, salonId: appointments.salonId })
+          .from(appointments)
+          .where(eq(appointments.id, id));
+        if (!appt) return NextResponse.json({ error: "not found" }, { status: 404 });
+        if (appt.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      } else {
+        const [block] = await db
+          .select({ masterId: scheduleBlocks.masterId })
+          .from(scheduleBlocks)
+          .where(eq(scheduleBlocks.id, id));
+        if (!block) return NextResponse.json({ error: "not found" }, { status: 404 });
+        const [m] = await db
+          .select({ salonId: masters.salonId })
+          .from(masters)
+          .where(eq(masters.id, block.masterId));
+        if (!m || m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     if (type === "appointment") {
       await db.delete(appointments).where(eq(appointments.id, id));
     } else {

@@ -5,8 +5,9 @@ import { appointments, services, masters } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("bookings");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
     const { ids } = await request.json();
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -16,6 +17,14 @@ export async function POST(request: Request) {
     const MASTERS_BOT_TOKEN = process.env.MASTERS_BOT_TOKEN || "";
 
     for (const id of ids) {
+      // Ownership pre-check before mutation
+      const [appt] = await db
+        .select({ id: appointments.id, salonId: appointments.salonId })
+        .from(appointments)
+        .where(eq(appointments.id, id));
+      if (!appt) return NextResponse.json({ error: "not found" }, { status: 404 });
+      if (salonId && appt.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
       await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, id));
 
       try {

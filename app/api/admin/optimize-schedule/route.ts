@@ -18,8 +18,9 @@ export const dynamic = "force-dynamic";
 
 // POST — compute optimization for a master on a given date
 export async function POST(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("optimize");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const body = await request.json();
@@ -32,17 +33,28 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify master belongs to this salon
+    if (salonId) {
+      const [m] = await db
+        .select({ id: masters.id, salonId: masters.salonId })
+        .from(masters)
+        .where(eq(masters.id, masterId));
+      if (!m) return NextResponse.json({ error: "master not found" }, { status: 404 });
+      if (m.salonId !== salonId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Get confirmed work slot for this master+date
+    const slotConditions = [
+      eq(workSlots.masterId, masterId),
+      eq(workSlots.workDate, workDate),
+      eq(workSlots.isConfirmed, true),
+    ];
+    if (salonId) slotConditions.push(eq(workSlots.salonId, salonId));
+
     const slots = await db
       .select()
       .from(workSlots)
-      .where(
-        and(
-          eq(workSlots.masterId, masterId),
-          eq(workSlots.workDate, workDate),
-          eq(workSlots.isConfirmed, true)
-        )
-      );
+      .where(and(...slotConditions));
 
     if (slots.length === 0) {
       return NextResponse.json(
@@ -54,6 +66,13 @@ export async function POST(request: Request) {
     const slot = slots[0];
 
     // Get confirmed appointments for this master+date, join services for duration
+    const apptConditions = [
+      eq(appointments.masterId, masterId),
+      eq(appointments.appointmentDate, workDate),
+      eq(appointments.status, "confirmed"),
+    ];
+    if (salonId) apptConditions.push(eq(appointments.salonId, salonId));
+
     const rows = await db
       .select({
         id: appointments.id,
@@ -63,13 +82,7 @@ export async function POST(request: Request) {
       })
       .from(appointments)
       .leftJoin(services, eq(appointments.serviceId, services.id))
-      .where(
-        and(
-          eq(appointments.masterId, masterId),
-          eq(appointments.appointmentDate, workDate),
-          eq(appointments.status, "confirmed")
-        )
-      );
+      .where(and(...apptConditions));
 
     const apptInputs: AppointmentInput[] = rows.map((r) => ({
       id: r.id,
@@ -115,7 +128,6 @@ export async function POST(request: Request) {
         .returning();
 
       // Get client and service info
-      const apt = rows.find(r => r.id === move.appointmentId);
       const aptFull = await db.select().from(appointments).where(eq(appointments.id, move.appointmentId)).limit(1);
       const svc = aptFull.length ? await db.select().from(services).where(eq(services.id, aptFull[0].serviceId)).limit(1) : [];
 
@@ -148,8 +160,9 @@ export async function POST(request: Request) {
 
 // GET — list optimizations with moves
 export async function GET(request: Request) {
-  const session = await requireAdminSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, response } = await requireAdminSession("optimize");
+  if (response) return response;
+  const salonId = session.user.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -178,8 +191,18 @@ export async function GET(request: Request) {
       .where(whereClause);
 
     // For each optimization, load moves with appointment+service+master data
+    // Filter by salonId via master ownership
     const result = [];
     for (const opt of optimizations) {
+      // Scope check: verify master belongs to the salon
+      if (salonId) {
+        const [m] = await db
+          .select({ salonId: masters.salonId })
+          .from(masters)
+          .where(eq(masters.id, opt.masterId));
+        if (!m || m.salonId !== salonId) continue;
+      }
+
       const movesWithData = await db
         .select({
           id: optimizationMoves.id,
