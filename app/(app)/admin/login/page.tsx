@@ -2,22 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [changedBanner, setChangedBanner] = useState(false);
 
+  // Read ?changed=1 from window.location (avoids useSearchParams() prerender boundary issue)
   useEffect(() => {
-    if (searchParams.get("changed") === "1") {
+    if (typeof window !== "undefined" && window.location.search.includes("changed=1")) {
       setChangedBanner(true);
     }
-  }, [searchParams]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
