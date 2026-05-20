@@ -1,13 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import type { Master } from "@/db/schema";
 
 interface Props {
   masters: Master[];
+  salonName?: string | null;
+  salonLogoUrl?: string | null;
+  isLegacy?: boolean;
 }
 
 const navItems = [
@@ -15,7 +17,7 @@ const navItems = [
   { href: "/admin/bots", label: "Боты" },
 ];
 
-export default function AdminHeader({ masters }: Props) {
+export default function AdminHeader({ masters, salonName, salonLogoUrl, isLegacy }: Props) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -27,20 +29,35 @@ export default function AdminHeader({ masters }: Props) {
     .map((p) => p[0]?.toUpperCase() || "")
     .join("");
 
+  // Brand area: salon logo+name for salonAdmin; "Платформа" marker for legacy global admin.
+  const brandLabel = isLegacy ? "Платформа" : (salonName || "Салон");
+  const brandInitial = brandLabel.charAt(0).toUpperCase();
+
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#09090B]/90 backdrop-blur-xl">
       <div className="mx-auto max-w-screen-2xl px-4 lg:px-6">
         <div className="flex h-14 items-center gap-4">
-          {/* Logo */}
-          <Link href="/admin" className="flex-shrink-0">
-            <Image
-              src="/logo/logo1.png"
-              alt="Profit Club"
-              width={110}
-              height={36}
-              className="h-7 w-auto object-contain"
-              priority
-            />
+          {/* Brand: salon logo + name (or "Платформа" for legacy admin) */}
+          <Link href="/admin" className="flex-shrink-0 flex items-center gap-2.5">
+            {salonLogoUrl && !isLegacy ? (
+              <span
+                className="block h-8 w-8 rounded-lg bg-cover bg-center border border-white/10"
+                style={{ backgroundImage: `url(${salonLogoUrl})` }}
+                aria-label={salonName ?? "Логотип салона"}
+              />
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600/25 text-violet-200 text-sm font-bold">
+                {brandInitial}
+              </span>
+            )}
+            <span className="text-sm font-semibold text-zinc-200 max-w-[160px] truncate">
+              {brandLabel}
+            </span>
+            {isLegacy && (
+              <span className="ml-1 hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/20">
+                LEGACY
+              </span>
+            )}
           </Link>
 
           <div className="h-5 w-px bg-white/10 flex-shrink-0" />

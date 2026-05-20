@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { appointments, masters, services, workSlots, scheduleBlocks } from "@/db/schema";
+import { appointments, masters, services, workSlots, scheduleBlocks, salons } from "@/db/schema";
 import AdminHeader from "@/components/AdminHeader";
 import AdminWorkSlotsCreator from "@/components/AdminWorkSlotsCreator";
 import AdminWorkSlotsList from "@/components/AdminWorkSlotsList";
@@ -71,6 +71,18 @@ export default async function AdminDashboardPage({
     session?.user?.role === "salonAdmin" && session.user.salonId
       ? session.user.salonId
       : null;
+
+  // Fetch salon identity (name + logo) for the header — only for salonAdmin.
+  let salonName: string | null = null;
+  let salonLogoUrl: string | null = null;
+  if (salonId) {
+    const [s] = await db
+      .select({ name: salons.name, logoUrl: salons.logoUrl })
+      .from(salons)
+      .where(eq(salons.id, salonId));
+    salonName = s?.name ?? null;
+    salonLogoUrl = s?.logoUrl ?? null;
+  }
 
   const perms = session?.user?.role === "salonAdmin"
     ? (session.user.perms ?? { schedule: false, bookings: false, masters: false, bots: false, optimize: false, inventory: false })
@@ -176,7 +188,7 @@ export default async function AdminDashboardPage({
   return (
     <div className="min-h-screen bg-[#070709] text-white">
       <AutoRefresh intervalMs={5000} />
-      <AdminHeader masters={mastersData as any} />
+      <AdminHeader masters={mastersData as any} salonName={salonName} salonLogoUrl={salonLogoUrl} isLegacy={!salonId} />
 
       {/* Sticky subheader: date nav + stats */}
       <div className="sticky top-14 z-30 bg-[#070709]/95 backdrop-blur-xl border-b border-white/[0.05]">
