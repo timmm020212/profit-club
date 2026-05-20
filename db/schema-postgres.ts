@@ -332,6 +332,35 @@ export const reviews = pgTable("reviews", {
   repliedAt: timestamp("replied_at"),
 });
 
+export const salonAdmins = pgTable("salon_admins", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull(),
+  username: varchar("username", { length: 100 }).notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  rank: varchar("rank", { length: 20 }).notNull().default("secondary"),
+  passwordHash: varchar("password_hash", { length: 200 }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  forcePasswordReset: boolean("force_password_reset").notNull().default(false),
+  sessionsInvalidatedAt: timestamp("sessions_invalidated_at"),
+  lastLoginAt: timestamp("last_login_at"),
+  telegramId: varchar("telegram_id", { length: 50 }),
+
+  canEditSchedule:     boolean("can_edit_schedule").notNull().default(true),
+  canEditBookings:     boolean("can_edit_bookings").notNull().default(true),
+  canEditMasters:      boolean("can_edit_masters").notNull().default(false),
+  canEditBotFlows:     boolean("can_edit_bot_flows").notNull().default(false),
+  canRunOptimization:  boolean("can_run_optimization").notNull().default(false),
+  canEditInventory:    boolean("can_edit_inventory").notNull().default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  archivedAt: timestamp("archived_at"),
+}, (table) => [
+  uniqueIndex("salon_admins_salon_username_idx").on(table.salonId, table.username),
+]);
+
+export type SalonAdmin = typeof salonAdmins.$inferSelect;
+export type NewSalonAdmin = typeof salonAdmins.$inferInsert;
+
 export const materials = pgTable("materials", {
   id: serial("id").primaryKey(),
   salonId: integer("salon_id").notNull(),

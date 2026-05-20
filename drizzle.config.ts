@@ -40,6 +40,7 @@ export default {
     "material_lots",
     "service_variant_materials",
     "appointment_material_usage",
+    "salon_admins",
   ],
   dbCredentials: {
     url: process.env.DATABASE_URL!,
