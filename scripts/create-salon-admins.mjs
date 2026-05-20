@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS salon_admins (
 
 CREATE UNIQUE INDEX IF NOT EXISTS salon_admins_salon_username_idx
   ON salon_admins (salon_id, username);
+
+-- Migration: drop legacy composite index, replace with global username unique
+DROP INDEX IF EXISTS salon_admins_salon_username_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS salon_admins_username_idx ON salon_admins (username);
 `;
 
 try {

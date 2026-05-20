@@ -355,7 +355,7 @@ export const salonAdmins = pgTable("salon_admins", {
   createdAt: timestamp("created_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
 }, (table) => [
-  uniqueIndex("salon_admins_salon_username_idx").on(table.salonId, table.username),
+  uniqueIndex("salon_admins_username_idx").on(table.username),
 ]);
 
 export type SalonAdmin = typeof salonAdmins.$inferSelect;

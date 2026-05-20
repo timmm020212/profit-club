@@ -6,6 +6,10 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { rateLimit } from "./rate-limit";
 
+// Pre-computed bcrypt hash used to equalize timing when no user is found.
+// (Hash of "dummy" at cost 10 — value doesn't matter, just needs to be a valid bcrypt hash.)
+const DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMN";
+
 declare module "next-auth" {
   interface User {
     id: string;
@@ -104,7 +108,10 @@ export const authOptions: NextAuthOptions = {
             .where(eq(salonAdmins.username, username))
             .limit(1);
           if (sa) {
-            if (!sa.isActive || sa.archivedAt) return null;
+            if (!sa.isActive || sa.archivedAt) {
+              await bcrypt.compare(password, DUMMY_HASH).catch(() => false);
+              return null;
+            }
             const valid = await bcrypt.compare(password, sa.passwordHash);
             if (!valid) return null;
             // Track last login (best-effort, don't fail auth if this fails)
@@ -112,7 +119,7 @@ export const authOptions: NextAuthOptions = {
               await db.update(salonAdmins)
                 .set({ lastLoginAt: new Date() })
                 .where(eq(salonAdmins.id, sa.id));
-            } catch {}
+            } catch (e) { console.warn("lastLoginAt update failed:", e); }
             return {
               id: sa.id.toString(),
               name: sa.name,
@@ -136,7 +143,10 @@ export const authOptions: NextAuthOptions = {
           const [pa] = await db.select().from(admins)
             .where(eq(admins.username, username))
             .limit(1);
-          if (!pa || !pa.isActive) return null;
+          if (!pa || !pa.isActive) {
+            await bcrypt.compare(password, DUMMY_HASH).catch(() => false);
+            return null;
+          }
           const valid = await bcrypt.compare(password, pa.passwordHash);
           if (!valid) return null;
           return {
