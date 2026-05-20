@@ -66,9 +66,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "unit must be g | ml | pcs | m" }, { status: 400 });
     }
     const category = typeof body?.category === "string" && body.category.trim() ? body.category.trim() : null;
-    const thr = body?.lowStockThreshold != null && body.lowStockThreshold !== ""
-      ? String(Number(body.lowStockThreshold))
-      : null;
+    let thr: string | null = null;
+    if (body?.lowStockThreshold != null && body.lowStockThreshold !== "") {
+      const n = Number(body.lowStockThreshold);
+      if (!Number.isFinite(n) || n < 0) {
+        return NextResponse.json({ error: "lowStockThreshold must be a non-negative number" }, { status: 400 });
+      }
+      thr = String(n);
+    }
 
     const [row] = await dbRetry(() => db
       .insert(materials)

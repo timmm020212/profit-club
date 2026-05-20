@@ -18,8 +18,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof body?.name === "string" && body.name.trim()) patch.name = body.name.trim();
     if (typeof body?.category === "string") patch.category = body.category.trim() || null;
     if ("lowStockThreshold" in body) {
-      patch.lowStockThreshold = body.lowStockThreshold != null && body.lowStockThreshold !== ""
-        ? String(Number(body.lowStockThreshold)) : null;
+      if (body.lowStockThreshold == null || body.lowStockThreshold === "") {
+        patch.lowStockThreshold = null;
+      } else {
+        const n = Number(body.lowStockThreshold);
+        if (!Number.isFinite(n) || n < 0) {
+          return NextResponse.json({ error: "lowStockThreshold must be a non-negative number" }, { status: 400 });
+        }
+        patch.lowStockThreshold = String(n);
+      }
     }
     if (typeof body?.isActive === "boolean") patch.isActive = body.isActive;
     // Unit change is forbidden by design (past quantities lose meaning).
