@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, dbRetry } from "@/db/index-postgres";
 import { masters, salons } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { requireAdminSession } from "@/lib/requireAdminSession";
 
 
 // GET /api/masters[?salon=slug] - активные мастера салона (для публичной страницы — только showOnSite=true)
@@ -43,16 +44,28 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/masters - обновить мастера (имя, роль)
+// PATCH /api/masters - обновить мастера (имя, роль). Требует admin session + scope по salonId.
 export async function PATCH(request: Request) {
+  const { session, response } = await requireAdminSession("masters");
+  if (response) return response;
+  const sessionSalonId = session?.user?.salonId ?? null;
   try {
-
     const body = await request.json();
     const { id, fullName, specialization, showOnSite, photoUrl } = body || {};
 
     const idNum = Number(id);
     if (!id || Number.isNaN(idNum)) {
       return NextResponse.json({ error: "Некорректный id мастера" }, { status: 400 });
+    }
+
+    // Ownership check for salon admins: master must belong to their salon.
+    if (sessionSalonId) {
+      const [existing] = await db.select({ id: masters.id, salonId: masters.salonId })
+        .from(masters).where(eq(masters.id, idNum));
+      if (!existing) return NextResponse.json({ error: "Мастер не найден" }, { status: 404 });
+      if (existing.salonId !== sessionSalonId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const updateData: Partial<{ fullName: string; specialization: string; showOnSite: boolean; photoUrl: string | null }> = {};
@@ -94,8 +107,11 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/masters?id=... - деактивировать мастера
+// DELETE /api/masters?id=... - деактивировать мастера. Admin only + scope по salonId.
 export async function DELETE(request: Request) {
+  const { session, response } = await requireAdminSession("masters");
+  if (response) return response;
+  const sessionSalonId = session?.user?.salonId ?? null;
   try {
 
     const { searchParams } = new URL(request.url);
@@ -104,6 +120,16 @@ export async function DELETE(request: Request) {
 
     if (!id || Number.isNaN(idNum)) {
       return NextResponse.json({ error: "Некорректный id мастера" }, { status: 400 });
+    }
+
+    // Ownership check for salon admins
+    if (sessionSalonId) {
+      const [existing] = await db.select({ id: masters.id, salonId: masters.salonId })
+        .from(masters).where(eq(masters.id, idNum));
+      if (!existing) return NextResponse.json({ error: "Мастер не найден" }, { status: 404 });
+      if (existing.salonId !== sessionSalonId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const [updated] = await db
@@ -126,10 +152,12 @@ export async function DELETE(request: Request) {
   }
 }
 
-// POST /api/masters - создать нового мастера (используется в админ-панели)
+// POST /api/masters - создать нового мастера (админ-панель). Сетит salonId из сессии.
 export async function POST(request: Request) {
+  const { session, response } = await requireAdminSession("masters");
+  if (response) return response;
+  const sessionSalonId = session?.user?.salonId ?? null;
   try {
-
     const body = await request.json();
     const {
       fullName,
@@ -172,6 +200,9 @@ export async function POST(request: Request) {
         isActive: true,
         showOnSite: showOnSite !== false,
         createdAt: new Date().toISOString(),
+        // Bind master to the admin's salon. Legacy global admin (no salonId)
+        // creates in salon=1 (the default Profit Club tenant) for back-compat.
+        salonId: sessionSalonId ?? 1,
       })
       .returning();
 
