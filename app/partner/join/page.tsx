@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BeautyBookLogo from "@/components/BeautyBookLogo";
 
 // ────────── design tokens — sage-cream editorial ──────────
 const c = {
@@ -150,24 +151,14 @@ export default function PartnerJoinPage() {
       }} />
 
       <div style={{ width: "100%", maxWidth: 440, position: "relative", zIndex: 1 }}>
-        {/* Wordmark */}
-        <div style={{
-          marginBottom: 32,
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{
-            display: "inline-block", width: 32, height: 32, borderRadius: 8,
-            background: c.accent,
-            color: "#fff",
-            fontFamily: "var(--font-playfair)",
-            fontSize: 18, fontWeight: 600, fontStyle: "italic",
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            lineHeight: 1,
-          }}>B</span>
-          <span style={{
-            fontSize: 14, fontWeight: 600, color: c.txtDark,
-            letterSpacing: "0.02em",
-          }}>BeautyBook</span>
+        {/* Logo */}
+        <div style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
+          <BeautyBookLogo
+            variant="horizontal"
+            size={48}
+            accent={c.accent}
+            text={c.txtDark}
+          />
         </div>
 
         {/* Card */}
