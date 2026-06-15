@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { dbRetry } from "@/db/index-postgres";
 import { appointments, masters, services, workSlots, scheduleBlocks, salons } from "@/db/schema";
 import AdminHeader from "@/components/AdminHeader";
 import AdminWorkSlotsCreator from "@/components/AdminWorkSlotsCreator";
@@ -73,15 +74,22 @@ export default async function AdminDashboardPage({
       : null;
 
   // Fetch salon identity (name + logo) for the header — only for salonAdmin.
+  // Wrapped in dbRetry (Supabase pooler kills idle connections) + try/catch
+  // because branding failure must NOT crash the entire admin dashboard.
   let salonName: string | null = null;
   let salonLogoUrl: string | null = null;
   if (salonId) {
-    const [s] = await db
-      .select({ name: salons.name, logoUrl: salons.logoUrl })
-      .from(salons)
-      .where(eq(salons.id, salonId));
-    salonName = s?.name ?? null;
-    salonLogoUrl = s?.logoUrl ?? null;
+    try {
+      const [s] = await dbRetry(() => db
+        .select({ name: salons.name, logoUrl: salons.logoUrl })
+        .from(salons)
+        .where(eq(salons.id, salonId))
+      );
+      salonName = s?.name ?? null;
+      salonLogoUrl = s?.logoUrl ?? null;
+    } catch (e) {
+      console.warn("Admin header: salon lookup failed", e);
+    }
   }
 
   const perms = session?.user?.role === "salonAdmin"
