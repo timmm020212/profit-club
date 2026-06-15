@@ -66,15 +66,40 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("Register error:", msg);
-    // Surface concrete errors to the user where safe — generic only for unknown.
-    if (/unique constraint/i.test(msg) && /slug/i.test(msg)) {
+    const err = error as { message?: string; cause?: { message?: string; code?: string; detail?: string } };
+    const msg = err?.message ?? String(error);
+    // Drizzle wraps PG errors; the actual reason lives in error.cause.
+    const causeMsg = err?.cause?.message ?? "";
+    const causeCode = err?.cause?.code ?? "";
+    const fullDetail = [msg, causeCode && `[${causeCode}]`, causeMsg].filter(Boolean).join(" — ");
+    console.error("Register error:", fullDetail, err?.cause);
+
+    const probe = `${msg} ${causeMsg}`;
+    if (/unique constraint/i.test(probe) && /slug/i.test(probe)) {
       return NextResponse.json({ error: "Слаг уже занят. Попробуйте другое название." }, { status: 400 });
     }
-    if (/unique constraint/i.test(msg) && /email/i.test(msg)) {
+    if (/unique constraint/i.test(probe) && /email/i.test(probe)) {
       return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 400 });
     }
-    return NextResponse.json({ error: "Ошибка регистрации. Попробуйте ещё раз.", detail: msg }, { status: 500 });
+    // Specific common Supabase / Postgres failure modes — guide the user.
+    if (/relation .* does not exist/i.test(probe) || causeCode === "42P01") {
+      return NextResponse.json({
+        error: "Таблица partner_users не существует в БД. Запустите db:push.",
+        detail: fullDetail,
+      }, { status: 500 });
+    }
+    if (/permission denied/i.test(probe) || causeCode === "42501") {
+      return NextResponse.json({
+        error: "У пользователя БД нет прав на partner_users. Проверьте Supabase RLS / роль.",
+        detail: fullDetail,
+      }, { status: 500 });
+    }
+    if (/connection|ECONNREFUSED|ETIMEDOUT|terminated|EAI_AGAIN/i.test(probe)) {
+      return NextResponse.json({
+        error: "Не удалось подключиться к БД. Проверьте DATABASE_URL и доступность Supabase.",
+        detail: fullDetail,
+      }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Ошибка регистрации. Попробуйте ещё раз.", detail: fullDetail }, { status: 500 });
   }
 }
