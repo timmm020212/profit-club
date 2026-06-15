@@ -2,122 +2,81 @@
 import React from "react";
 
 /**
- * BeautyBook logo — editorial sage mark + serif wordmark.
+ * BeautyBook logo — pure typographic wordmark.
  *
  * Design:
- *   - Mark: thin circle (echoes the decorative circle on /partner/join)
- *           with italic Playfair "B" centered and a small period dot below
- *           (colophon-style flourish).
- *   - Wordmark: stacked "Beauty / Book" in Playfair — "Beauty" regular,
- *           "Book" italic in accent colour. Tight leading, magazine masthead.
+ *   - "Beauty" in dark charcoal + "Book" in sage accent — one word, two
+ *     colours. No icon, no decorative shapes.
+ *   - Thin short accent line beneath acts as the visual stamp.
+ *   - Classic neutral sans (Inter) so it reads as established/refined
+ *     across surfaces.
  *
  * Variants:
- *   - "mark"        : icon only
- *   - "horizontal"  : icon + wordmark side by side (default)
- *   - "wordmark"    : text only
- *
- * Colors default to the sage/charcoal palette of the join page; pass `accent`
- * and `text` to recolour for dark surfaces or alternate themes.
+ *   - "horizontal" (default): wordmark with the bar underneath
+ *   - "stacked": Beauty / Book on two lines for narrow layouts
+ *   - "inline":  wordmark only, no bar (for tight headers)
  */
 export interface BeautyBookLogoProps {
-  variant?: "mark" | "horizontal" | "wordmark";
-  size?: number;       // overall height in px; everything scales from it
-  accent?: string;     // mark + italic "Book" colour
-  text?: string;       // "Beauty" colour
+  variant?: "horizontal" | "stacked" | "inline";
+  size?: number;       // wordmark font-size in px
+  accent?: string;     // colour applied to "Book" + the bar
+  text?: string;       // colour applied to "Beauty"
   className?: string;
   style?: React.CSSProperties;
 }
 
 export default function BeautyBookLogo({
   variant = "horizontal",
-  size = 44,
+  size = 24,
   accent = "#4A6741",
   text   = "#1F2A1B",
   className,
   style,
 }: BeautyBookLogoProps) {
-  if (variant === "wordmark") {
+  const family = "var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+  if (variant === "stacked") {
     return (
-      <Wordmark size={size} accent={accent} text={text} className={className} style={style} />
+      <span className={className} style={{
+        display: "inline-flex", flexDirection: "column", alignItems: "flex-start",
+        lineHeight: 1, fontFamily: family, fontWeight: 600,
+        letterSpacing: "-0.02em",
+        ...style,
+      }}>
+        <span style={{ fontSize: size, color: text }}>Beauty</span>
+        <span style={{ fontSize: size, color: accent, marginTop: size * -0.08 }}>Book</span>
+      </span>
     );
   }
 
-  const mark = <Mark size={size} accent={accent} />;
+  const wordmark = (
+    <span style={{
+      fontFamily: family, fontWeight: 600,
+      fontSize: size, color: text,
+      letterSpacing: "-0.02em",
+      lineHeight: 1,
+    }}>
+      Beauty<span style={{ color: accent }}>Book</span>
+    </span>
+  );
 
-  if (variant === "mark") {
-    return <span className={className} style={style}>{mark}</span>;
+  if (variant === "inline") {
+    return <span className={className} style={style}>{wordmark}</span>;
   }
 
   return (
     <span className={className} style={{
-      display: "inline-flex", alignItems: "center", gap: size * 0.28,
+      display: "inline-flex", flexDirection: "column", alignItems: "center",
+      gap: size * 0.34,
       ...style,
     }}>
-      {mark}
-      <Wordmark size={size * 0.82} accent={accent} text={text} />
-    </span>
-  );
-}
-
-// ────────── SVG mark ──────────
-function Mark({ size, accent }: { size: number; accent: string }) {
-  // viewBox is 48 — all sizes are proportional inside.
-  const stroke = Math.max(1, size / 30); // ~1.5px at size 44
-  return (
-    <svg
-      width={size} height={size}
-      viewBox="0 0 48 48"
-      aria-hidden="true"
-      style={{ display: "block", flexShrink: 0 }}
-    >
-      {/* Outer ring */}
-      <circle
-        cx="24" cy="24" r="22.25"
-        fill="none" stroke={accent}
-        strokeWidth={stroke}
-      />
-      {/* Italic Playfair "B" — uses font-family from CSS variable. */}
-      <text
-        x="24" y="31.5"
-        textAnchor="middle"
-        fontFamily="var(--font-playfair), 'Playfair Display', Georgia, serif"
-        fontStyle="italic"
-        fontWeight={500}
-        fontSize="22"
-        fill={accent}
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        B
-      </text>
-      {/* Tiny colophon dot under the letter */}
-      <circle cx="24" cy="38" r="0.95" fill={accent} />
-    </svg>
-  );
-}
-
-// ────────── Wordmark (stacked) ──────────
-function Wordmark({
-  size, accent, text, className, style,
-}: { size: number; accent: string; text: string; className?: string; style?: React.CSSProperties }) {
-  // size = approximate uppercase cap height of "Beauty". 14 → ~14px font.
-  const fontSize = size * 0.38; // tuned visually
-  return (
-    <span
-      className={className}
-      style={{
-        display: "inline-flex", flexDirection: "column",
-        lineHeight: 0.96,
-        fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
-        fontWeight: 500,
-        letterSpacing: "-0.01em",
-        ...style,
-      }}
-    >
-      <span style={{ fontSize, color: text }}>Beauty</span>
+      {wordmark}
       <span style={{
-        fontSize, color: accent, fontStyle: "italic",
-        marginTop: fontSize * -0.06, // tighten optical gap
-      }}>Book</span>
+        display: "block",
+        width: size * 1.3, height: 2,
+        background: accent,
+        borderRadius: 1,
+      }} />
     </span>
   );
 }

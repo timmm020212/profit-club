@@ -132,7 +132,7 @@ export default function PartnerJoinPage() {
     <div style={{
       minHeight: "100vh", background: c.bg,
       display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 24, fontFamily: "var(--font-montserrat)",
+      padding: 24, fontFamily: "var(--font-inter), Inter, -apple-system, sans-serif",
       position: "relative", overflow: "hidden",
     }}>
       {/* Decorative dot grid in the corner — subtle texture, no gradient */}
@@ -152,10 +152,10 @@ export default function PartnerJoinPage() {
 
       <div style={{ width: "100%", maxWidth: 440, position: "relative", zIndex: 1 }}>
         {/* Logo */}
-        <div style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
+        <div style={{ marginBottom: 32, display: "flex", justifyContent: "center" }}>
           <BeautyBookLogo
             variant="horizontal"
-            size={48}
+            size={26}
             accent={c.accent}
             text={c.txtDark}
           />
@@ -168,27 +168,20 @@ export default function PartnerJoinPage() {
           padding: "40px 36px 32px",
           boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
         }}>
-          {/* Pretitle */}
-          <div style={{
-            fontSize: 10, color: c.accent, fontWeight: 700,
-            letterSpacing: "0.22em", textTransform: "uppercase",
-            marginBottom: 14,
-          }}>Партнёр</div>
-
-          {/* H1 — serif, editorial */}
+          {/* H1 — clean Inter, no Playfair */}
           <h1 style={{
-            fontFamily: "var(--font-playfair)",
-            fontSize: 38, fontWeight: 400,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+            fontSize: 26, fontWeight: 700,
             color: c.txtDark, margin: 0,
-            lineHeight: 1.05, letterSpacing: "-0.015em",
+            lineHeight: 1.2, letterSpacing: "-0.01em",
           }}>
-            Регистрация<br />
-            <span style={{ fontStyle: "italic", color: c.accent }}>салона</span>
+            Регистрация салона
           </h1>
 
           <p style={{
-            fontSize: 13, color: c.txtMute, margin: "16px 0 30px",
-            lineHeight: 1.55, maxWidth: 320,
+            fontSize: 14, color: c.txtMute, margin: "10px 0 28px",
+            lineHeight: 1.5, maxWidth: 360,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
           }}>
             Создайте аккаунт салона за минуту. Все настройки — потом, сейчас только основное.
           </p>
@@ -199,8 +192,9 @@ export default function PartnerJoinPage() {
               border: `1px solid ${c.danger}`,
               borderRadius: 8, padding: "10px 14px",
               marginBottom: 18,
-              fontSize: 12, color: c.danger, fontWeight: 600,
-              lineHeight: 1.4,
+              fontSize: 13, color: c.danger, fontWeight: 500,
+              lineHeight: 1.45,
+              fontFamily: "var(--font-inter), Inter, sans-serif",
             }}>{error}</div>
           )}
 
@@ -261,7 +255,7 @@ export default function PartnerJoinPage() {
                           padding: "10px 14px",
                           background: active ? c.accentSft : "transparent",
                           border: "none", cursor: "pointer",
-                          fontFamily: "var(--font-montserrat)",
+                          fontFamily: "var(--font-inter), Inter, sans-serif",
                           fontSize: 13,
                           color: active ? c.accentDk : c.txtDark,
                           fontWeight: active ? 600 : 500,
@@ -310,9 +304,8 @@ export default function PartnerJoinPage() {
                 background: loading ? c.txtMute : c.txtDark,
                 color: "#fff", border: "none",
                 borderRadius: 10, padding: "14px 22px",
-                fontSize: 13, fontWeight: 700, letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                fontFamily: "var(--font-montserrat)",
+                fontSize: 15, fontWeight: 600, letterSpacing: "0",
+                fontFamily: "var(--font-inter), Inter, sans-serif",
                 cursor: loading ? "not-allowed" : "pointer",
                 transition: "background 0.16s",
               }}
@@ -379,11 +372,18 @@ function UnderlineField({
         marginBottom: 6,
       }}>
         <label style={{
-          fontSize: 10, color: c.txtMute, fontWeight: 700,
-          letterSpacing: "0.18em", textTransform: "uppercase",
-        }}>{label}{required && <span style={{ color: c.accent, marginLeft: 4 }}>·</span>}</label>
+          fontSize: 12, color: c.txtBody, fontWeight: 500,
+          letterSpacing: "0",
+          fontFamily: "var(--font-inter), Inter, sans-serif",
+        }}>
+          {label}
+          {required && <span style={{ color: c.accent, marginLeft: 3, fontWeight: 700 }}>*</span>}
+        </label>
         {hint && (
-          <span style={{ fontSize: 10, color: c.txtMute }}>{hint}</span>
+          <span style={{
+            fontSize: 11, color: c.txtMute,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+          }}>{hint}</span>
         )}
       </div>
       <input
@@ -399,16 +399,20 @@ function UnderlineField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         style={{
+          // Fixed 2px border-bottom always — only color changes on focus.
+          // No padding swap. Zero layout shift.
           width: "100%", boxSizing: "border-box",
           background: "transparent",
           border: "none",
-          borderBottom: `${focused ? 2 : 1}px solid ${focused ? c.accent : c.border}`,
+          borderBottom: "2px solid",
+          borderBottomColor: focused ? c.accent : c.border,
           borderRadius: 0,
-          padding: focused ? "9px 0 8px" : "10px 0 9px",
-          fontSize: 15, color: c.txtDark,
-          fontFamily: "var(--font-montserrat)",
+          padding: "10px 0 9px",
+          fontSize: 16, color: c.txtDark,
+          fontFamily: "var(--font-inter), Inter, sans-serif",
+          fontWeight: 400,
           outline: "none",
-          transition: "border-color 0.18s, border-width 0.18s",
+          transition: "border-bottom-color 0.18s",
         }}
       />
     </div>
