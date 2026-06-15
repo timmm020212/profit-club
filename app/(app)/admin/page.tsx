@@ -43,13 +43,27 @@ async function getAdminDataForDate(dateStr: string, salonId: number | null) {
   // scheduleBlocks has no salonId in current schema — filter via masters join
   const blockCond = eq(scheduleBlocks.blockDate, dateStr);
 
-  const [appointmentsData, mastersData, servicesData, workSlotsData, blocksData] = await Promise.all([
-    db.select().from(appointments).where(apptCond).orderBy(appointments.startTime as any),
-    db.select().from(masters).where(masterCond),
-    serviceCond ? db.select().from(services).where(serviceCond) : db.select().from(services),
-    db.select().from(workSlots).where(slotCond).orderBy(workSlots.startTime as any),
-    db.select().from(scheduleBlocks).where(blockCond),
+  // Each query wrapped in dbRetry (Supabase pooler kills idle connections)
+  // and Promise.allSettled so a single transient failure doesn't crash the
+  // whole dashboard — partial degraded view is better than 500.
+  const settled = await Promise.allSettled([
+    dbRetry(() => db.select().from(appointments).where(apptCond).orderBy(appointments.startTime as any)),
+    dbRetry(() => db.select().from(masters).where(masterCond)),
+    dbRetry(() => serviceCond ? db.select().from(services).where(serviceCond) : db.select().from(services)),
+    dbRetry(() => db.select().from(workSlots).where(slotCond).orderBy(workSlots.startTime as any)),
+    dbRetry(() => db.select().from(scheduleBlocks).where(blockCond)),
   ]);
+  const pick = <T,>(i: number, fallback: T): T => {
+    const r = settled[i];
+    if (r.status === "fulfilled") return r.value as T;
+    console.warn(`Admin query ${i} failed:`, r.reason);
+    return fallback;
+  };
+  const appointmentsData = pick(0, [] as any[]);
+  const mastersData      = pick(1, [] as any[]);
+  const servicesData     = pick(2, [] as any[]);
+  const workSlotsData    = pick(3, [] as any[]);
+  const blocksData       = pick(4, [] as any[]);
 
   // Post-filter blocks by mastersData (scheduleBlocks has no salonId column)
   const masterIds = new Set(mastersData.map((m: any) => m.id));
