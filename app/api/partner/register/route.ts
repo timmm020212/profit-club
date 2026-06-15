@@ -26,13 +26,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 400 });
     }
 
-    // Generate unique slug from salon name
-    const base = salonName
-      .toLowerCase()
-      .replace(/[^a-zа-яё0-9\s]/gi, "")
+    // Generate unique slug: transliterate cyrillic → latin, keep only [a-z0-9-]
+    const TRANSLIT: Record<string, string> = {
+      "а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z",
+      "и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r",
+      "с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch","ш":"sh","щ":"shch",
+      "ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya",
+    };
+    const transliterated = String(salonName).toLowerCase().split("")
+      .map((ch: string) => TRANSLIT[ch] ?? ch)
+      .join("");
+    const base = transliterated
+      .replace(/[^a-z0-9\s-]/g, "")
       .trim()
       .replace(/\s+/g, "-")
-      .substring(0, 40);
+      .replace(/-+/g, "-")
+      .substring(0, 40)
+      || "salon"; // fallback if name has no representable characters
     const slug = base + "-" + Date.now().toString(36);
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -58,6 +68,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("Register error:", msg);
-    return NextResponse.json({ error: "Ошибка регистрации. Попробуйте ещё раз." }, { status: 500 });
+    // Surface concrete errors to the user where safe — generic only for unknown.
+    if (/unique constraint/i.test(msg) && /slug/i.test(msg)) {
+      return NextResponse.json({ error: "Слаг уже занят. Попробуйте другое название." }, { status: 400 });
+    }
+    if (/unique constraint/i.test(msg) && /email/i.test(msg)) {
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Ошибка регистрации. Попробуйте ещё раз.", detail: msg }, { status: 500 });
   }
 }
