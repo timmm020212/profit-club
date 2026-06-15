@@ -46,6 +46,7 @@ export default function PartnerJoinPage() {
   const [form, setForm] = useState<FormState>({ salonName: "", city: "", email: "", password: "" });
   const [focused, setFocused] = useState<keyof FormState | null>(null);
   const [error, setError] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
   const [loading, setLoading] = useState(false);
 
   // city autocomplete
@@ -98,8 +99,8 @@ export default function PartnerJoinPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.password.length < 8) { setError("Пароль минимум 8 символов"); return; }
-    setLoading(true); setError("");
+    if (form.password.length < 8) { setError("Пароль минимум 8 символов"); setErrorDetail(""); return; }
+    setLoading(true); setError(""); setErrorDetail("");
     try {
       const res = await fetch("/api/partner/register", {
         method: "POST",
@@ -109,6 +110,7 @@ export default function PartnerJoinPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error || "Не удалось зарегистрироваться. Попробуйте ещё раз.");
+        setErrorDetail(typeof data.detail === "string" ? data.detail : "");
         setLoading(false);
         return;
       }
@@ -195,7 +197,19 @@ export default function PartnerJoinPage() {
               fontSize: 13, color: c.danger, fontWeight: 500,
               lineHeight: 1.45,
               fontFamily: "var(--font-inter), Inter, sans-serif",
-            }}>{error}</div>
+            }}>
+              {error}
+              {errorDetail && (
+                <div style={{
+                  marginTop: 6, paddingTop: 6,
+                  borderTop: `1px solid ${c.danger}33`,
+                  fontSize: 11, fontWeight: 400, opacity: 0.85,
+                  wordBreak: "break-word",
+                }}>
+                  <span style={{ fontWeight: 600 }}>Тех. детали:</span> {errorDetail}
+                </div>
+              )}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
