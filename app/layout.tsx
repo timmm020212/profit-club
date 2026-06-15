@@ -10,7 +10,7 @@ const playfairDisplay = Playfair_Display({
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
