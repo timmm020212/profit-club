@@ -3,77 +3,279 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BeautyBookLogo from "@/components/BeautyBookLogo";
 
-const accent = "#9B4A62";
-const txtDark = "#2D2520", txtSoft = "#B0A49A";
-const border = "#E4DDD5";
+// ────────── design tokens — sage-cream editorial (synced with /partner/join) ──────────
+const c = {
+  bg:          "#FAF6F0",
+  cardBg:      "#FFFFFF",
+  border:      "#E5E0D6",
+  borderSoft:  "#F0EBE1",
+  txtDark:     "#1F2A1B",
+  txtBody:     "#4F5947",
+  txtMute:     "#7A8472",
+  accent:      "#4A6741",
+  accentDk:    "#3A5232",
+  accentSft:   "#E8EDE3",
+  danger:      "#A04141",
+  dangerSft:   "#F4E4E4",
+};
 
-const inputSt = (focused: boolean): React.CSSProperties => ({
-  width: "100%", background: "#FFFCF8", border: `1px solid ${focused ? accent : border}`,
-  borderRadius: 8, padding: "11px 14px", fontSize: 13, color: txtDark,
-  fontFamily: "var(--font-montserrat)", outline: "none",
-  boxSizing: "border-box", transition: "border-color 0.2s",
-});
+type FormState = { email: string; password: string };
 
 export default function PartnerLoginPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState<FormState>({ email: "", password: "" });
+  const [focused, setFocused] = useState<keyof FormState | null>(null);
   const [error, setError] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
-    const result = await signIn("partner", { email: form.email, password: form.password, redirect: false });
-    if (result?.error) { setError("Неверный email или пароль"); setLoading(false); return; }
-    router.push("/partner/dashboard");
+    setLoading(true);
+    setError("");
+    setErrorDetail("");
+    try {
+      const result = await signIn("partner", {
+        email: form.email.trim(),
+        password: form.password,
+        redirect: false,
+      });
+      if (!result?.ok) {
+        setError("Неверный email или пароль");
+        setLoading(false);
+        return;
+      }
+      router.push("/partner/dashboard");
+    } catch (err) {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+      setErrorDetail(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+    }
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F2EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        {/* Brand */}
-        <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <div style={{ fontFamily: "var(--font-montserrat)", fontSize: 22, fontWeight: 700, color: txtDark, letterSpacing: "0.04em" }}>BeautyBook</div>
-          <div style={{ width: 32, height: 2, background: accent, margin: "12px auto 0" }} />
+    <div style={{
+      minHeight: "100vh", background: c.bg,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 24, fontFamily: "var(--font-inter), Inter, -apple-system, sans-serif",
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* Decorative — matches /partner/join */}
+      <div aria-hidden style={{
+        position: "absolute", top: 40, right: 40, width: 180, height: 180,
+        backgroundImage: `radial-gradient(${c.accentSft} 1.2px, transparent 1.2px)`,
+        backgroundSize: "14px 14px",
+        opacity: 0.7,
+        pointerEvents: "none",
+      }} />
+      <div aria-hidden style={{
+        position: "absolute", bottom: -40, left: -40, width: 220, height: 220,
+        border: `1px solid ${c.border}`,
+        borderRadius: "50%",
+        pointerEvents: "none",
+      }} />
+
+      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
+        {/* Logo */}
+        <div style={{ marginBottom: 32, display: "flex", justifyContent: "center" }}>
+          <BeautyBookLogo
+            variant="horizontal"
+            size={26}
+            accent={c.accent}
+            text={c.txtDark}
+          />
         </div>
 
-        <div style={{ background: "#FFFCF8", borderRadius: 12, border: `1px solid ${border}`, padding: "36px 32px" }}>
-          <h1 style={{ fontFamily: "var(--font-montserrat)", fontSize: 24, fontWeight: 700, color: txtDark, margin: "0 0 4px" }}>Вход</h1>
-          <p style={{ fontFamily: "var(--font-montserrat)", fontSize: 12, color: txtSoft, margin: "0 0 28px", letterSpacing: "0.01em" }}>Партнёрский кабинет</p>
+        {/* Card */}
+        <div style={{
+          background: c.cardBg, borderRadius: 16,
+          border: `1px solid ${c.border}`,
+          padding: "40px 36px 32px",
+          boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
+        }}>
+          <h1 style={{
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+            fontSize: 26, fontWeight: 700,
+            color: c.txtDark, margin: 0,
+            lineHeight: 1.2, letterSpacing: "-0.01em",
+          }}>
+            Вход
+          </h1>
+
+          <p style={{
+            fontSize: 14, color: c.txtMute, margin: "10px 0 28px",
+            lineHeight: 1.5,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+          }}>
+            Партнёрский кабинет — войдите в свой аккаунт салона.
+          </p>
 
           {error && (
-            <div style={{ border: `1px solid ${accent}`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 12, color: accent, fontFamily: "var(--font-montserrat)" }}>{error}</div>
+            <div style={{
+              background: c.dangerSft,
+              border: `1px solid ${c.danger}`,
+              borderRadius: 8, padding: "10px 14px",
+              marginBottom: 18,
+              fontSize: 13, color: c.danger, fontWeight: 500,
+              lineHeight: 1.45,
+              fontFamily: "var(--font-inter), Inter, sans-serif",
+            }}>
+              {error}
+              {errorDetail && (
+                <div style={{
+                  marginTop: 6, paddingTop: 6,
+                  borderTop: `1px solid ${c.danger}33`,
+                  fontSize: 11, fontWeight: 400, opacity: 0.85,
+                  wordBreak: "break-word",
+                }}>
+                  <span style={{ fontWeight: 600 }}>Тех. детали:</span> {errorDetail}
+                </div>
+              )}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {[
-              { key: "email", label: "Email", type: "email" },
-              { key: "password", label: "Пароль", type: "password" },
-            ].map(f => (
-              <div key={f.key}>
-                <label style={{ display: "block", fontSize: 9, fontFamily: "var(--font-montserrat)", color: txtSoft, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 7 }}>{f.label}</label>
-                <input type={f.type} required value={form[f.key as keyof typeof form]}
-                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  onFocus={() => setFocused(f.key)} onBlur={() => setFocused(null)}
-                  style={inputSt(focused === f.key)} />
-              </div>
-            ))}
-            <button type="submit" disabled={loading} style={{
-              background: loading ? "#ccc" : accent, color: "#fff", border: "none",
-              borderRadius: 8, padding: "12px 22px", fontSize: 13, fontWeight: 600,
-              fontFamily: "var(--font-montserrat)", cursor: loading ? "not-allowed" : "pointer",
-              letterSpacing: "0.04em", marginTop: 4, transition: "background 0.2s",
-            }}>{loading ? "Входим..." : "Войти"}</button>
+            <UnderlineField
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={v => setForm(p => ({ ...p, email: v }))}
+              focused={focused === "email"}
+              onFocus={() => setFocused("email")}
+              onBlur={() => setFocused(null)}
+              required
+              autoComplete="email"
+              placeholder="you@salon.ru"
+            />
+
+            <UnderlineField
+              label="Пароль"
+              type="password"
+              value={form.password}
+              onChange={v => setForm(p => ({ ...p, password: v }))}
+              focused={focused === "password"}
+              onFocus={() => setFocused("password")}
+              onBlur={() => setFocused(null)}
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
+
+            <button type="submit" disabled={loading}
+              style={{
+                marginTop: 14,
+                background: loading ? c.txtMute : c.txtDark,
+                color: "#fff", border: "none",
+                borderRadius: 10, padding: "14px 22px",
+                fontSize: 15, fontWeight: 600, letterSpacing: "0",
+                fontFamily: "var(--font-inter), Inter, sans-serif",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "background 0.16s",
+              }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = c.accent; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = c.txtDark; }}
+            >
+              {loading ? "Входим…" : "Войти"}
+            </button>
           </form>
 
-          <p style={{ textAlign: "center", marginTop: 22, fontSize: 12, color: txtSoft, fontFamily: "var(--font-montserrat)" }}>
-            Нет аккаунта?{" "}
-            <Link href="/partner/join" style={{ color: accent, fontWeight: 600, textDecoration: "none" }}>Зарегистрироваться</Link>
-          </p>
+          <div style={{
+            marginTop: 24, paddingTop: 18,
+            borderTop: `1px solid ${c.borderSoft}`,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            fontSize: 12, color: c.txtMute,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+          }}>
+            <span>Нет аккаунта?</span>
+            <Link href="/partner/join" style={{
+              color: c.accent, fontWeight: 700, textDecoration: "none",
+              borderBottom: `1.5px solid ${c.accent}`,
+              paddingBottom: 1,
+            }}>Зарегистрироваться</Link>
+          </div>
         </div>
+
+        <p style={{
+          fontSize: 11, color: c.txtMute, textAlign: "center",
+          marginTop: 20, lineHeight: 1.5,
+          fontFamily: "var(--font-inter), Inter, sans-serif",
+        }}>
+          BeautyBook · Платформа для салонов
+        </p>
       </div>
+    </div>
+  );
+}
+
+// ────────── reusable underline field (identical to /partner/join) ──────────
+interface UnderlineFieldProps {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  focused: boolean;
+  onFocus: () => void;
+  onBlur: () => void;
+  type?: string;
+  required?: boolean;
+  minLength?: number;
+  placeholder?: string;
+  autoComplete?: string;
+}
+
+function UnderlineField({
+  label, hint, value, onChange, focused,
+  onFocus, onBlur, type = "text",
+  required, minLength, placeholder, autoComplete,
+}: UnderlineFieldProps) {
+  return (
+    <div>
+      <div style={{
+        display: "flex", alignItems: "baseline", justifyContent: "space-between",
+        marginBottom: 6,
+      }}>
+        <label style={{
+          fontSize: 12, color: c.txtBody, fontWeight: 500,
+          letterSpacing: "0",
+          fontFamily: "var(--font-inter), Inter, sans-serif",
+        }}>
+          {label}
+          {required && <span style={{ color: c.accent, marginLeft: 3, fontWeight: 700 }}>*</span>}
+        </label>
+        {hint && (
+          <span style={{
+            fontSize: 11, color: c.txtMute,
+            fontFamily: "var(--font-inter), Inter, sans-serif",
+          }}>{hint}</span>
+        )}
+      </div>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        required={required}
+        minLength={minLength}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: "transparent",
+          border: "none",
+          borderBottom: "2px solid",
+          borderBottomColor: focused ? c.accent : c.border,
+          borderRadius: 0,
+          padding: "10px 0 9px",
+          fontSize: 16, color: c.txtDark,
+          fontFamily: "var(--font-inter), Inter, sans-serif",
+          fontWeight: 400,
+          outline: "none",
+          transition: "border-bottom-color 0.18s",
+        }}
+      />
     </div>
   );
 }
